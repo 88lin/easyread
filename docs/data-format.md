@@ -101,19 +101,21 @@ JSON 里 TeX 的反斜杠要写两个（`\\frac`）。`\f` `\b` `\t` `\n` `\r` �
 ## chat.json（“问 AI”的对话记录，只有服务写）
 
 ```json
-{ "messages": [
-  { "role": "user", "content": "这里为什么能用中心极限定理？", "anchor": "s1-recs", "quote": "", "note": null, "at": "…" },
-  { "id": "m…", "role": "assistant", "content": "……", "model": "claude sonnet", "anchor": "s1-recs", "note": null, "at": "…" } ] }
+{ "threads": [
+  { "id": "t…", "title": "我标红的那些公式有什么联系", "model": "opus", "created": "…", "updated": "…",
+    "messages": [
+      { "role": "user", "content": "…", "anchor": "s1-recs", "quote": "", "note": null, "at": "…" },
+      { "id": "m…", "role": "assistant", "content": "……", "model": "Claude Opus 5", "anchor": "s1-recs", "note": null, "at": "…" } ] } ] }
 ```
 
-`note` 不为空时，这次是在回答页边那条笔记里的问题，回答同时写进 discussion.json（`reply_to` 那条笔记，`live: true`）。“放到页边”把一条回答写成 discussion.json 里的 `qa` 条目。
+一篇论文可以有多个对话。`note` 不为空时，这次是在回答页边那条笔记里的问题，回答同时写进 discussion.json（`reply_to` 那条笔记，`live: true`）。“放到页边”把一条回答写成 discussion.json 里的 `qa` 条目。提问时会把读者的全部标记（按颜色分组）一起交给模型。
 
 ## 数据目录里的其他文件
 
 | 文件 | 内容 |
 |---|---|
-| `config.json` | 设置：翻译引擎、各家 API Key（`openai.keys`，按服务商分开存）、问 AI 用的模型（`chat`） |
-| `prefs.json` | 界面偏好：阅读页字号、版心、主题（`reader`），快捷键（`keys`） |
+| `config.json` | 设置：翻译引擎、各家 API Key（`openai.keys`，按服务商分开存）、问 AI 的模型名单和默认模型（`chat.models`、`chat.default`） |
+| `prefs.json` | 界面偏好：阅读页字号、版心、主题、划线笔（`reader`），功能开关和快捷键总开关（`ui`），改过的键位（`keys`） |
 | `easyread.log` | 服务日志，设置底部“查看运行日志”能看到 |
 
 ## 为什么用 JSON 文件而不是数据库

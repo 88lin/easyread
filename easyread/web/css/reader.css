@@ -155,6 +155,18 @@ mark.hl { background: var(--hl-yellow); color: inherit; border-radius: 2px; padd
 mark.hl.c-green { background: var(--hl-green); }
 mark.hl.c-blue { background: var(--hl-blue); }
 mark.hl.c-pink { background: var(--hl-pink); }
+/* 下划线笔：不涂底色，只画一条有颜色的实线（和 AI 讨论的细线区分：更粗、有颜色） */
+mark.hl.s-ul { background: transparent; box-shadow: inset 0 -2.5px 0 var(--ul-yellow); padding-bottom: .02em; }
+mark.hl.s-ul.c-green { box-shadow: inset 0 -2.5px 0 var(--ul-green); }
+mark.hl.s-ul.c-blue { box-shadow: inset 0 -2.5px 0 var(--ul-blue); }
+mark.hl.s-ul.c-pink { box-shadow: inset 0 -2.5px 0 var(--ul-pink); }
+.pens { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--rule) 55%, transparent); margin-right: 6px; }
+.pens button { width: 26px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-3); }
+.pens button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+.dots.pen-underline button { border-radius: 2px; height: 5px; margin-top: 8px; }
+.dots.pen-underline .dot-yellow { background: var(--ul-yellow); } .dots.pen-underline .dot-green { background: var(--ul-green); }
+.dots.pen-underline .dot-blue { background: var(--ul-blue); } .dots.pen-underline .dot-pink { background: var(--ul-pink); }
+.hl-edit { display: flex; align-items: center; margin: 4px 0 8px; }
 mark.hl.q { box-shadow: inset 0 -.14em 0 color-mix(in srgb, var(--mine) 65%, transparent); }
 mark.hl.agent { background: transparent; box-shadow: inset 0 -.12em 0 color-mix(in srgb, var(--accent) 45%, transparent); cursor: default; }
 mark.hl.active { outline: 2px solid color-mix(in srgb, var(--mine) 40%, transparent); outline-offset: 1px; }
@@ -237,7 +249,11 @@ textarea.editor { display: block; width: 100%; resize: none; overflow: hidden; b
   #stage { padding-top: calc(var(--bar-h) + 28px); width: 100%; font-size: calc(var(--fs) - 1px); }
   .zh { text-align: left; }
   .bar-titles, .job-state, [data-act="pages"] span, [data-act="notes"] span { display: none; }
-  .note-pin { left: auto; right: -12px; top: -.4em; }
+  .note-pin { left: auto; right: 0; top: -.4em; }
+  #bar .btn > span, #bar .save-state > span, #jobState { display: none; }
+  #bar .btn { padding: 0 8px; }
+  #bar .bar-titles { min-width: 0; flex: 1; overflow: hidden; }
+  #bar > .seg { display: none; }  /* 译文/对照 移到 Aa 里 */
   .pgmark { left: auto; right: 0; top: -1.2em; }
   .blk::before { left: -10px; }
   .edited-dot { left: -12px; }

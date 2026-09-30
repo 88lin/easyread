@@ -1,85 +1,27 @@
-"""阅读页右侧的“问 AI”：边读边和模型实时对话，回答一个字一个字流出来。
+"""阅读页右侧的“问 AI”：提示词和流式输出（回答一个字一个字流出来）。
 
-- 用哪个模型：设置里的 chat（默认跟翻译引擎一样，也可以单独选 Claude Code / Codex / 某家 API）。
-- 上下文：论文标题、当前段落的译文和原文、前后几段、术语表；Claude Code 还能自己 Read paper.json 看全文。
-- 记录：每篇论文的 chat.json，只有这里写。回答某条笔记里的问题时，同时写成 discussion.json 里的回复，
-  页边和笔记面板都能看到。
+- 用哪个模型：chat_models.py（设置里的一张短名单）。
+- 对话记录：chat_store.py（每篇论文可以有多个对话）。
+- 上下文：论文标题、摘要、读者指着的段落和前后几段、术语表，以及读者自己的全部标记——
+  按颜色分好的划线、笔记、问题，所以可以问“我标红的那些公式之间有什么联系”。
+  Claude Code 还能自己 Read paper.json、reader.json 看全文和全部标记。
 """
 from __future__ import annotations
 
-import copy
 import json
-import subprocess
 import threading
-import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
 from . import engines
-from .paperdata import add_discussion
-from .presets import PRESETS
 from .prompts import _block_text
-from .store import Workspace, now_iso
+from .store import Workspace
 
 HISTORY = 12  # 带上最近几轮对话
-CLAUDE_MODELS = [("sonnet", "Sonnet"), ("opus", "Opus"), ("haiku", "Haiku")]
-
-
-# ---------- 选模型 ----------
-def engine_cfg(cfg: dict, choice: dict | None = None) -> dict:
-    """把 chat 设置换成 engines 认的配置（engine + 对应子配置）。"""
-    ch = dict(cfg.get("chat") or {})
-    if choice:
-        ch.update({k: v for k, v in choice.items() if k in ("engine", "model", "preset")})
-    out = copy.deepcopy(cfg)
-    e = ch.get("engine") or "same"
-    if e == "same":
-        if out.get("engine") == "none":
-            raise engines.EngineError("还没选模型：在“问 AI”面板顶部选一个，或在设置里开翻译引擎")
-        return out
-    out["engine"] = e
-    if e in ("claude", "codex") and ch.get("model"):
-        out[e]["model"] = ch["model"]
-    if e == "openai":
-        preset = ch.get("preset") if ch.get("preset") is not None else out["openai"].get("preset")
-        p = next((x for x in PRESETS if x["id"] == preset), None)
-        o = out["openai"]
-        if p and p["id"] != o.get("preset"):
-            o["base_url"], o["model"] = p["base_url"], p["model"]
-        keys = dict(o.get("keys") or {})
-        if o.get("api_key"):
-            keys.setdefault(o.get("preset") or "", o["api_key"])
-        o["api_key"] = keys.get(preset or "", "")
-        o["preset"] = preset or ""
-        if ch.get("model"):
-            o["model"] = ch["model"]
-        o["vision"] = False
-    return out
-
-
-def options(cfg: dict) -> list[dict]:
-    """面板顶部的模型下拉框。ready=False 的会灰掉（没装或没填 Key）。"""
-    from .detect import detect, needs_key
-    found = detect(cfg)
-    keys = {k for k, v in (cfg["openai"].get("keys") or {}).items() if v}
-    if cfg["openai"].get("api_key"):
-        keys.add(cfg["openai"].get("preset") or "")
-    label = engines.ENGINE_NAMES.get(cfg.get("engine"), cfg.get("engine"))
-    if cfg.get("engine") == "openai":
-        label = cfg["openai"].get("model") or "API"
-    opts = [{"engine": "same", "model": "", "preset": "", "label": f"跟翻译引擎一样（{label}）", "ready": cfg.get("engine") != "none"}]
-    for m, name in CLAUDE_MODELS:
-        opts.append({"engine": "claude", "model": m, "preset": "", "label": f"Claude Code · {name}", "ready": bool(found.get("claude", {}).get("found"))})
-    opts.append({"engine": "codex", "model": "", "preset": "", "label": "Codex CLI（GPT）", "ready": bool(found.get("codex", {}).get("found"))})
-    for p in PRESETS:
-        ok = p["id"] in keys or not needs_key({"preset": p["id"]})
-        if p["group"] == "local" and p["id"] == "ollama":
-            ok = found.get("ollama", {}).get("running", False)
-        opts.append({"engine": "openai", "model": p["model"], "preset": p["id"], "label": f"{p['name']} · {p['model']}", "ready": ok,
-                     "models": p.get("models", [])})
-    return opts
+COLOR_NAMES = {"yellow": "黄", "green": "绿", "blue": "蓝", "pink": "红"}
+MARKS_BUDGET = 9000  # 标记部分最多带多少字
 
 
 # ---------- 提示词 ----------
@@ -108,31 +50,72 @@ def _context(ws: Workspace, anchor: str | None, quote: str) -> str:
     return "\n\n".join(lines)
 
 
+def _marks(ws: Workspace) -> str:
+    """读者的全部标记，按颜色分组；每处带上所在段落的译文（含 $TeX$），这样问“红色那些公式”也答得上。"""
+    paper = ws.load("paper")
+    blocks = {b.get("id"): b for b in paper.get("blocks", [])}
+    order = {b.get("id"): i for i, b in enumerate(paper.get("blocks", []))}
+    notes = [n for n in (ws.load("reader").get("notes") or {}).values() if not n.get("deleted")]
+    if not notes:
+        return ""
+    notes.sort(key=lambda n: order.get(n.get("anchor"), 1e9))
+    kinds = {"highlight": "划线", "note": "笔记", "question": "问题"}
+    groups: dict[str, list[str]] = {}
+    shown: set[str] = set()
+    for n in notes:
+        color = COLOR_NAMES.get(n.get("color") or "yellow", "黄") if n.get("quote") else "无颜色"
+        b = blocks.get(n.get("anchor")) or {}
+        line = f"- [{n.get('anchor')}] {kinds.get(n.get('kind'), '笔记')}"
+        if n.get("quote"):
+            line += f"：「{n['quote']}」"
+        if n.get("body"):
+            line += f"；读者写道：{n['body'][:300]}"
+        if b and b.get("id") not in shown:
+            shown.add(b["id"])
+            line += f"\n  所在段落：{_block_text(b)[:600]}"
+        groups.setdefault(color, []).append(line)
+    parts, used = [], 0
+    for color in ["红", "黄", "绿", "蓝", "无颜色"]:
+        for line in groups.get(color, []):
+            if used > MARKS_BUDGET:
+                break
+            if not parts or not parts[-1].startswith(f"【{color}"):
+                parts.append(f"【{color}色】" if color != "无颜色" else "【没有颜色的笔记和问题】")
+            parts.append(line)
+            used += len(line)
+    return ("读者在译文上做的标记（按颜色分组，读者说“红的”“黄色那些”就是指这里；每处附所在段落译文，行内公式是 $TeX$）：\n"
+            + "\n".join(parts) + ("\n（标记太多，只列了一部分；Claude Code 可以 Read reader.json 看全部）" if used > MARKS_BUDGET else ""))
+
+
 def prompt(ws: Workspace, messages: list[dict], anchor: str | None, quote: str, engine: str) -> str:
     history = messages[-HISTORY:]
     convo = "\n\n".join(("读者" if m["role"] == "user" else "你") + "：" + m["content"] for m in history[:-1])
     ask = history[-1]["content"] if history else ""
-    tool = "需要看全文时，用 Read 工具读当前目录的 paper.json（blocks 里是译文和原文）。\n" if engine == "claude" else ""
+    tool = ("需要看全文时，用 Read 工具读当前目录的 paper.json（blocks 里是译文和原文）；读者的全部标记在 reader.json 的 notes 里。\n"
+            if engine == "claude" else "")
+    marks = _marks(ws)
     return ("你在陪读者读一篇学术论文，回答他边读边冒出来的问题。用中文，直接、具体，能举例就举例；"
             "区分“论文里写了什么”和“你的补充解释”，论文里没有的内容不要说成是论文说的。"
             "行内公式写 $TeX$，行间公式写 $$TeX$$。只输出回答本身，不要客套，不要重复问题。\n" + tool + "\n"
             + _context(ws, anchor, quote)
+            + ("\n\n" + marks if marks else "")
             + (f"\n\n之前的对话：\n{convo}" if convo else "")
             + f"\n\n读者现在问：{ask}")
 
 
 # ---------- 流式输出 ----------
-def stream(ecfg: dict, text: str, cwd: Path, cancel: threading.Event) -> Iterator[str]:
+def stream(ecfg: dict, text: str, cwd: Path, cancel: threading.Event, on_model=None) -> Iterator[str]:
+    """on_model(实际模型名)：Claude Code 开头会报它实际用的模型。"""
     e = ecfg.get("engine")
     if e == "claude":
-        yield from _stream_claude(ecfg["claude"], text, cwd, cancel)
+        yield from _stream_claude(ecfg["claude"], text, cwd, cancel, on_model)
     elif e == "openai":
         yield from _stream_openai(ecfg["openai"], text, cancel)
     else:  # codex 没有逐字输出，整段给
         yield engines.run(ecfg, text, cwd, None, cancel)
 
 
-def _stream_claude(c: dict, text: str, cwd: Path, cancel) -> Iterator[str]:
+def _stream_claude(c: dict, text: str, cwd: Path, cancel, on_model=None) -> Iterator[str]:
     exe = engines.claude_path(c)
     if not exe:
         raise engines.EngineError("找不到 Claude Code 命令（先装好并登录 Claude Code）")
@@ -154,6 +137,8 @@ def _stream_claude(c: dict, text: str, cwd: Path, cancel) -> Iterator[str]:
                 ev = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if ev.get("type") == "system" and ev.get("subtype") == "init" and ev.get("model") and on_model:
+                on_model(ev["model"])
             if ev.get("type") == "stream_event":
                 d = (ev.get("event") or {}).get("delta") or {}
                 if d.get("type") == "text_delta" and d.get("text"):
@@ -214,46 +199,3 @@ def _stream_openai(o: dict, text: str, cancel) -> Iterator[str]:
                 thinking, piece = False, piece.split("</think>", 1)[1]
             if piece:
                 yield piece
-
-
-# ---------- 记录 ----------
-def history(ws: Workspace) -> list[dict]:
-    return (ws.load("chat") or {}).get("messages", [])
-
-
-def save(ws: Workspace, user: dict, answer: str, model: str, note_id: str | None) -> dict:
-    stamp = now_iso()
-    msg = {"id": f"m{int(time.time() * 1000)}", "role": "assistant", "content": answer, "at": stamp, "model": model,
-           "anchor": user.get("anchor"), "note": note_id}
-
-    def apply(chat):
-        chat.setdefault("messages", []).extend([{**user, "role": "user", "at": user.get("at") or stamp}, msg])
-    ws.update("chat", apply)
-    if note_id and answer.strip():  # 回答页面上的问题：也写成那条笔记的回复
-        disc = ws.load("discussion").get("entries", [])
-        old = next((d for d in disc if d.get("reply_to") == note_id and d.get("kind") == "reply" and d.get("live")), None)
-        entry = {"reply_to": note_id, "kind": "reply", "body": answer.strip(), "by": model, "live": True}
-        if old:
-            entry["id"] = old["id"]
-        add_discussion(ws, [entry])
-    return msg
-
-
-def pin(ws: Workspace, mid: str) -> None:
-    """把对话里的一条回答放到页边，成为那段旁边的一条 AI 讨论。"""
-    msgs = history(ws)
-    i = next((k for k, m in enumerate(msgs) if m.get("id") == mid and m.get("role") == "assistant"), None)
-    if i is None:
-        raise KeyError(mid)
-    ans, q = msgs[i], (msgs[i - 1] if i and msgs[i - 1].get("role") == "user" else {})
-    blocks = {b.get("id") for b in ws.load("paper").get("blocks", [])}
-    entry = {"kind": "qa", "q": q.get("content", ""), "body": ans["content"], "by": ans.get("model", "")}
-    if ans.get("anchor") in blocks:
-        entry["anchor"] = ans["anchor"]
-    if q.get("quote"):
-        entry["quote"] = q["quote"]
-    add_discussion(ws, [entry])
-
-
-def clear(ws: Workspace) -> None:
-    ws.update("chat", lambda c: c.update(messages=[]))

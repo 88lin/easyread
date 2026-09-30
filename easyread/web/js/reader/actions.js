@@ -24,11 +24,12 @@
       { k: "note", label: "笔记", icon: "note", fn: () => PR.startNote({ anchor: id }) },
       { k: "question", label: "提问", icon: "question", fn: () => PR.startNote({ anchor: id, kind: "question" }) },
     ];
-    if (PR.canChat()) list.push({ k: "chat", label: "问 AI", icon: "sparkle", fn: () => PR.chatAsk({ anchor: id }) });
-    if (hasEn) list.push({ k: "en", label: "原文", icon: "en", fn: () => PR.toggleEn(id) });
-    if (keys.length) list.push({ k: "edit", label: "改译文", icon: "edit", fn: () => { const zh = PR.$("#b-" + CSS.escape(id) + " .zh[data-key]"); zh && PR.editZh(zh); } });
-    if (keys.length && PR.canAsk()) list.push({ k: "redo", label: "重译", icon: "redo", fn: () => retranslate(id) });
-    if (b.page) list.push({ k: "page", label: "原页 p." + b.page, icon: "page", fn: () => PR.openPage(b.page, id) });
+    if (PR.canChat() && PR.feature("chat")) list.push({ k: "chat", label: "问 AI", icon: "sparkle", fn: () => PR.chatAsk({ anchor: id }) });
+    if (hasEn && PR.feature("en")) list.push({ k: "en", label: "原文", icon: "en", fn: () => PR.toggleEn(id) });
+    if (keys.length && PR.feature("edit")) list.push({ k: "edit", label: "改译文", icon: "edit", fn: () => { const zh = PR.$("#b-" + CSS.escape(id) + " .zh[data-key]"); zh && PR.editZh(zh); } });
+    if (b.page && PR.feature("pages")) list.push({ k: "page", label: "原页 p." + b.page, icon: "page", fn: () => PR.openPage(b.page, id) });
+    // 重译花 token、容易误点：默认关，开了也只放在“⋯”菜单里
+    if (keys.length && PR.canAsk() && PR.feature("retranslate")) list.push({ k: "redo", label: "让模型重译这段…", icon: "redo", menuOnly: true, fn: () => retranslate(id) });
     list.forEach((a) => { a.kbd = PR.keyOf ? PR.keyOf(a.k) : ""; });
     return list;
   }
@@ -44,7 +45,7 @@
   };
 
   function showBar() {
-    const acts = actionsFor(current);
+    const acts = actionsFor(current).filter((a) => !a.menuOnly);
     bar().innerHTML = acts.map((a, i) => '<button data-i="' + i + '" title="' + a.label + (a.kbd ? "（" + a.kbd + "）" : "") + '">' + PR.icon(a.icon, "sm") + "<span>" + PR.esc(a.label) + "</span></button>").join("") +
       '<button data-i="more" title="更多（右键段落也可以）">⋯</button>';
     bar().onclick = (e) => {

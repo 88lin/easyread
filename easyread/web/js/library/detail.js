@@ -79,7 +79,7 @@
     const tags = (i.tags || []).map((t) => '<span class="chip">' + PR.esc(t) + '<button data-untag="' + PR.esc(t) + '" title="去掉">×</button></span>').join("");
     const suggest = allTags().filter((t) => !(i.tags || []).includes(t)).slice(0, 12)
       .map((t) => '<button data-addtag="' + PR.esc(t) + '">+ ' + PR.esc(t) + "</button>").join("");
-    box.innerHTML = '<div class="detail-inner">' +
+    box.innerHTML = '<div class="detail-inner"><button class="btn icon detail-close" data-d="close" title="收起（Esc）">×</button>' +
       '<div class="cover">' + thumb + '<div class="actions">' +
       '<a class="btn accent" href="/read/' + i.id + '">' + PR.icon("book", "sm") + readLabel + "</a>" +
       '<a class="btn line" href="/p/' + i.id + '/source.pdf" target="_blank" rel="noopener">' + PR.icon("pdf", "sm") + "打开原 PDF</a>" +
@@ -134,7 +134,8 @@
     const d = e.target.closest("[data-d]");
     if (!d) return;
     const act = d.dataset.d;
-    if (act === "star") L.patch(i.id, { starred: !i.starred });
+    if (act === "close") L.select(null);
+    else if (act === "star") L.patch(i.id, { starred: !i.starred });
     else if (act === "read") L.openReader(i.id);
     else if (act === "abs") { PR.$("#abs").classList.toggle("open"); d.textContent = PR.$("#abs").classList.contains("open") ? "收起" : "展开全文"; }
     else if (act === "cite") PR.menu(d, [

@@ -80,6 +80,17 @@
     return String(text || "").trim().split(/\n\s*\n/).map((p) => {
       const d = p.trim().match(/^\$\$([\s\S]+)\$\$$/);
       if (d) return '<div class="eq">' + PR.tex(d[1], true) + "</div>";
+      const h = p.trim().match(/^#{1,4}\s+(.+)$/);
+      if (h) return '<p class="md-h">' + PR.md(h[1], opts) + "</p>";
+      const lines = p.trim().split("\n");
+      // 列表：从某行起每行都以 “- ”“* ”或“1. ”开头（AI 的回答常用“引子：\n- …\n- …”）
+      const isItem = (l) => /^\s*([-*•]|\d+[.、)])\s+/.test(l);
+      const k = lines.findIndex(isItem);
+      if (k >= 0 && lines.slice(k).every(isItem)) {
+        const ordered = /^\s*\d/.test(lines[k]);
+        return (k ? "<p>" + PR.md(lines.slice(0, k).join("\n"), opts) + "</p>" : "") + (ordered ? "<ol>" : "<ul>") +
+          lines.slice(k).map((l) => "<li>" + PR.md(l.replace(/^\s*([-*•]|\d+[.、)])\s+/, ""), opts) + "</li>").join("") + (ordered ? "</ol>" : "</ul>");
+      }
       return "<p>" + PR.md(p, opts) + "</p>";
     }).join("");
   };

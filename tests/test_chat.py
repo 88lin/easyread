@@ -4,7 +4,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from easyread import chat
+from easyread import chat, chat_models
 
 PIECES = ["<think>先想", "一想</think>", "标准误差", "除以 $\sqrt{n}$", "。"]
 
@@ -35,12 +35,30 @@ class ChatStreamTest(unittest.TestCase):
             srv.shutdown()
         self.assertEqual(out, "标准误差除以 $\sqrt{n}$。")
 
-    def test_engine_cfg_picks_preset_key(self):
-        cfg = {"engine": "claude", "claude": {"model": ""}, "codex": {}, "chat": {"engine": "openai", "preset": "deepseek", "model": ""},
+    def test_model_list_picks_preset_key(self):
+        cfg = {"engine": "claude", "claude": {"model": ""}, "codex": {"model": ""},
+               "chat": {"default": "ds", "models": [{"id": "ds", "name": "DeepSeek", "engine": "openai", "preset": "deepseek", "model": ""}]},
                "openai": {"preset": "zhipu", "base_url": "x", "model": "glm", "api_key": "zk", "keys": {"zhipu": "zk", "deepseek": "dk"}}}
-        e = chat.engine_cfg(cfg)
-        self.assertEqual((e["engine"], e["openai"]["api_key"], e["openai"]["model"]), ("openai", "dk", "deepseek-chat"))
+        e, m = chat_models.engine_cfg(cfg, None)
+        self.assertEqual((e["engine"], e["openai"]["api_key"], e["openai"]["model"], m["id"]), ("openai", "dk", "deepseek-chat", "ds"))
 
+    def test_threads_and_legacy(self):
+        import shutil, tempfile
+        from pathlib import Path
+        from easyread import chat_store
+        from easyread.store import Workspace, write_json_atomic
+        root = Path(tempfile.mkdtemp())
+        try:
+            write_json_atomic(root / "paper.json", {"blocks": []})
+            write_json_atomic(root / "chat.json", {"messages": [{"role": "user", "content": "旧问题"}, {"role": "assistant", "content": "旧回答"}]})
+            ws = Workspace(root)
+            chat_store.append(ws, "t2", {"content": "新问题"}, "新回答", "opus", "Claude Opus 5.5")
+            ts = chat_store.threads(ws)
+            self.assertEqual([t["title"] for t in ts], ["新问题", "旧问题"])
+            chat_store.delete(ws, "t-first")
+            self.assertEqual(len(chat_store.threads(ws)), 1)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 if __name__ == "__main__":
     unittest.main()

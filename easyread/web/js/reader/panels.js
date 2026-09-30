@@ -44,10 +44,11 @@
   PR.renderSettings = function () {
     PR.$("#settings").innerHTML =
       slider("fs", "字号", 13, 28, 1, " px") + slider("measure", "版心", 26, 50, 1, " 字") + slider("lh", "行距", 1.5, 2.4, 0.05, "") +
+      '<div class="row"><span>显示</span>' + segHtml("mode", [["zh", "译文"], ["bi", "对照"]]) + "</div>" +
       '<div class="row"><span>字体</span>' + segHtml("font", [["serif", "宋体"], ["sans", "黑体"]]) + "</div>" +
       '<div class="row"><span>主题</span>' + segHtml("theme", [["auto", "跟随"], ["light", "浅"], ["dark", "深"]]) + "</div>" +
       '<div class="row"><span>边注</span>' + segHtml("margin", [[true, "显示"], [false, "收起"]]) + "</div>" +
-      '<div class="row hintrow"><kbd>=</kbd> <kbd>-</kbd> 调字号　<kbd>0</kbd> 恢复默认</div>';
+      '<div class="row hintrow">' + (PR.keysOn ? "<kbd>=</kbd> <kbd>-</kbd> 调字号　" : "") + (PR.store.mode === "server" ? '<button class="linkish" data-open-settings="reading">更多设置…</button>' : "") + "</div>";
   };
   function syncSettings() {
     PR.$$("#settings [data-r]").forEach((r) => { r.value = PR.prefs[r.dataset.r]; });
@@ -58,6 +59,8 @@
     if (r) PR.setPref(r.dataset.r, +r.value, true);
   });
   PR.$("#settings").addEventListener("click", (e) => {
+    const os = e.target.closest("[data-open-settings]");
+    if (os) { PR.$("#settings").classList.remove("open"); return PR.openSettings(os.dataset.openSettings); }
     const b = e.target.closest("[data-p]");
     if (!b) return;
     let v = b.dataset.v;
@@ -73,6 +76,15 @@
   PR.$('[data-act="pages"]').addEventListener("mouseenter", () => PR.preloadPage && PR.preloadPage());  // 鼠标移过去就开始加载
   PR.$('[data-act="notes"]').innerHTML = PR.icon("note", "sm") + "<span>笔记</span>";
   PR.$('[data-act="chat"]').innerHTML = PR.icon("sparkle", "sm") + "<span>问 AI</span>";
+  /* 设置里关掉的功能：顶栏按钮也藏起来 */
+  PR.applyFeatures = function () {
+    const set = (sel, on) => { const el = PR.$(sel); if (el) el.style.display = on ? "" : "none"; };
+    set('[data-act="pages"]', PR.feature("pages"));
+    set('[data-act="chat"]', PR.feature("chat") && PR.store.mode === "server");
+    if (!PR.feature("pages") && PR.side === "pages") PR.openSide(null);
+    if (!PR.feature("chat") && PR.side === "chat") PR.openSide(null);
+  };
+  PR.on("ui-changed", () => { PR.applyFeatures(); PR.hideBlockbar && PR.hideBlockbar(); PR.renderMargin && PR.renderMargin(); });
   PR.$("#bar").addEventListener("click", (e) => {
     const m = e.target.closest("[data-mode]");
     if (m) return PR.setPref("mode", m.dataset.mode);
@@ -164,9 +176,11 @@
       '<div class="row">' + (pdf ? '<a class="btn sm line" href="' + pdf + '" target="_blank" rel="noopener">打开原 PDF</a>' : "") +
       '<button class="btn sm line" data-x="md">导出笔记…</button>' + (PR.store.mode === "static" ? '<button class="btn sm line" data-x="ops">导出我的修改</button>' : "") + "</div>" +
       "<h3>怎么用</h3><p>点一下段落，上方出现操作条：笔记、提问、问 AI、原文、改译文、重译、原页。右键段落是完整菜单。选中文字可以用四种颜色划线、写笔记、提问、问 AI。双击一段直接改译文。</p>" +
-      '<h3>快捷键</h3><div class="keyrows">' + PR.keyActions.filter(([id]) => PR.keymap[id]).map(([id, label]) => "<kbd>" + PR.esc(PR.keyOf(id)) + "</kbd><span>" + label + "</span>").join("") +
-      "<kbd>1</kbd><span>选中文字后按 1–4：四色划线</span><kbd>Esc</kbd><span>关闭面板、取消选中</span></div>" +
-      '<button class="btn sm line" data-x="keys">自定义快捷键</button></div>';
+      "<h3>快捷键</h3>" + (PR.keysOn
+        ? '<div class="keyrows">' + PR.KEY_ACTIONS.filter(([id, , , , need]) => PR.keymap[id] && (!need || PR.feature(need))).map(([id, label]) => "<kbd>" + PR.esc(PR.keyOf(id)) + "</kbd><span>" + label + "</span>").join("") +
+          "<kbd>1</kbd><span>选中文字后按 1–4：四色划线</span><kbd>Esc</kbd><span>关闭面板、取消选中</span></div>"
+        : "<p>快捷键已关闭。</p>") +
+      '<button class="btn sm line" data-x="keys">设置快捷键和功能</button></div>';
   }
   PR.$("#drawer").addEventListener("click", (e) => {
     const go = e.target.closest("[data-go]");
@@ -184,7 +198,7 @@
       return;
     }
     const x = e.target.closest("[data-x]");
-    if (x) x.dataset.x === "keys" ? PR.openKeys() : x.dataset.x === "md" ? PR.openExport() : PR.download(x.dataset.x);
+    if (x) x.dataset.x === "keys" ? PR.openSettings("keys") : x.dataset.x === "md" ? PR.openExport() : PR.download(x.dataset.x);
   });
 
   PR.download = function (kind) {

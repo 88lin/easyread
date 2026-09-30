@@ -131,6 +131,11 @@ window.PR = window.PR || {};
     upload: "M10 13V4M6.5 7.5L10 4l3.5 3.5M4 13.5V16h12v-2.5",
     x: "M5 5l10 10M15 5L5 15",
     folder: "M2.5 5.5v10h15V7.5H9.5l-2-2z",
+    marker: "M11.5 3.5l4 4-6.5 6.5H5v-4zM4 17h12",
+    chevron: "M6 8l4 4 4-4",
+    arrowUp: "M10 15.5V4.5M5.5 9L10 4.5 14.5 9",
+    stop: "M6.5 6.5h7v7h-7z",
+    underline: "M6 3.5v5.5a4 4 0 0 0 8 0V3.5M4.5 16.5h11",
     more: "M5 10h.01M10 10h.01M15 10h.01",
     download: "M10 4v9M6.5 9.5L10 13l3.5-3.5M4 16h12",
     log: "M5 5h10M5 8.5h10M5 12h7M5 15.5h5",
@@ -140,6 +145,7 @@ window.PR = window.PR || {};
     sparkle: "M10 3v4M10 13v4M3 10h4M13 10h4M5.5 5.5l2 2M12.5 12.5l2 2M14.5 5.5l-2 2M7.5 12.5l-2 2",
     question: "M7.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.8M10 14.5v.01M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z",
   };
+  PR.HL_COLORS = [["yellow", "黄"], ["green", "绿"], ["blue", "蓝"], ["pink", "红"]];  // pink 历史上叫粉，现在画成红
   PR.logo = (cls) => '<svg class="' + (cls || "mark") + '" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#2d6173"/><path d="M16 10.5C13.6 8.8 10.4 8.3 7 8.6v14.2c3.4-.3 6.6.2 9 1.9 2.4-1.7 5.6-2.2 9-1.9V8.6c-3.4-.3-6.6.2-9 1.9z" fill="#f6f3ec"/><path d="M16 10.5v14.2" stroke="#2d6173" stroke-width="1.2"/><path d="M9.4 13.4h4M9.4 16.4h4M9.4 19.4h2.6" stroke="#9fb7bf" stroke-width="1.6" stroke-linecap="round"/><path d="M18.6 13.4h4M18.6 16.4h4M18.6 19.4h2.6" stroke="#e0a84f" stroke-width="1.6" stroke-linecap="round"/></svg>';
   PR.icon = (name, cls) => '<svg class="i' + (cls ? " " + cls : "") + '" viewBox="0 0 20 20" aria-hidden="true"><path d="' + (P[name] || "") + '"/></svg>';
   PR.icons = { menu: PR.icon("menu"), edit: PR.icon("edit", "sm"), note: PR.icon("note", "sm") };

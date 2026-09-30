@@ -168,6 +168,11 @@
     const r = e.target.closest(".row");
     if (r) L.select(r.dataset.id);
   });
+  /* 点列表空白处、侧栏、标题栏空白：收起右侧详情 */
+  document.addEventListener("click", (e) => {
+    if (!L.selected || e.target.closest(".row, #detail, .dialog-backdrop, .menu, #toast, .topbar button, .topbar input, select")) return;
+    if (e.target.closest(".main, .side, .topbar")) L.select(null);
+  });
   PR.$("#list").addEventListener("dblclick", (e) => { const r = e.target.closest(".row"); if (r) L.openReader(r.dataset.id); });
   PR.$("#list").addEventListener("contextmenu", (e) => {
     const r = e.target.closest(".row");
@@ -195,6 +200,7 @@
     else if (e.key === "s" && L.selected) { const it = L.byId(L.selected); L.patch(it.id, { starred: !it.starred }); }
   });
 
-  PR.loadPrefs().then((p) => { if (p.reader && p.reader.theme) PR.applyTheme(p.reader.theme); });
+  PR.loadPrefs().then((p) => { if (p.reader && p.reader.theme) PR.applyTheme(p.reader.theme); PR.useServerUi(p); });
+  PR.onSettingsSaved = () => L.load();
   L.load().catch((e) => { PR.$("#list").innerHTML = '<div class="empty-state"><div class="big">连不上本地服务</div>' + PR.esc(e.message) + "</div>"; });
 })(window.PR);

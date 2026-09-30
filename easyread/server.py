@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import __version__, chat, config, detect, engines, paperdata, pdfwork, prefs
+from . import __version__, chat, chat_models, chat_store, config, detect, engines, paperdata, pdfwork, prefs
 from .log import log, setup as setup_log, tail
 from .jobs import Jobs
 from .library import Library
@@ -81,11 +81,14 @@ class Handler(BaseHTTPRequestHandler):
         if not text:
             raise ValueError("问题是空的")
         cfg = config.load()
-        ecfg = chat.engine_cfg(cfg, body.get("model"))
+        ecfg, m = chat_models.engine_cfg(cfg, body.get("model"))
+        model = chat_models.label(m)
+        thread = chat_store.get(ws, body.get("thread"))
+        tid = thread["id"] if thread else chat_store.new_id()
         user = {"content": text, "anchor": body.get("anchor"), "quote": (body.get("quote") or "")[:1000], "note": body.get("note")}
-        convo = [{"role": m["role"], "content": m["content"]} for m in chat.history(ws)] + [{"role": "user", "content": text}]
+        past = (thread or {}).get("messages", [])
+        convo = [{"role": x["role"], "content": x["content"]} for x in past] + [{"role": "user", "content": text}]
         prompt_text = chat.prompt(ws, convo, user["anchor"], user["quote"], ecfg["engine"])
-        model = engines.who(ecfg) + (f" {ecfg['claude'].get('model')}" if ecfg["engine"] == "claude" and ecfg["claude"].get("model") else "")
         self.send_response(200)
         self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -99,16 +102,20 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write((json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8"))
             self.wfile.flush()
         try:
-            send({"model": model})
-            for piece in chat.stream(ecfg, prompt_text, ws.root, cancel):
+            send({"model": model, "thread": tid})
+            def seen(actual):
+                chat_models.remember(m.get("model", ""), actual)
+                if m.get("engine") == "claude":
+                    send({"model": chat_models.label(m)})
+            for piece in chat.stream(ecfg, prompt_text, ws.root, cancel, seen):
                 pieces.append(piece)
                 send({"t": piece})
-            msg = chat.save(ws, user, "".join(pieces), model, user["note"])
+            msg = chat_store.append(ws, tid, user, "".join(pieces), m["id"], model)
             send({"done": True, "id": msg["id"]})
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             cancel.set()  # 读者点了停止或关了页面
             if pieces:
-                chat.save(ws, user, "".join(pieces) + "\n\n（已停止）", model, None)
+                chat_store.append(ws, tid, {**user, "note": None}, "".join(pieces) + "\n\n（已停止）", m["id"], model)
         except engines.Cancelled:
             pass
         except Exception as e:  # noqa: BLE001
@@ -158,9 +165,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"found": found, "ready": detect.ready(cfg, found), "engine": cfg.get("engine")})
         if path == "/api/prefs":
             return self._json(200, prefs.load())
-        if path == "/api/chat/options":
-            cfg = config.load()
-            return self._json(200, {"options": chat.options(cfg), "current": cfg.get("chat")})
+        if path == "/api/chat/models":
+            return self._json(200, chat_models.listing(config.load()))
         if path == "/api/log":
             return self._json(200, {"text": tail(config.LOG_PATH, 200), "path": str(config.LOG_PATH)})
         if path == "/api/jobs":
@@ -181,7 +187,7 @@ class Handler(BaseHTTPRequestHandler):
             if action == "versions":
                 return self._json(200, ws.versions())
             if action == "chat":
-                return self._json(200, {"messages": chat.history(ws)})
+                return self._json(200, {"threads": chat_store.threads(ws), **chat_models.listing(config.load())})
             if action == "log":
                 return self._json(200, {"text": tail(ws.root / "job.log", 300)})
             if action == "export":
@@ -239,10 +245,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"config": config.public(cfg)})
         if path == "/api/prefs":
             return self._json(200, prefs.save(json.loads(self._body() or b"{}")))
-        if path == "/api/chat/model":
-            choice = json.loads(self._body() or b"{}")
-            cfg = config.save({"chat": {k: choice.get(k, "") for k in ("engine", "model", "preset")}})
-            return self._json(200, {"current": cfg["chat"]})
+        if path == "/api/chat/models":  # 设置页保存名单和默认模型；或面板里只改默认
+            body = json.loads(self._body() or b"{}")
+            patch = {}
+            if "models" in body:
+                patch["models"] = chat_models.sanitize(body["models"])
+            if body.get("default"):
+                patch["default"] = str(body["default"])
+            config.save({"chat": patch})
+            return self._json(200, chat_models.listing(config.load()))
         if path == "/api/config/test":
             cfg = config.load()
             patch = json.loads(self._body() or b"{}")
@@ -257,12 +268,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(404, {"error": "没有这篇论文"})
             action = parts[4]
             body = json.loads(self._body() or b"{}")
-            if action == "chat" and len(parts) > 5 and parts[5] == "pin":
-                chat.pin(ws, body.get("id", ""))
-                return self._json(200, {"ok": True})
-            if action == "chat" and len(parts) > 5 and parts[5] == "clear":
-                chat.clear(ws)
-                return self._json(200, {"ok": True})
+            if action == "chat" and len(parts) > 5:
+                sub, tid = parts[5], body.get("thread", "")
+                if sub == "pin":
+                    chat_store.pin(ws, tid, body.get("id", ""))
+                elif sub == "rename":
+                    chat_store.rename(ws, tid, body.get("title", ""))
+                elif sub == "delete":
+                    chat_store.delete(ws, tid)
+                return self._json(200, {"threads": chat_store.threads(ws)})
             if action == "chat":
                 return self._chat(ws, body)
             if action == "ops":

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/web/css/reader.css">
 <link rel="stylesheet" href="/web/css/reader-panels.css">
 <link rel="stylesheet" href="/web/css/reader-chat.css">
+<link rel="stylesheet" href="/web/css/settings.css">
 <script>try{var p=JSON.parse((localStorage.getItem("easyread-prefs")||localStorage.getItem("coread-prefs"))||"{}");var d=p.theme==="dark"||(p.theme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light"}catch(e){}</script>
 </head>
 <body>
@@ -67,6 +68,8 @@
 <section id="notespanel" class="side-panel" aria-label="笔记"></section>
 <section id="chatpanel" class="side-panel" aria-label="问 AI"></section>
 <div class="dialog-backdrop" id="readerDlg"><div class="dialog" role="dialog"></div></div>
+<div class="dialog-backdrop" id="settingsDlg"><div class="dialog" role="dialog" aria-label="设置"></div></div>
+<div class="dialog-backdrop" id="textDlg"><div class="dialog wide" role="dialog"></div></div>
 
 <div id="settings" class="menu" role="dialog" aria-label="阅读设置"></div>
 <div id="popover" class="popover" role="tooltip"></div>
@@ -77,6 +80,7 @@
 <!--PR:DATA-->
 <script src="/web/vendor/katex/katex.min.js"></script>
 <script src="/web/js/common/util.js"></script>
+<script src="/web/js/common/features.js"></script>
 <script src="/web/js/common/markup.js"></script>
 <script src="/web/js/reader/store.js"></script>
 <script src="/web/js/reader/render.js"></script>
@@ -90,6 +94,8 @@
 <script src="/web/js/reader/chat.js"></script>
 <script src="/web/js/reader/keys.js"></script>
 <script src="/web/js/reader/export.js"></script>
+<script src="/web/js/common/settings.js"></script>
+<script src="/web/js/common/settings-tabs.js"></script>
 <script src="/web/js/reader/main.js"></script>
 </body>
 </html>

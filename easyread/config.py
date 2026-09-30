@@ -9,6 +9,7 @@ import copy
 import os
 from pathlib import Path
 
+from .chat_models import DEFAULT_CHAT
 from .presets import PRESET_GROUPS, PRESETS  # noqa: F401
 from .store import read_json, write_json_atomic
 
@@ -31,8 +32,8 @@ DEFAULTS = {
     "claude": {"command": "claude", "model": "", "extra_args": [], "timeout": 1200},
     "codex": {"command": "codex", "model": "", "extra_args": [], "timeout": 1200},
     "openai": {"preset": "", "base_url": "", "api_key": "", "model": "", "vision": False, "timeout": 600},
-    # 阅读页右侧“问 AI”用的模型。engine=same 跟翻译引擎一样；也可以单独选 claude / codex / openai（preset 选服务商）
-    "chat": {"engine": "same", "model": "", "preset": ""},
+    # 阅读页右侧“问 AI”的模型名单和默认模型，见 chat_models.py
+    "chat": copy.deepcopy(DEFAULT_CHAT),
 }
 
 def _merge(base: dict, over: dict) -> dict:

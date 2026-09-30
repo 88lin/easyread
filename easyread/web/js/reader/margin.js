@@ -48,7 +48,7 @@
     const lost = d.quote && PR.quoteLost && PR.quoteLost(d.id) ? " lost" : "";
     const editing = (editingId !== undefined ? editingId : PR.editingNote) === d.id;
     const askLabel = d.kind === "question" ? (answered ? "追问 AI" : "让 AI 回答") : "让 AI 点评";
-    const ask = d.kind !== "highlight" && d.body && PR.canChat && PR.canChat()
+    const ask = d.kind !== "highlight" && d.body && PR.canChat && PR.canChat() && PR.feature("chat")
       ? '<button data-a="ask" class="ask"' + (asking ? " disabled" : "") + ">" + (asking ? '<span class="spin"></span> 正在回答' : PR.icon("sparkle", "sm") + askLabel) + "</button>" : "";
     const body = editing
       ? '<textarea placeholder="' + (d.kind === "question" ? "想问什么？可以点“让模型回答”，也可以留给下次和 agent 讨论" : "写下你的理解、疑问或联想…（支持 $公式$、**粗体**）") + '">' + PR.esc(d.body || "") + "</textarea>" +

@@ -50,7 +50,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.target.closest("textarea, input, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
-    if (PR.hasPendingSelection()) {
+    if (PR.hasPendingSelection() && PR.keysOn) {
       const m = { 1: "yellow", 2: "green", 3: "blue", 4: "pink" }[k];
       if (m) { e.preventDefault(); return PR.selectionAction("highlight", m); }
       if (k === "n" || k === "q") { e.preventDefault(); return PR.selectionAction(k === "n" ? "note" : "question"); }
@@ -120,9 +120,10 @@
     if (PR.store.mode === "server") {  // 以本机 prefs.json 为准
       const p = await PR.loadPrefs();
       if (p.reader) { Object.assign(PR.prefs, p.reader); PR.applyPrefs(); }
-      if (p.keys) PR.setKeymap(Object.assign({}, PR.keymap, Object.fromEntries(Object.entries(p.keys).filter(([, v]) => v !== null))));
+      PR.useServerUi(p);
     }
-    if (PR.store.mode === "static") { PR.$("#backBtn").style.display = "none"; PR.$('[data-act="chat"]').style.display = "none"; }
+    if (PR.store.mode === "static") PR.$("#backBtn").style.display = "none";
+    PR.applyFeatures();
     const m = S.paper.meta || {};
     document.title = (m.short_zh || m.title_zh || m.title_en || "论文") + " · EasyRead";
     PR.$(".bar-title").textContent = m.short_zh || m.title_zh || m.title_en || "";
