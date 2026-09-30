@@ -20,6 +20,7 @@
     PR.$('[data-act="pages"]').classList.toggle("on", name === "pages");
     PR.$('[data-act="notes"]').classList.toggle("on", name === "notes");
     clearTimeout(sideT);
+    if (name) { const t = PR.$("#toast"); if (t) t.classList.remove("open"); }  // 提示条别挡住面板底部的输入框
     if (body.classList.contains("side-open") === !!name) return;  // 面板之间切换：正文宽度不变
     sideT = setTimeout(() => requestAnimationFrame(() => {
       const anchor = PR.readingBlock && PR.readingBlock();

@@ -124,6 +124,7 @@
     }
     if (PR.store.mode === "static") PR.$("#backBtn").style.display = "none";
     PR.applyFeatures();
+    PR.setupDemo();
     const m = S.paper.meta || {};
     document.title = (m.short_zh || m.title_zh || m.title_en || "论文") + " · EasyRead";
     PR.$(".bar-title").textContent = m.short_zh || m.title_zh || m.title_en || "";
@@ -151,7 +152,11 @@
           { label: "接着读", fn: () => PR.jumpTo("b-" + b.id, { block: "start" }) }, 8000);
       } else if (!PR.ls.get("easyread-hint-seen", false)) {
         PR.ls.set("easyread-hint-seen", true);
-        setTimeout(() => PR.toast("点一下段落出现操作条，右键有完整菜单；选中文字可以划线、写笔记。<kbd>=</kbd> <kbd>-</kbd> 调字号", null, 9000), 800);
+        const touch = matchMedia("(pointer: coarse)").matches;  // 手机上没有右键和键盘
+        const tip = S.demo ? "在线演示：点段落、选中文字试试划线和笔记；顶栏“问 AI”里有一段真实的 AI 对话。"
+          : touch ? "点一下段落出现操作条；长按选中文字，可以划线、写笔记。"
+          : "点一下段落出现操作条，右键有完整菜单；选中文字可以划线、写笔记。" + (PR.keysOn ? "<kbd>=</kbd> <kbd>-</kbd> 调字号" : "");
+        setTimeout(() => PR.toast(tip, null, 9000), 800);
       }
     }
   }

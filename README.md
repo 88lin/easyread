@@ -6,23 +6,25 @@
 导入 PDF，后台逐页翻译；公式、表格照原文排好，随时对照原文，边读边划线、记笔记、提问。<br>
 本地运行，论文和笔记只存在你自己的电脑上。</p>
 
-<p align="center"><img src="docs/images/reader.png" width="860" alt="阅读页"></p>
+<p align="center"><a href="https://edwardxlai.github.io/easyread/demo/"><b>▶ 在线试读一篇</b></a> · <a href="https://edwardxlai.github.io/easyread/">项目主页</a></p>
+
+<p align="center"><img src="docs/images/pages.jpg" width="860" alt="译文和原页对照"></p>
 
 ## 它和“把 PDF 丢给翻译软件”有什么不一样
 
 - **像读一本排好版的中文书。** 宋体正文、舒服的行宽和行距，公式用 KaTeX 按原文重排，表格是三线表，参考文献保留原文。
 - **随时核对原文。** 一键切“对照”，每段下面附英文；右侧可以开原页，跟着阅读位置翻页，还会框出当前段落在原页的位置。
 - **翻译和解释分开。** 正文只放忠实的译文；AI 的解释、回答放在页边，一眼就能分清哪句是论文说的。
-- **边读边问 AI。** 右侧“问 AI”面板实时对话，回答逐字流出来；问题自动带上你正在读的段落，选中一句话就只问那句。模型可以单独选：Claude、GPT（Codex）、DeepSeek、通义、本机 Ollama……好的回答一键放到页边。
-- **边读边批注。** 选中文字四色划线、写笔记、提问；问题一键让 AI 回答，笔记可以让 AI 点评。所有笔记按原文顺序汇总，可以勾选导出成 Markdown（放进 Obsidian、Notion）。
-- **译文可以改。** 双击一段直接改；术语表里改一个译法，全文替换；觉得哪段不好，写上意见让模型重译这一段。
+- **边读边问 AI。** 右侧“问 AI”面板实时对话，回答逐字流出来；可以一次引用好几段（选中文字拖进输入框就行）。问“我标红的那些公式有什么联系”，它会按颜色找出你的划线。可以开多个对话，模型单独选：Claude、GPT（Codex）、DeepSeek、通义、本机 Ollama……好的回答一键放到页边。
+- **边读边批注。** 选中文字四色荧光笔或下划线、写笔记、提问；问题一键让 AI 回答，笔记可以让 AI 点评。所有笔记按原文顺序汇总，可以勾选导出成 Markdown（放进 Obsidian、Notion）。
+- **译文可以改。** 双击一段直接改；术语表里改一个译法，全文替换。
 - **不只是 arXiv。** 拖进任何 PDF；或者填 arXiv 编号、DOI、论文标题、论文网页（OpenReview、ACL、NeurIPS、bioRxiv、PMC、期刊页面），自动找到公开的 PDF 并补全作者、年份、出处。
-- **文献库。** 搜索、标签、未读 / 在读 / 已读、星标、阅读进度、复制引用（GB/T 7714、APA、BibTeX）、导出单文件离线 HTML 发给别人。快捷键可以自定义。
+- **文献库。** 最近阅读、搜索、标签、未读 / 在读 / 已读、星标、阅读进度、复制引用（GB/T 7714、APA、BibTeX）、导出单文件离线 HTML 发给别人。快捷键可以自定义。
 - **不会丢东西。** 每次修改先存在浏览器，本地服务确认写进文件才删；翻译方后来改了你改过的段落，只提示，不覆盖。
 
-<p align="center"><img src="docs/images/chat.png" width="860" alt="边读边问 AI"></p>
+<p align="center"><img src="docs/images/chat.jpg" width="860" alt="边读边问 AI"></p>
 
-<p align="center"><img src="docs/images/library.png" width="860" alt="文献库"></p>
+<p align="center"><img src="docs/images/library.jpg" width="860" alt="文献库"></p>
 
 ## 翻译用什么模型：你来选
 
@@ -30,14 +32,15 @@
 |---|---|---|
 | **Claude Code**（推荐） | 装好并登录 [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) | 不用 Key，用你订阅的额度；会自己看原页图核对公式，译文最好 |
 | **Codex CLI** | 装好并登录 [Codex](https://github.com/openai/codex) | 不用 Key，用 ChatGPT 账号 |
-| **DeepSeek / 通义千问 / Kimi / OpenAI / Anthropic** | API Key | 一篇 20 页论文通常几毛钱到几块钱 |
-| **智谱 GLM-4.5-Flash / 硅基流动 / 魔搭 / Groq / Cerebras / GitHub Models / Gemini / OpenRouter** | API Key | 开源模型（Qwen3、GLM、Llama、DeepSeek）免费调用或有免费额度 |
-| **Ollama / LM Studio** | 本机装 [Ollama](https://ollama.com) 或 [LM Studio](https://lmstudio.ai) | 完全离线、免费，推荐 qwen3:8b / 14b |
-| 不翻译 | — | 只导入，之后让对话里的 agent 译 |
+| **免费模型**：Ollama / LM Studio | 本机装 [Ollama](https://ollama.com) 或 [LM Studio](https://lmstudio.ai) | 完全离线、免费，推荐 qwen3:8b / 14b |
+| **免费模型**：智谱 GLM-4.5-Flash / 硅基流动 / 魔搭 / Groq / Cerebras / GitHub Models / Gemini / OpenRouter | API Key（免费注册） | 开源模型（Qwen3、GLM、Llama、DeepSeek）免费调用或有免费额度 |
+| **付费 API**：DeepSeek / 通义千问 / Kimi / OpenAI / Anthropic | API Key | 一篇 20 页论文通常几毛钱到几块钱 |
+
+不想让它导入后马上翻译，在设置里关掉“导入后自动开始翻译”就行，之后可以让对话里的 agent 来译。
 
 设置里会自动检测本机装了什么，点“试译一句”马上知道能不能用。某一页翻译失败（限流、网络、额度）会自动重试，还不行就先跳过、接着译后面的页，最后一键“重试失败的页”。
 
-<p align="center"><img src="docs/images/settings.png" width="640" alt="设置"></p>
+<p align="center"><img src="docs/images/settings.jpg" width="640" alt="设置"></p>
 
 ## 安装
 
@@ -83,13 +86,15 @@ easyread export ID                     # 导出单文件离线 HTML
 
 ## 常见问题
 
-**翻译到一半失败了？** 文献库里点这篇，右侧“翻译”一栏会写原因和失败的页，点“重试”。“翻译记录”里有每一批的详细情况；设置底部“查看运行日志”能看到服务本身的日志。
+**翻译到一半失败了？** 文献库里点这篇，右侧“翻译”一栏会写原因和失败的页，点“重试”。“翻译记录”里有每一批的详细情况；设置底部“运行日志”能看到服务本身的日志。
+
+**用 Claude Code 要挂梯子吗？** 和你平时在终端里用 `claude` 一样：平时要，这里也要。不想折腾就选“免费模型”里的智谱、硅基流动或本机 Ollama，国内直连。
 
 **Claude Code 额度用完了？** 等额度恢复后点“重试”，或者在设置里临时换成 API / Ollama，已经译好的页不会重译。
 
 **数据存在哪？** 全在本机。从源码运行时在项目目录的 `library/`；pip 安装后在 `~/EasyRead/library/`。每篇论文一个文件夹，里面是原 PDF、原页图和几个 JSON（译文、你的笔记、AI 讨论、对话记录），设置和界面偏好在 `config.json`、`prefs.json`。可以直接备份或同步。为什么不用数据库见 [docs/data-format.md](docs/data-format.md#为什么用-json-文件而不是数据库)。
 
-**能离线看、发给别人吗？** 文献库里右键 → “导出离线 HTML”，得到一个单文件网页，公式和原页图都在里面。
+**能离线看、发给别人吗？** 文献库里右键 → “导出离线 HTML”，得到一个单文件网页，公式和原页图都在里面。想放到网站上（比如 GitHub Pages），用 `easyread demo ID --out 目录`，图片会另存成文件、按需加载，还会带上问 AI 的对话记录。
 
 ## 开发
 
@@ -105,3 +110,5 @@ node tests/e2e.cjs                        # 浏览器端到端测试（需要 Pl
 ## 许可
 
 MIT。公式渲染用 [KaTeX](https://katex.org)（MIT）。
+
+在线演示用的论文是 Rafailov 等人的 *Direct Preference Optimization: Your Language Model is Secretly a Reward Model*（[arXiv:2305.18290](https://arxiv.org/abs/2305.18290)，CC BY 4.0），中文译文由 EasyRead 调用 Claude 生成，演示里的划线和笔记是示例。

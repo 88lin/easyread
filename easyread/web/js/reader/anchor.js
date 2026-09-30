@@ -126,7 +126,7 @@
     const y = r.top - 48 < 58 ? r.bottom + 8 : r.top - 48;
     bar.style.left = x + "px"; bar.style.top = y + "px";
   }
-  document.addEventListener("mouseup", (e) => { if (!e.target.closest("#selbar, #blockbar")) setTimeout(showSelbar, 10); });
+  document.addEventListener("mouseup", (e) => { if (!(e.target.closest && e.target.closest("#selbar, #blockbar"))) setTimeout(showSelbar, 10); });
   document.addEventListener("keyup", (e) => { if (e.shiftKey && e.key.startsWith("Arrow")) showSelbar(); });
   document.addEventListener("selectionchange", PR.debounce(() => { const s = getSelection(); if (!s || s.isCollapsed) selbar().classList.remove("open"); }, 120));
 

@@ -12,6 +12,8 @@
   const st = { loaded: false, threads: [], cur: null, models: [], def: "", model: "", listOpen: false, menuOpen: false, refs: [], auto: null, noAuto: false, streaming: null, draft: "" };
 
   PR.canChat = () => PR.store.mode === "server";
+  /* 在线演示 / 离线版：带着对话记录时可以看，不能问 */
+  PR.chatView = () => PR.canChat() || !!(S.chat && (S.chat.threads || []).length);
   PR.chatOpen = () => PR.side === "chat";
   PR.toggleChat = function (force) {
     const open = force != null ? force : PR.side !== "chat";
@@ -48,6 +50,10 @@
 
   async function load(force) {
     if (st.loaded && !force) return;
+    if (!PR.canChat()) {
+      st.threads = (S.chat && S.chat.threads) || []; st.cur = st.cur || (st.threads[0] || {}).id || null; st.loaded = true;
+      return;
+    }
     try {
       const d = await PR.api("/api/p/" + PR.pid + "/chat");
       st.threads = d.threads || []; st.models = d.models || []; st.def = d.default;
@@ -67,6 +73,7 @@
   function ctxLabel(c) {
     if (!c || !PR.blockById[c.anchor]) return "";
     const b = PR.blockById[c.anchor];
+    if (b.type === "math" && !c.quote) return (PR.sectionOf ? PR.sectionOf(c.anchor) + " · " : "") + (b.tag ? "公式 (" + b.tag + ")" : "一个公式");
     const text = plainTex(c.quote || PR.plain(PR.textFor(PR.blockKeys(b)[0] || b.id) || b.caption_zh || b.tex || ""));
     const sec = PR.sectionOf ? PR.sectionOf(c.anchor) : "";
     return (sec ? sec + " · " : "") + "「" + text.slice(0, 36) + (text.length > 36 ? "…" : "") + "」";
@@ -106,7 +113,7 @@
     const live = st.streaming && st.streaming.msg === m;
     return '<div class="cm ai' + (m.error ? " err" : "") + '" data-id="' + PR.esc(m.id || "") + '"><div class="who"><span class="av">' + PR.icon("sparkle", "sm") + "</span>" + PR.esc(m.model || "AI") + (live ? ' <span class="spin"></span>' : "") + "</div>" +
       '<div class="body">' + (m.error ? PR.esc(m.error) : m.content ? PR.mdBlocks(m.content) : '<p class="thinking"><i></i><i></i><i></i></p>') + "</div>" +
-      (!live && !m.error && m.id ? '<div class="acts"><button data-c="copy">' + PR.icon("copy", "sm") + '复制</button><button data-c="pin" title="作为 AI 讨论放到这段旁边">' + PR.icon("note", "sm") + "放到页边</button></div>" : "") + "</div>";
+      (!live && !m.error && m.id ? '<div class="acts"><button data-c="copy">' + PR.icon("copy", "sm") + "复制</button>" + (PR.canChat() ? '<button data-c="pin" title="作为 AI 讨论放到这段旁边">' + PR.icon("note", "sm") + "放到页边</button>" : "") + "</div>" : "") + "</div>";
   }
   function emptyHtml() {
     const counts = markCounts();
@@ -117,6 +124,11 @@
       '<div class="chips">' + sug.map((q) => '<button data-c="suggest">' + PR.esc(q) + "</button>").join("") + "</div></div>";
   }
   function composerHtml() {
+    if (!PR.canChat()) {
+      const repo = (S.demo && S.demo.repo) || "https://github.com/Edwardxlai/easyread";
+      return '<div class="ch-compose ch-readonly"><b>这是演示里的对话记录，这里不能提问</b><span>装到自己电脑上之后，边读边问 Claude、GPT 或免费模型；可以引用多段，问“我标红的那些”也能找到。</span>' +
+        '<a class="btn sm accent" href="' + repo + '" target="_blank" rel="noopener">去 GitHub 安装 ↗</a></div>';
+    }
     const m = modelOf(st.model);
     const chips = st.refs.length ? st.refs.map((r, i) => refChip(r, i)).join("") : st.auto && !st.noAuto ? refChip(st.auto, 0, true) : "";
     const menu = st.menuOpen ? '<div class="ch-menu">' + st.models.map((x) => '<button data-c="model" data-m="' + PR.esc(x.id) + '" class="' + (x.id === st.model ? "on" : "") + '"' + (x.ready === false ? ' disabled title="' + PR.esc(x.hint) + '"' : "") + ">" +

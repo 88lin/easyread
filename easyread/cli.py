@@ -10,6 +10,7 @@
   easyread check ID                       检查块、引用、TeX
   easyread locate ID                      重新计算原页高亮位置
   easyread export ID                      导出单文件离线 HTML
+  easyread demo ID --out docs/demo        做成网站上的在线演示（图片另存、带问 AI 记录）
   easyread merge ID --from 导出.json       把离线版页面导出的修改并回文献库
   easyread migrate 旧的“xxx-共读”目录      把旧版技能生成的目录搬进文献库
 ID 可以写开头几位，能唯一确定就行。
@@ -182,6 +183,11 @@ def cmd_export(a):
     out(str(build(find(a.id))))
 
 
+def cmd_demo(a):
+    from .site import build_demo
+    out(str(build_demo(find(a.id), Path(a.out), credit=a.credit or "")))
+
+
 def cmd_merge(a):
     data = json.loads(Path(a.from_file).read_text(encoding="utf-8"))
     ops = data.get("ops") if isinstance(data, dict) else data
@@ -213,6 +219,8 @@ def main(argv=None):
     p = sub.add_parser("discuss"); p.add_argument("id"); p.add_argument("--from", dest="from_file"); p.add_argument("--delete")
     p.set_defaults(fn=cmd_discuss)
     p = sub.add_parser("merge"); p.add_argument("id"); p.add_argument("--from", dest="from_file", required=True); p.set_defaults(fn=cmd_merge)
+    p = sub.add_parser("demo"); p.add_argument("id"); p.add_argument("--out", default="docs/demo"); p.add_argument("--credit", help="署名和许可说明")
+    p.set_defaults(fn=cmd_demo)
     p = sub.add_parser("migrate"); p.add_argument("folder"); p.set_defaults(fn=cmd_migrate)
     a = ap.parse_args(argv)
     if not a.cmd:  # 直接运行 easyread：启动并打开浏览器

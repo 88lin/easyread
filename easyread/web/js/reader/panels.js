@@ -71,6 +71,16 @@
 
   /* ---------- 顶栏 ---------- */
   PR.$("#backBtn").innerHTML = PR.icon("back", "sm") + PR.logo();
+  /* 在线演示：左上角回演示主页，顶栏多一个“在线演示”标记 */
+  PR.setupDemo = function () {
+    if (!S.demo) return;
+    const back = PR.$("#backBtn");
+    back.href = S.demo.home || "../"; back.title = "EasyRead 主页"; back.style.display = "";
+    const pill = PR.el("a", { class: "demo-pill", href: S.demo.repo, target: "_blank", rel: "noopener", title: "这是在线演示；在 GitHub 上免费下载，装到自己电脑" }, "在线演示<span> · 免费下载</span>");
+    PR.$("#bar .save-state").before(pill);
+    const head = PR.$("#paper .paper-head");
+    if (S.demo.credit && head) head.appendChild(PR.el("p", { class: "demo-credit" }, S.demo.credit));
+  };
   PR.$('[data-act="drawer"]').innerHTML = PR.icon("menu");
   PR.$('[data-act="pages"]').innerHTML = PR.icon("page", "sm") + "<span>原页</span>";
   PR.$('[data-act="pages"]').addEventListener("mouseenter", () => PR.preloadPage && PR.preloadPage());  // 鼠标移过去就开始加载
@@ -80,7 +90,7 @@
   PR.applyFeatures = function () {
     const set = (sel, on) => { const el = PR.$(sel); if (el) el.style.display = on ? "" : "none"; };
     set('[data-act="pages"]', PR.feature("pages"));
-    set('[data-act="chat"]', PR.feature("chat") && PR.store.mode === "server");
+    set('[data-act="chat"]', PR.feature("chat") && PR.chatView());
     if (!PR.feature("pages") && PR.side === "pages") PR.openSide(null);
     if (!PR.feature("chat") && PR.side === "chat") PR.openSide(null);
   };
@@ -180,13 +190,14 @@
     const tr = S.paper.translation || {};
     const m = S.paper.meta || {};
     const pdf = PR.pdfUrl(1);
-    const status = PR.store.mode === "server"
+    const status = S.demo ? "这是 EasyRead 的在线演示。你在这里做的划线和笔记只存在这个浏览器里，别人看不到。装到自己电脑上，就能导入任意论文、后台翻译、边读边问 AI。"
+      : PR.store.mode === "server"
       ? "你改的译文、笔记、划线写进论文目录的 reader.json（每次保存记日志，每 10 分钟留快照）。翻译方只写 paper.json 和 discussion.json，不会覆盖你的内容。"
       : "这是离线单文件版：修改只存在当前浏览器里。要把修改带回文献库，点“导出我的修改”得到一个 JSON，再运行 easyread merge。";
     return '<div class="about"><h3>译文</h3><p>' + ((tr.done_pages || []).length) + " / " + ((m.pages || []).length) + " 页。" + PR.esc(tr.note || "") + "</p>" +
       "<h3>保存</h3><p>" + status + "</p>" + (PR.store.pending ? "<p>还有 " + PR.store.pending + " 条修改在等待写入。</p>" : "") +
       '<div class="row">' + (pdf ? '<a class="btn sm line" href="' + pdf + '" target="_blank" rel="noopener">打开原 PDF</a>' : "") +
-      '<button class="btn sm line" data-x="md">导出笔记…</button>' + (PR.store.mode === "static" ? '<button class="btn sm line" data-x="ops">导出我的修改</button>' : "") + "</div>" +
+      '<button class="btn sm line" data-x="md">导出笔记…</button>' + (PR.store.mode === "static" && !S.demo ? '<button class="btn sm line" data-x="ops">导出我的修改</button>' : "") + "</div>" +
       "<h3>怎么用</h3><p>点一下段落，上方出现操作条：笔记、提问、问 AI、原文、改译文、原页。右键段落是完整菜单。选中文字可以用四种颜色划线、写笔记、提问；打开问 AI 时，选中的文字可以直接拖进输入框，一次引用多段。双击一段直接改译文。</p>" +
       "<h3>快捷键</h3>" + (PR.keysOn
         ? '<div class="keyrows">' + PR.KEY_ACTIONS.filter(([id, , , , need]) => PR.keymap[id] && (!need || PR.feature(need))).map(([id, label]) => "<kbd>" + PR.esc(PR.keyOf(id)) + "</kbd><span>" + label + "</span>").join("") +
