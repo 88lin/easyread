@@ -2,13 +2,15 @@
 
 - 用哪个模型：chat_models.py（设置里的一张短名单）。
 - 对话记录：chat_store.py（每篇论文可以有多个对话）。
-- 上下文：论文标题、摘要、读者指着的段落和前后几段、术语表，以及读者自己的全部标记——
-  按颜色分好的划线、笔记、问题，所以可以问“我标红的那些公式之间有什么联系”。
+- 上下文：论文标题、摘要、读者指着的段落和前后几段、读者引用的几处原文、术语表。
+  读者的标记（按颜色分好的划线、笔记、问题）只在问题提到“标红的”“划线”“笔记”时才带上，
+  提到具体颜色就只带那种颜色，所以可以问“我标红的那些公式之间有什么联系”。
   Claude Code 还能自己 Read paper.json、reader.json 看全文和全部标记。
 """
 from __future__ import annotations
 
 import json
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -25,7 +27,7 @@ MARKS_BUDGET = 9000  # 标记部分最多带多少字
 
 
 # ---------- 提示词 ----------
-def _context(ws: Workspace, anchor: str | None, quote: str) -> str:
+def _context(ws: Workspace, anchor: str | None, quote: str, refs: list[dict] | None = None) -> str:
     paper = ws.load("paper")
     meta = paper.get("meta", {})
     blocks = paper.get("blocks", [])
@@ -44,13 +46,22 @@ def _context(ws: Workspace, anchor: str | None, quote: str) -> str:
         lines.append(f"读者指着的段落 [{focus['id']}]：\n译文：{_block_text(focus)}\n原文：{focus.get('en') or focus.get('caption_en') or focus.get('tex', '')}")
     if quote:
         lines.append(f"读者选中的原话：「{quote}」")
+    extra = [r for r in (refs or []) if r.get("anchor") != anchor or (r.get("quote") or "") != quote]
+    if extra:
+        by_id = {b.get("id"): b for b in blocks}
+        parts = []
+        for r in extra[:12]:
+            b = by_id.get(r.get("anchor")) or {}
+            q = (r.get("quote") or "").strip()
+            parts.append(f"[{r.get('anchor')}] " + (f"读者选中：「{q[:800]}」\n  所在段落：" if q else "") + _block_text(b)[:1200])
+        lines.append("读者引用了这几处（问题可能是在问它们之间的关系）：\n" + "\n".join(parts))
     gl = paper.get("glossary", [])
     if gl:
         lines.append("术语表：" + "；".join(f"{g['en']} = {g['zh']}" for g in gl[:80]))
     return "\n\n".join(lines)
 
 
-def _marks(ws: Workspace) -> str:
+def _marks(ws: Workspace, colors: set[str] | None = None) -> str:
     """读者的全部标记，按颜色分组；每处带上所在段落的译文（含 $TeX$），这样问“红色那些公式”也答得上。"""
     paper = ws.load("paper")
     blocks = {b.get("id"): b for b in paper.get("blocks", [])}
@@ -64,6 +75,8 @@ def _marks(ws: Workspace) -> str:
     shown: set[str] = set()
     for n in notes:
         color = COLOR_NAMES.get(n.get("color") or "yellow", "黄") if n.get("quote") else "无颜色"
+        if colors and color not in colors:
+            continue
         b = blocks.get(n.get("anchor")) or {}
         line = f"- [{n.get('anchor')}] {kinds.get(n.get('kind'), '笔记')}"
         if n.get("quote"):
@@ -87,17 +100,40 @@ def _marks(ws: Workspace) -> str:
             + "\n".join(parts) + ("\n（标记太多，只列了一部分；Claude Code 可以 Read reader.json 看全部）" if used > MARKS_BUDGET else ""))
 
 
-def prompt(ws: Workspace, messages: list[dict], anchor: str | None, quote: str, engine: str) -> str:
+MARK_WORDS = re.compile(r"标[红黄绿蓝记了过的出注]|划线|划过|划的|画线|高亮|涂|颜色|[红黄绿蓝][色的]|笔记|批注|标记|我的问题|highlight", re.I)
+
+
+def wants_marks(text: str) -> tuple[bool, set[str] | None]:
+    """问题里提到“标红的”“划线”“我的笔记”这类词，才把读者的标记带上；提到具体颜色就只带那几种。"""
+    if not MARK_WORDS.search(text or ""):
+        return False, None
+    colors = {c for c in "红黄绿蓝" if re.search(c + "[色的]|标" + c, text)}
+    return True, (colors | {"无颜色"} if colors and re.search(r"笔记|问题|批注", text) else colors or None)
+
+
+def _marks_summary(ws: Workspace) -> str:
+    notes = [n for n in (ws.load("reader").get("notes") or {}).values() if not n.get("deleted")]
+    if not notes:
+        return ""
+    counts: dict[str, int] = {}
+    for n in notes:
+        k = COLOR_NAMES.get(n.get("color") or "yellow", "黄") + "色" if n.get("quote") else "无颜色笔记"
+        counts[k] = counts.get(k, 0) + 1
+    return "读者在论文上做过 " + str(len(notes)) + " 处标记（" + "、".join(f"{k} {v}" for k, v in counts.items()) + "），这次问题没提到，就没附上。"
+
+
+def prompt(ws: Workspace, messages: list[dict], anchor: str | None, quote: str, engine: str, refs: list[dict] | None = None) -> str:
     history = messages[-HISTORY:]
     convo = "\n\n".join(("读者" if m["role"] == "user" else "你") + "：" + m["content"] for m in history[:-1])
     ask = history[-1]["content"] if history else ""
     tool = ("需要看全文时，用 Read 工具读当前目录的 paper.json（blocks 里是译文和原文）；读者的全部标记在 reader.json 的 notes 里。\n"
             if engine == "claude" else "")
-    marks = _marks(ws)
+    want, colors = wants_marks(ask)
+    marks = _marks(ws, colors) if want else _marks_summary(ws)
     return ("你在陪读者读一篇学术论文，回答他边读边冒出来的问题。用中文，直接、具体，能举例就举例；"
             "区分“论文里写了什么”和“你的补充解释”，论文里没有的内容不要说成是论文说的。"
             "行内公式写 $TeX$，行间公式写 $$TeX$$。只输出回答本身，不要客套，不要重复问题。\n" + tool + "\n"
-            + _context(ws, anchor, quote)
+            + _context(ws, anchor, quote, refs)
             + ("\n\n" + marks if marks else "")
             + (f"\n\n之前的对话：\n{convo}" if convo else "")
             + f"\n\n读者现在问：{ask}")

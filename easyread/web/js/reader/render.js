@@ -185,17 +185,16 @@
 
   /* 版心放不下的长公式、宽表格：先缩小字号，再不行才横向滚动 */
   PR.fitWide = function (scope) {
-    PR.$$(".math-body, .tbl-wrap", scope || PR.$("#paper")).forEach((box) => {
-      const inner = box.firstElementChild;
-      if (!inner) return;
-      const isTable = box.classList.contains("tbl-wrap");
-      inner.style.fontSize = "";
-      const avail = box.clientWidth, need = inner.scrollWidth;
-      if (need > avail + 1) {
-        const floor = window.innerWidth < 760 ? 0.58 : 0.72;
-        const r = Math.max(floor, avail / need) * 0.99;
-        inner.style.fontSize = isTable ? (0.86 * r).toFixed(3) + "em" : (r * 100).toFixed(1) + "%";
-      }
+    // 先全部复原、再一起量、最后一起改：边改边量会让浏览器每个公式都重排一次整页
+    const boxes = PR.$$(".math-body, .tbl-wrap", scope || PR.$("#paper")).filter((box) => box.firstElementChild);
+    boxes.forEach((box) => { box.firstElementChild.style.fontSize = ""; });
+    const sizes = boxes.map((box) => [box.clientWidth, box.firstElementChild.scrollWidth]);
+    const floor = window.innerWidth < 760 ? 0.58 : 0.72;
+    boxes.forEach((box, i) => {
+      const [avail, need] = sizes[i];
+      if (need <= avail + 1) return;
+      const r = Math.max(floor, avail / need) * 0.99;
+      box.firstElementChild.style.fontSize = box.classList.contains("tbl-wrap") ? (0.86 * r).toFixed(3) + "em" : (r * 100).toFixed(1) + "%";
     });
   };
   PR.on("rendered", () => PR.fitWide());

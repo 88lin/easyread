@@ -60,5 +60,28 @@ class ChatStreamTest(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_marks_only_when_asked_and_refs(self):
+        import shutil, tempfile
+        from pathlib import Path
+        from easyread.store import Workspace, write_json_atomic
+        root = Path(tempfile.mkdtemp())
+        try:
+            blocks = [{"id": "a", "type": "p", "zh": "甲段 $x$"}, {"id": "b", "type": "p", "zh": "乙段"}, {"id": "c", "type": "p", "zh": "丙段"}]
+            write_json_atomic(root / "paper.json", {"meta": {}, "blocks": blocks})
+            write_json_atomic(root / "reader.json", {"notes": {"n1": {"anchor": "a", "quote": "红色重点", "color": "pink", "kind": "highlight"},
+                                                                "n2": {"anchor": "b", "quote": "黄色句子", "color": "yellow", "kind": "highlight"}}})
+            ws = Workspace(root)
+            refs = [{"anchor": "b", "quote": ""}, {"anchor": "c", "quote": "丙"}]
+            plain = chat.prompt(ws, [{"role": "user", "content": "这两段什么关系"}], "b", "", "openai", refs)
+            self.assertNotIn("红色重点", plain)           # 没问到标记，就不带
+            self.assertIn("2 处标记", plain)
+            self.assertIn("[c] 读者选中：「丙」", plain)   # 引用的第二段也在
+            red = chat.prompt(ws, [{"role": "user", "content": "我标红的那些有什么联系"}], None, "", "openai")
+            self.assertIn("红色重点", red)
+            self.assertNotIn("黄色句子", red)              # 只带问到的颜色
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

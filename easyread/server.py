@@ -85,10 +85,14 @@ class Handler(BaseHTTPRequestHandler):
         model = chat_models.label(m)
         thread = chat_store.get(ws, body.get("thread"))
         tid = thread["id"] if thread else chat_store.new_id()
-        user = {"content": text, "anchor": body.get("anchor"), "quote": (body.get("quote") or "")[:1000], "note": body.get("note")}
+        refs = [{"anchor": str(r.get("anchor") or ""), "quote": str(r.get("quote") or "")[:1000]}
+                for r in (body.get("refs") or [])[:12] if isinstance(r, dict) and r.get("anchor")]
+        first = refs[0] if refs else {}
+        user = {"content": text, "anchor": body.get("anchor") or first.get("anchor"), "quote": (body.get("quote") or first.get("quote") or "")[:1000],
+                "note": body.get("note"), "refs": refs}
         past = (thread or {}).get("messages", [])
         convo = [{"role": x["role"], "content": x["content"]} for x in past] + [{"role": "user", "content": text}]
-        prompt_text = chat.prompt(ws, convo, user["anchor"], user["quote"], ecfg["engine"])
+        prompt_text = chat.prompt(ws, convo, user["anchor"], user["quote"], ecfg["engine"], refs)
         self.send_response(200)
         self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -252,7 +256,12 @@ class Handler(BaseHTTPRequestHandler):
                 patch["models"] = chat_models.sanitize(body["models"])
             if body.get("default"):
                 patch["default"] = str(body["default"])
-            config.save({"chat": patch})
+            full = {"chat": patch}
+            if isinstance(body.get("keys"), dict):  # 设置里给某家 API 填的 Key，和翻译那边共用
+                keys = dict(config.load()["openai"].get("keys") or {})
+                keys.update({str(k): str(v).strip() for k, v in body["keys"].items() if v and not str(v).startswith("••••")})
+                full["openai"] = {"keys": keys}
+            config.save(full)
             return self._json(200, chat_models.listing(config.load()))
         if path == "/api/config/test":
             cfg = config.load()
@@ -353,6 +362,7 @@ def serve(port: int | None = None, open_browser: bool = False, path: str = "/"):
     cfg = config.load()
     app = App(cfg)
     Handler.app = app
+    detect.warm(cfg)
     port = cfg["port"] if port is None else port
     try:
         httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)

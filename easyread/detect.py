@@ -22,9 +22,23 @@ def _ollama() -> dict:
 
 
 def detect(cfg: dict, fresh: bool = False) -> dict:
+    """查一次要 1–2 秒（要跑 claude --version）。有缓存就直接给，过期了在后台刷新，页面不用等。"""
     with _lock:
-        if not fresh and _cache and time.time() - _cache["at"] < 60:
-            return _cache["data"]
+        cached = _cache.get("data")
+        if cached and not fresh:
+            if time.time() - _cache["at"] > 300 and not _cache.get("busy"):
+                _cache["busy"] = True
+                threading.Thread(target=_refresh, args=(cfg,), daemon=True).start()
+            return cached
+    return _refresh(cfg)
+
+
+def warm(cfg: dict) -> None:
+    """服务启动时先在后台查一遍，第一次打开设置就不用等。"""
+    threading.Thread(target=_refresh, args=(cfg,), daemon=True).start()
+
+
+def _refresh(cfg: dict) -> dict:
     out: dict = {}
 
     def cli(name, finder):
@@ -39,7 +53,7 @@ def detect(cfg: dict, fresh: bool = False) -> dict:
     for t in threads:
         t.join(40)
     with _lock:
-        _cache.update(at=time.time(), data=out)
+        _cache.update(at=time.time(), data=out, busy=False)
     return out
 
 

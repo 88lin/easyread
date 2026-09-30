@@ -171,6 +171,30 @@
   .steps li { grid-template-columns: 30px 1fr; }
   .steps li .btn { grid-column: 2; grid-row: auto; justify-self: start; margin-top: 8px; }
 }
-.detail-inner { position: relative; }
-.detail-close { position: absolute; top: 8px; right: 6px; width: 28px; height: 28px; font-size: 18px; color: var(--ink-3); }
-.detail .cover { padding-right: 26px; }
+
+/* 侧栏：最近阅读 */
+.side a.recent { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); font-size: 13.5px; text-decoration: none; }
+.side a.recent span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side a.recent em { font-style: normal; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.side a.recent:hover { background: var(--accent-soft); color: var(--ink); }
+.side button svg.i { color: var(--ink-3); flex: none; }
+.side button.on svg.i { color: var(--accent); }
+@media (min-width: 1101px) {
+  .lib { grid-template-columns: 248px minmax(0, 1fr) 0; }
+  .lib.has-detail { grid-template-columns: 248px minmax(0, 1fr) 400px; }
+}
+
+/* 列表行上的“+ 标签” */
+.row .add-tag { height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11.5px; color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--rule-2); opacity: 0; transition: opacity .12s; }
+.row:hover .add-tag, .row.on .add-tag { opacity: 1; }
+.row .add-tag:hover { color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* 详情：顶上一条标题栏，关闭按钮放显眼处 */
+.detail-head { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 12px 0 24px; background: var(--surface); border-bottom: 1px solid var(--rule); font-size: 13px; color: var(--ink-3); letter-spacing: .06em; }
+.detail-close { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; color: var(--ink-2); background: var(--bg); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.detail-close:hover { color: var(--ink); background: var(--accent-soft-2); }
+.detail-inner { padding-top: 18px; }
+.detail .tags { margin: 2px 0 12px; }
+.detail .tags input { width: 120px; }
+.detail .seg { margin-bottom: 4px; }
+.mine-line { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }

@@ -39,7 +39,7 @@ body { font-size: 15px; }
   display: grid;
   grid-template-columns: var(--gutter) var(--measure) var(--gap) var(--margin-w);
   font-size: var(--fs);
-  transition: margin .3s ease;
+
 }
 #paper { grid-column: 2; min-width: 0; font-family: var(--serif-zh); line-height: var(--lh); letter-spacing: .012em; font-variant-numeric: lining-nums; }
 #margin { grid-column: 4; position: relative; font-size: 15px; }

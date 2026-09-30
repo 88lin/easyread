@@ -1,36 +1,48 @@
 /* 右侧“问 AI”面板：边读边和模型实时对话，回答逐字流出来。
    - 多个对话：顶部点标题展开对话列表，可以新建、切换、改名、删除（存在论文目录的 chat.json）。
    - 模型：输入框左下角切换，名单在“设置 → 问 AI”里配（默认 Claude Opus 5.5 / Sonnet 5.5 / GPT）。
-   - 上下文：自动带上你正在读的段落（或选中的那句话），以及你的全部划线、笔记、问题（按颜色分组）。
+   - 上下文：默认带上你正在读的段落；可以引用多段——选中文字点“问 AI”、段落操作条的“问 AI”，
+     或者把选中的文字直接拖进输入框，每段一个小标签，可以逐个去掉。
+   - 你的划线、笔记、问题不会每次都带；问到“标红的”“划线”“我的笔记”时，后台才把对应颜色的标记找出来。
    - 页边笔记里的问题也从这里回答，答案同时写成那条笔记的回复。 */
 (function (PR) {
   "use strict";
   const S = PR.state;
   const panel = () => PR.$("#chatpanel");
-  const st = { loaded: false, threads: [], cur: null, models: [], def: "", model: "", listOpen: false, menuOpen: false, ctx: null, streaming: null, draft: "" };
+  const st = { loaded: false, threads: [], cur: null, models: [], def: "", model: "", listOpen: false, menuOpen: false, refs: [], auto: null, noAuto: false, streaming: null, draft: "" };
 
   PR.canChat = () => PR.store.mode === "server";
   PR.chatOpen = () => PR.side === "chat";
   PR.toggleChat = function (force) {
     const open = force != null ? force : PR.side !== "chat";
     PR.openSide(open ? "chat" : null);
-    if (open) { if (!st.ctx || st.ctx.auto) autoContext(); load().then(() => { render(); focusInput(); }); render(); }
+    if (open) { autoContext(); load().then(() => { render(); focusInput(); }); render(); }
   };
   const focusInput = () => setTimeout(() => { const t = PR.$("#chatInput"); t && t.focus(); }, 300);
 
   function autoContext() {
     const id = (PR.currentBlock && PR.currentBlock()) || PR.readingBlock();
-    st.ctx = PR.blockById[id] ? { anchor: id, quote: "", auto: true } : null;
+    st.auto = PR.blockById[id] ? { anchor: id, quote: "" } : null;
   }
+  function addRef(anchor, quote) {
+    if (!PR.blockById[anchor]) return false;
+    quote = (quote || "").trim();
+    if (st.refs.some((r) => r.anchor === anchor && r.quote === quote)) return false;
+    st.refs = st.refs.filter((r) => !(r.anchor === anchor && !r.quote && quote)).concat({ anchor, quote });  // 同段先引整段、再选一句：换成那句
+    return true;
+  }
+  /* 这次提问带哪几段：手动引用的；没有就用正在读的那段 */
+  const sendRefs = () => (st.refs.length ? st.refs.slice() : st.auto && !st.noAuto ? [st.auto] : []);
 
-  /* 外部入口：段落操作条、选中文字、笔记卡片 */
+  /* 外部入口：段落操作条、选中文字（都是“加一段引用”），笔记卡片（直接问这一条） */
   PR.chatAsk = function (opts) {
-    st.ctx = { anchor: opts.anchor, quote: opts.quote || "", auto: false };
-    if (PR.side !== "chat") PR.openSide("chat");
+    if (PR.side !== "chat") { PR.openSide("chat"); autoContext(); }
     load().then(() => {
-      render();
-      if (opts.text) send(opts.text, opts.note);
-      else { st.draft = opts.draft || ""; render(); focusInput(); }
+      if (opts.text) return send(opts.text, opts.note, [{ anchor: opts.anchor, quote: opts.quote || "" }]);
+      const added = addRef(opts.anchor, opts.quote);
+      if (opts.draft) st.draft = opts.draft;
+      render(); focusInput();
+      if (added && st.refs.length > 1) PR.toast("已引用 " + st.refs.length + " 段", null, 1000);
     });
   };
 
@@ -59,6 +71,11 @@
     const sec = PR.sectionOf ? PR.sectionOf(c.anchor) : "";
     return (sec ? sec + " · " : "") + "「" + text.slice(0, 36) + (text.length > 36 ? "…" : "") + "」";
   }
+  function refChip(r, i, auto) {
+    const label = ctxLabel(r);
+    return '<span class="chip-ctx' + (auto ? " auto" : "") + '" title="' + PR.esc(label) + '">' + PR.icon(auto ? "book" : "link", "sm") + "<span>" + (auto ? "正在读：" : r.quote ? "这句：" : "") + PR.esc(label) +
+      '</span><button data-c="' + (auto ? "noauto" : "unref") + '" data-i="' + i + '" title="不带这段">×</button></span>';
+  }
   function markCounts() {
     const out = {};
     PR.myNotes().forEach((n) => { if (n.quote) out[n.color || "yellow"] = (out[n.color || "yellow"] || 0) + 1; });
@@ -83,7 +100,8 @@
   function msgHtml(m) {
     if (m.role === "user") {
       return '<div class="cm user"><div class="bubble">' + PR.esc(m.content).replace(/\n/g, "<br>") + "</div>" +
-        (m.anchor && PR.blockById[m.anchor] ? '<button class="cm-ctx" data-c="go" data-anchor="' + PR.esc(m.anchor) + '">' + PR.icon("link", "sm") + PR.esc(ctxLabel(m)) + "</button>" : "") + "</div>";
+        ((m.refs && m.refs.length ? m.refs : m.anchor ? [m] : []).filter((r) => PR.blockById[r.anchor])
+          .map((r) => '<button class="cm-ctx" data-c="go" data-anchor="' + PR.esc(r.anchor) + '">' + PR.icon("link", "sm") + "<span>" + PR.esc(ctxLabel(r)) + "</span></button>").join("")) + "</div>";
     }
     const live = st.streaming && st.streaming.msg === m;
     return '<div class="cm ai' + (m.error ? " err" : "") + '" data-id="' + PR.esc(m.id || "") + '"><div class="who"><span class="av">' + PR.icon("sparkle", "sm") + "</span>" + PR.esc(m.model || "AI") + (live ? ' <span class="spin"></span>' : "") + "</div>" +
@@ -95,18 +113,17 @@
     const colors = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     const sug = ["这段在说什么？用大白话讲一遍", "这个公式每一项是什么意思？怎么推出来的？", "这里的结论靠得住吗？有什么前提？"];
     if (colors.length) sug.unshift("我标" + colorName(colors[0]) + "的那些地方，彼此有什么联系？", "把我划过线的内容串成一条主线讲讲");
-    return '<div class="ch-empty">' + PR.logo("hero") + "<b>边读边问</b><p>问题会带上你正在读的段落" + (colors.length ? "，以及你的 " + Object.values(counts).reduce((a, b) => a + b, 0) + " 处划线（" + colors.map((c) => colorName(c) + " " + counts[c]).join("、") + "）" : "和你的全部标记") + "。</p>" +
+    return '<div class="ch-empty">' + PR.logo("hero") + "<b>边读边问</b><p>默认带上你正在读的段落，也可以引用多段一起问。" + (colors.length ? "问到“标" + colorName(colors[0]) + "的”“划线”时，会自动找出你的 " + Object.values(counts).reduce((a, b) => a + b, 0) + " 处标记。" : "") + "</p>" +
       '<div class="chips">' + sug.map((q) => '<button data-c="suggest">' + PR.esc(q) + "</button>").join("") + "</div></div>";
   }
   function composerHtml() {
-    const counts = markCounts(), n = Object.values(counts).reduce((a, b) => a + b, 0);
     const m = modelOf(st.model);
-    const chips = (st.ctx && st.ctx.anchor ? '<span class="chip-ctx" title="' + PR.esc(ctxLabel(st.ctx)) + '">' + PR.icon("link", "sm") + "<span>" + (st.ctx.quote ? "这句：" : "") + PR.esc(ctxLabel(st.ctx)) + '</span><button data-c="noctx" title="不带这段">×</button></span>' : "") +
-      (n ? '<span class="chip-marks" title="你的全部划线、笔记、问题都会带上，按颜色分组">' + PR.HL_COLORS.filter(([c]) => counts[c]).map(([c]) => '<i class="dot-' + c + '"></i>').join("") + n + " 处标记</span>" : "");
+    const chips = st.refs.length ? st.refs.map((r, i) => refChip(r, i)).join("") : st.auto && !st.noAuto ? refChip(st.auto, 0, true) : "";
     const menu = st.menuOpen ? '<div class="ch-menu">' + st.models.map((x) => '<button data-c="model" data-m="' + PR.esc(x.id) + '" class="' + (x.id === st.model ? "on" : "") + '"' + (x.ready === false ? ' disabled title="' + PR.esc(x.hint) + '"' : "") + ">" +
       "<b>" + PR.esc(x.label) + "</b><small>" + PR.esc(x.ready === false ? x.hint : [x.source, x.id === st.def ? "默认" : ""].filter(Boolean).join(" · ")) + "</small></button>").join("") +
       '<hr><button data-c="manage">' + PR.icon("gear", "sm") + "管理模型…</button></div>" : "";
     return '<div class="ch-compose">' + (chips ? '<div class="ch-chips">' + chips + "</div>" : "") +
+      (st.refs.length < 2 && !st.streaming ? '<div class="ch-tip">想一起问几段？把正文里选中的文字拖进来，或点段落上的“问 AI”</div>' : "") +
       '<textarea id="chatInput" rows="1" placeholder="问点什么…（Enter 发送，Shift+Enter 换行）">' + PR.esc(st.draft) + "</textarea>" +
       '<div class="ch-bar"><button class="ch-model" data-c="menu" title="换模型">' + PR.esc(m.label) + PR.icon("chevron", "sm") + "</button>" + menu +
       '<span class="grow"></span>' + (st.streaming ? '<button class="ch-send stop" data-c="stop" title="停止">' + PR.icon("stop", "sm") + "</button>"
@@ -135,13 +152,14 @@
   const renderLiveSoon = PR.throttle(renderLive, 60);
 
   /* ---------- 发送 ---------- */
-  async function send(text, noteId) {
+  async function send(text, noteId, only) {
     text = (text || "").trim();
     if (!text || st.streaming) return;
-    const c = st.ctx && st.ctx.anchor ? st.ctx : null;
+    const refs = only || sendRefs();
+    const c = refs[0] || null;
     let t = thread();
     if (!t) { t = { id: null, title: text.slice(0, 22), messages: [], updated: PR.nowIso() }; st.threads.unshift(t); }
-    const user = { role: "user", content: text, anchor: c ? c.anchor : null, quote: c ? c.quote : "", note: noteId || null };
+    const user = { role: "user", content: text, anchor: c ? c.anchor : null, quote: c ? c.quote : "", note: noteId || null, refs };
     const msg = { role: "assistant", content: "", model: modelOf(st.model).label };
     t.messages.push(user, msg);
     const ctrl = new AbortController();
@@ -153,7 +171,7 @@
     try {
       const res = await fetch("/api/p/" + PR.pid + "/chat", {
         method: "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", "X-Token": PR.token || "" },
-        body: JSON.stringify({ thread: t.id, text, anchor: user.anchor, quote: user.quote, note: noteId || null, model: st.model }),
+        body: JSON.stringify({ thread: t.id, text, anchor: user.anchor, quote: user.quote, refs, note: noteId || null, model: st.model }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "HTTP " + res.status);
       const reader = res.body.getReader(), dec = new TextDecoder();
@@ -181,7 +199,7 @@
     st.streaming = null;
     t.updated = PR.nowIso();
     if (noteId) { PR.asking.delete(noteId); setTimeout(() => PR.poll && PR.poll(), 300); }
-    if (st.ctx && st.ctx.anchor) st.ctx = { anchor: st.ctx.anchor, quote: "", auto: true };  // 问完之后跟着阅读位置走
+    if (!only) { st.refs = []; st.noAuto = false; autoContext(); }  // 问完清掉引用，回到“正在读”
     render();
   }
 
@@ -194,14 +212,15 @@
     const row = b.closest(".ch-thread[data-t]");
     if (c === "close") return PR.toggleChat(false);
     if (c === "list") { st.listOpen = !st.listOpen; st.menuOpen = false; return render(); }
-    if (c === "new") { if (st.streaming) return; st.cur = null; st.listOpen = false; st.model = st.def; autoContext(); render(); return focusInput(); }
+    if (c === "new") { if (st.streaming) return; st.cur = null; st.listOpen = false; st.model = st.def; st.refs = []; st.noAuto = false; autoContext(); render(); return focusInput(); }
     if (c === "menu") { st.menuOpen = !st.menuOpen; st.listOpen = false; return render(); }
     if (c === "model") { st.model = b.dataset.m; st.menuOpen = false; return render(); }
     if (c === "manage") { st.menuOpen = false; render(); return PR.openSettings("chat"); }
     if (c === "send") return send(PR.$("#chatInput").value);
     if (c === "stop" && st.streaming) return st.streaming.ctrl.abort();
     if (c === "suggest") return send(b.textContent);
-    if (c === "noctx") { st.ctx = { anchor: null, quote: "", auto: false }; return render(); }
+    if (c === "unref") { st.refs.splice(+b.dataset.i, 1); return render(); }
+    if (c === "noauto") { st.noAuto = true; return render(); }
     if (c === "go") return PR.jumpTo("b-" + b.dataset.anchor);
     if (c === "rename" && row) {
       const t = st.threads.find((x) => x.id === row.dataset.t);
@@ -241,13 +260,34 @@
     if (e.key === "Escape") e.target.blur();
   });
   document.addEventListener("input", (e) => { if (e.target.id === "chatInput") PR.autosize(e.target); });
+  /* 把正文里选中的文字拖进问 AI 面板：变成一段引用，而不是一堆粘进来的字 */
+  let dragRef = null;
+  document.addEventListener("dragstart", (e) => {
+    const sel = window.getSelection();
+    const node = sel && sel.rangeCount && sel.getRangeAt(0).startContainer;
+    const host = node && (node.nodeType === 1 ? node : node.parentElement).closest("#paper [id^='b-']");
+    dragRef = host ? { anchor: host.id.slice(2), quote: sel.toString().trim().slice(0, 1000) } : null;
+    if (dragRef && PR.chatOpen()) panel().classList.add("drop-ok");
+  });
+  document.addEventListener("dragend", () => { dragRef = null; panel().classList.remove("drop-ok", "drop-on"); });
+  panel().addEventListener("dragover", (e) => { if (!dragRef) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; panel().classList.add("drop-on"); });
+  panel().addEventListener("dragleave", (e) => { if (!panel().contains(e.relatedTarget)) panel().classList.remove("drop-on"); });
+  panel().addEventListener("drop", (e) => {
+    if (!dragRef) return;
+    e.preventDefault();
+    panel().classList.remove("drop-ok", "drop-on");
+    const { anchor, quote } = dragRef;
+    dragRef = null;
+    addRef(anchor, quote);
+    render(); focusInput();
+  });
   /* 读到别处时，上下文跟着换成当前段（手动指定的不动） */
   window.addEventListener("scroll", PR.debounce(() => {
-    if (!PR.chatOpen() || st.streaming || (st.ctx && !st.ctx.auto)) return;
-    const before = st.ctx && st.ctx.anchor;
+    if (!PR.chatOpen() || st.streaming) return;
+    const before = st.auto && st.auto.anchor;
     autoContext();
-    if ((st.ctx && st.ctx.anchor) === before) return;
-    const el = PR.$(".chip-ctx > span");
-    if (el && st.ctx) { el.textContent = ctxLabel(st.ctx); el.parentElement.title = ctxLabel(st.ctx); } else render();
+    if ((st.auto && st.auto.anchor) === before || st.refs.length || st.noAuto) return;
+    const el = PR.$(".chip-ctx.auto > span");
+    if (el && st.auto) { el.textContent = "正在读：" + ctxLabel(st.auto); el.parentElement.title = ctxLabel(st.auto); } else render();
   }, 400), { passive: true });
 })(window.PR);

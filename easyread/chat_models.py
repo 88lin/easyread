@@ -122,7 +122,7 @@ def listing(cfg: dict) -> dict:
             p = next((x for x in PRESETS if x["id"] == m.get("preset")), None)
             ready = bool(_key(cfg, m.get("preset") or "")) or not needs_key({"preset": m.get("preset"), "base_url": m.get("base_url", "")})
             source = p["name"] if p else "自定义接口"
-            hint = "" if ready else f"还没填 {source} 的 Key（设置 → 翻译引擎 → API）"
+            hint = "" if ready else f"还没填 {source} 的 Key（设置 → 问 AI → 改）"
         out.append({**m, "label": label(m), "source": source, "ready": ready, "hint": hint,
                     "detail": (actual_of(m.get("model", "")) or m.get("model")) if e == "claude" else m.get("model") or (codex_default_model() if e == "codex" else "")})
     default = (cfg.get("chat") or {}).get("default") or (out[0]["id"] if out else "")

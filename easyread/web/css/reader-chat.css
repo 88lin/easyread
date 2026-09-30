@@ -1,7 +1,6 @@
 /* 右侧“问 AI”面板 */
-#chatpanel { width: min(460px, 94vw); background: var(--bg); }
+#chatpanel { background: var(--bg); }
 body.ch-open #chatpanel { transform: none; }
-@media (min-width: 1180px) { body.ch-open { --side-w: 460px; } }
 
 .ch-head { position: relative; display: flex; align-items: center; gap: 4px; height: 50px; padding: 0 8px 0 10px; border-bottom: 1px solid var(--rule); flex: none; background: var(--surface); }
 .ch-head .grow { flex: 1; }
@@ -62,17 +61,10 @@ body.ch-open #chatpanel { transform: none; }
 .ch-compose:focus-within { box-shadow: 0 0 0 1.5px var(--accent), 0 2px 10px rgba(0,0,0,.05); }
 .ch-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
 .chip-ctx, .chip-marks { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; height: 24px; padding: 0 4px 0 8px; border-radius: 12px; font-size: 12px; color: var(--ink-2); background: var(--bg); }
-.chip-ctx { min-width: 0; flex: 1 1 auto; }
 .chip-ctx > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-ctx svg { width: 12px; height: 12px; flex: none; color: var(--accent); }
 .chip-ctx button { width: 18px; height: 18px; border-radius: 50%; color: var(--ink-3); flex: none; line-height: 1; }
 .chip-ctx button:hover { background: var(--surface-2); color: var(--ink); }
-.chip-marks { padding-right: 9px; flex: none; }
-.chip-marks i { width: 8px; height: 8px; border-radius: 50%; margin-right: -2px; box-shadow: 0 0 0 1.5px var(--bg); }
-.chip-marks i.dot-yellow { background: var(--ul-yellow); }
-.chip-marks i.dot-green { background: var(--ul-green); }
-.chip-marks i.dot-blue { background: var(--ul-blue); }
-.chip-marks i.dot-pink { background: var(--ul-pink); }
 #chatInput { width: 100%; border: 0; outline: 0; resize: none; background: transparent; padding: 6px 0; font: 14.5px/1.6 var(--ui); color: var(--ink); min-height: 30px; max-height: 200px; display: block; }
 .ch-bar { display: flex; align-items: center; gap: 6px; }
 .ch-bar .grow { flex: 1; }
@@ -102,3 +94,12 @@ body.ch-open #chatpanel { transform: none; }
 .cm.ai .body li { margin: .15em 0; }
 .cm.ai .body .md-h { font-weight: 600; margin-top: .4em; }
 .card .body ul, .card .body ol { margin: .2em 0 .4em; padding-left: 1.3em; }
+.chip-ctx { min-width: 0; flex: 0 1 auto; max-width: 100%; }
+.chip-ctx.auto { color: var(--ink-3); }
+.chip-ctx.auto svg { color: var(--ink-3); }
+.ch-tip { font-size: 11.5px; color: var(--ink-3); margin: 0 0 2px; }
+.cm.user .cm-ctx span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chatpanel.drop-ok .ch-compose::after { content: "松手，引用这段"; position: absolute; inset: 0; border-radius: 16px; display: grid; place-items: center; font-size: 13px; color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 85%, var(--surface)); border: 1.5px dashed var(--accent); pointer-events: none; }
+#chatpanel.drop-on .ch-compose::after { background: var(--accent-soft-2); }
+.ch-compose { max-width: 780px; width: calc(100% - 24px); margin-left: auto; margin-right: auto; }
+.ch-scroll { padding-left: max(18px, calc((100% - 760px) / 2)); padding-right: max(18px, calc((100% - 760px) / 2)); }

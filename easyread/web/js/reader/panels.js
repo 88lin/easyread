@@ -126,14 +126,26 @@
     if (open) PR.renderDrawer();
   };
   PR.$("#scrim").onclick = () => PR.toggleDrawer(false);
+  if (PR.store.mode !== "server") PR.$('[data-tab="recent"]').hidden = true;  // 离线单文件版没有文献库
   PR.$(".drawer-tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) { tab = b.dataset.tab; PR.renderDrawer(); } });
 
   PR.renderDrawer = function () {
     PR.$$(".drawer-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
     const box = PR.$(".drawer-body");
-    box.innerHTML = ({ toc: tocHtml, terms: termsHtml, about: aboutHtml })[tab]();
+    box.innerHTML = ({ toc: tocHtml, terms: termsHtml, about: aboutHtml, recent: recentHtml })[tab]();
     box.className = "drawer-body " + tab;
   };
+  /* 最近读过的论文：不用回文献库就能换一篇 */
+  let recent = null;
+  function recentHtml() {
+    if (!recent) {
+      PR.api("/api/library").then((d) => { recent = d.items.filter((i) => i.last_opened).sort((a, b) => String(b.last_opened).localeCompare(String(a.last_opened))).slice(0, 15); if (tab === "recent") PR.renderDrawer(); })
+        .catch(() => { recent = []; });
+      return '<p class="hint">加载中…</p>';
+    }
+    return '<nav class="toc recent-list">' + recent.map((i) => '<a href="/read/' + i.id + '" class="l1' + (i.id === PR.pid ? " on" : "") + '"><span class="cnt">' + (i.progress > 0.02 ? Math.round(i.progress * 100) + "%" : "") + "</span>" +
+      PR.esc(i.title_zh || i.title_en || "（未命名）") + "</a>").join("") + '</nav><a class="btn sm line" href="/" style="margin-top:12px">打开文献库</a>';
+  }
   function countByHeading() {
     const counts = {};
     let cur = "head";
@@ -175,7 +187,7 @@
       "<h3>保存</h3><p>" + status + "</p>" + (PR.store.pending ? "<p>还有 " + PR.store.pending + " 条修改在等待写入。</p>" : "") +
       '<div class="row">' + (pdf ? '<a class="btn sm line" href="' + pdf + '" target="_blank" rel="noopener">打开原 PDF</a>' : "") +
       '<button class="btn sm line" data-x="md">导出笔记…</button>' + (PR.store.mode === "static" ? '<button class="btn sm line" data-x="ops">导出我的修改</button>' : "") + "</div>" +
-      "<h3>怎么用</h3><p>点一下段落，上方出现操作条：笔记、提问、问 AI、原文、改译文、重译、原页。右键段落是完整菜单。选中文字可以用四种颜色划线、写笔记、提问、问 AI。双击一段直接改译文。</p>" +
+      "<h3>怎么用</h3><p>点一下段落，上方出现操作条：笔记、提问、问 AI、原文、改译文、原页。右键段落是完整菜单。选中文字可以用四种颜色划线、写笔记、提问；打开问 AI 时，选中的文字可以直接拖进输入框，一次引用多段。双击一段直接改译文。</p>" +
       "<h3>快捷键</h3>" + (PR.keysOn
         ? '<div class="keyrows">' + PR.KEY_ACTIONS.filter(([id, , , , need]) => PR.keymap[id] && (!need || PR.feature(need))).map(([id, label]) => "<kbd>" + PR.esc(PR.keyOf(id)) + "</kbd><span>" + label + "</span>").join("") +
           "<kbd>1</kbd><span>选中文字后按 1–4：四色划线</span><kbd>Esc</kbd><span>关闭面板、取消选中</span></div>"

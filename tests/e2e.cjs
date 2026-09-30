@@ -18,6 +18,7 @@ const PID = path.basename(SRC);
 const ROOM = path.join(LIB, PID);
 const env = { ...process.env, PYTHONUTF8: '1', EASYREAD_LIBRARY: LIB };
 const disk = (name = 'reader') => JSON.parse(fs.readFileSync(path.join(ROOM, name + '.json'), 'utf8'));
+const until = async (fn, ms = 3000) => { const t = Date.now(); while (Date.now() - t < ms) { try { if (fn()) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 100)); } return false; };
 const ok = (cond, msg) => { if (!cond) throw new Error('FAIL: ' + msg); console.log('  ✓ ' + msg); };
 const cli = (...args) => execFileSync(PY, ['-m', 'easyread', ...args], { env, cwd: ROOT }).toString();
 
@@ -57,7 +58,7 @@ const cli = (...args) => execFileSync(PY, ['-m', 'easyread', ...args], { env, cw
     await page.fill('#tagInput', '统计方法');
     await page.press('#tagInput', 'Enter');
     await page.waitForFunction(() => document.querySelector('.side [data-tag]'));
-    ok(disk('item').tags.includes('统计方法'), '加标签写入 item.json');
+    ok(await until(() => disk('item').tags.includes('统计方法')), '加标签写入 item.json');
     await page.click('[data-status="reading"]');
     await page.waitForTimeout(400);
     ok(disk('item').status === 'reading', '改阅读状态写入 item.json');

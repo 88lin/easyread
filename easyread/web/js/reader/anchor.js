@@ -117,7 +117,7 @@
       '<button data-s="highlight" data-color="' + c + '" class="dot-' + c + '" title="' + name + (pen === "underline" ? "色下划线" : "色荧光笔") + (PR.keysOn ? "（" + (i + 1) + "）" : "") + '"></button>').join("") + "</span>" +
       '<button data-s="note" title="写笔记（N）">' + PR.icon("note", "sm") + "笔记</button>" +
       '<button data-s="question" title="提问（Q）">' + PR.icon("question", "sm") + "提问</button>" +
-      (PR.canChat && PR.canChat() && PR.feature("chat") ? '<button data-s="chat" title="就这句话问 AI">' + PR.icon("sparkle", "sm") + "问 AI</button>" : "") +
+      (PR.canChat && PR.canChat() && PR.feature("chat") ? '<button data-s="chat" title="把这句引用到问 AI（可以引用多段）">' + PR.icon("sparkle", "sm") + (PR.chatOpen && PR.chatOpen() ? "引用到对话" : "问 AI") + "</button>" : "") +
       '<button data-s="en" title="看这段英文">' + PR.icon("en", "sm") + "原文</button>" +
       '<button data-s="copy" title="复制">' + PR.icon("copy", "sm") + "</button>";
     bar.classList.add("open");

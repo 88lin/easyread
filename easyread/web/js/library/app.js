@@ -25,7 +25,7 @@
   L.openReader = (id) => { location.href = "/read/" + id; };
   L.patch = async function (id, fields) {
     const it = L.byId(id);
-    if (it) Object.assign(it, fields.meta_override ? {} : fields);
+    if (it) { Object.assign(it, fields.meta_override ? {} : fields); L.render(); }  // 先改界面，再存盘
     try { await PR.api("/api/p/" + id + "/item", { method: "POST", body: fields }); }
     catch (e) { PR.toast("保存失败：" + PR.esc(e.message)); }
     await L.load();
@@ -64,9 +64,18 @@
     return list;
   }
 
+  /* 左侧栏像聊天软件：最上面是最近读过的论文，点一下直接接着读 */
+  function recentHtml() {
+    const list = L.items.filter((i) => i.last_opened).sort((a, b) => String(b.last_opened).localeCompare(String(a.last_opened))).slice(0, 8);
+    if (!list.length) return "";
+    return "<h3>最近阅读</h3>" + list.map((i) => '<a class="recent" href="/read/' + i.id + '" title="' + PR.esc(i.title_zh || i.title_en) + '（' + PR.esc(PR.relTime(i.last_opened)) + '打开）">' +
+      "<span>" + PR.esc(i.title_zh || i.title_en || "（未命名）") + "</span>" +
+      (i.progress > 0.02 ? '<em>' + Math.round(i.progress * 100) + "%</em>" : "") + "</a>").join("");
+  }
+
   function sideHtml() {
     const count = (fn) => L.items.filter(fn).length;
-    let h = "<h3>文献</h3>" + VIEWS.map(([k, label, icon, fn]) => {
+    let h = recentHtml() + "<h3>分类</h3>" + VIEWS.map(([k, label, icon, fn]) => {
       const n = count(fn);
       if (!n && !["all", "reading", "unread", "done", "starred"].includes(k)) return "";
       return '<button data-view="' + k + '" class="' + (L.view === k && !L.tag ? "on" : "") + '">' + PR.icon(icon, "sm") + "<span>" + label + '</span><span class="n">' + n + "</span></button>";
@@ -74,8 +83,8 @@
     const tags = {};
     L.items.forEach((i) => (i.tags || []).forEach((t) => (tags[t] = (tags[t] || 0) + 1)));
     const names = Object.keys(tags).sort((a, b) => tags[b] - tags[a] || a.localeCompare(b, "zh"));
-    h += "<h3>标签</h3>" + (names.length ? names.map((t) => '<button data-tag="' + PR.esc(t) + '" class="' + (L.tag === t ? "on" : "") + '"><span class="dot"></span><span>' + PR.esc(t) + '</span><span class="n">' + tags[t] + "</span></button>").join("")
-      : '<div class="empty">在右侧详情里给论文加标签，按主题归类。</div>');
+    h += "<h3>标签</h3>" + (names.length ? names.map((t) => '<button data-tag="' + PR.esc(t) + '" class="' + (L.tag === t ? "on" : "") + '">' + PR.icon("tag", "sm") + "<span>" + PR.esc(t) + '</span><span class="n">' + tags[t] + "</span></button>").join("")
+      : '<div class="empty">鼠标移到论文上，点“+ 标签”就能按主题归类。</div>');
     return h;
   }
 
@@ -99,7 +108,7 @@
     const title = i.title_zh || i.title_en || "（未命名）";
     const sub = i.title_zh && i.title_en ? '<div class="t2" lang="en">' + PR.esc(i.title_en) + "</div>" : "";
     const bits = [i.authors && PR.esc(i.authors.split(",").slice(0, 3).join(",") + (i.authors.split(",").length > 3 ? " 等" : "")), i.year, i.venue || i.arxiv].filter(Boolean);
-    const tags = (i.tags || []).map((t) => '<span class="chip">' + PR.esc(t) + "</span>").join("");
+    const tags = (i.tags || []).map((t) => '<span class="chip">' + PR.esc(t) + "</span>").join("") + '<button class="add-tag" data-addtag-row title="给这篇加标签">+ 标签</button>';
     const thumb = i.thumb ? '<div class="thumb" style="background-image:url(' + i.thumb + ')"></div>' : '<div class="thumb blank">' + PR.icon("pdf") + "</div>";
     const notes = i.notes + i.highlights ? '<span class="stat">' + PR.icon("note", "sm") + (i.notes + i.highlights) + (i.open_questions ? " · " + i.open_questions + " 问待答" : "") + "</span>" : "";
     const prog = i.progress ? '<div class="meter" title="阅读进度 ' + Math.round(i.progress * 100) + '%"><i style="width:' + Math.round(i.progress * 100) + '%"></i></div>' : "";
@@ -167,7 +176,10 @@
   PR.$("#list").addEventListener("click", (e) => {
     const r = e.target.closest(".row");
     if (r) L.select(r.dataset.id);
+    if (r && e.target.closest("[data-addtag-row]")) L.focusTag();
   });
+  /* 加标签：打开详情，光标放到标签输入框 */
+  L.focusTag = () => setTimeout(() => { const t = PR.$("#tagInput"); if (t) { t.focus(); t.scrollIntoView({ block: "nearest" }); } }, 60);
   /* 点列表空白处、侧栏、标题栏空白：收起右侧详情 */
   document.addEventListener("click", (e) => {
     if (!L.selected || e.target.closest(".row, #detail, .dialog-backdrop, .menu, #toast, .topbar button, .topbar input, select")) return;

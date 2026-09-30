@@ -13,8 +13,8 @@
   PR.openSettings = async function (tab) {
     const [d, chat] = await Promise.all([PR.api("/api/config"), PR.api("/api/chat/models").catch(() => null)]);
     Object.assign(st, { tab: typeof tab === "string" ? tab : st.tab, cfg: d.config, presets: d.presets, groups: d.groups || [], chat,
-      ui: { features: Object.assign({}, PR.features), keys_on: PR.keysOn, keys: Object.assign({}, PR.keymap) },
-      theme: PR.ls.get("easyread-prefs", {}).theme || "auto", recording: null, editing: null });
+      apiKind: null, ui: { features: Object.assign({}, PR.features), keys_on: PR.keysOn, keys: Object.assign({}, PR.keymap) },
+      theme: PR.ls.get("easyread-prefs", {}).theme || "auto", recording: null, editing: null, form: null, chatKeys: null });
     render();
     dlg().classList.add("open");
     if (!st.found) {
@@ -39,7 +39,7 @@
     sync();
     const r = await PR.api("/api/config", { method: "POST", body: PR.settingsTabs.engine.collect(st) });
     st.cfg = r.config;
-    if (st.chat) st.chat = await PR.api("/api/chat/models", { method: "POST", body: { models: st.chat.models, default: st.chat.default } });
+    if (st.chat) st.chat = await PR.api("/api/chat/models", { method: "POST", body: { models: st.chat.models, default: st.chat.default, keys: st.chatKeys || {} } });
     PR.applyUi(st.ui, true);
     PR.ls.set("easyread-auto-translate", !!st.cfg.auto_translate);
     const prefs = PR.ls.get("easyread-prefs", {});
@@ -99,8 +99,12 @@
     return '<div class="grid2"><label class="field"><span>模型</span>' + model + "</label>" +
       '<label class="field"><span>命令</span><input class="input" data-k="' + name + '.command" value="' + PR.esc(c.command) + '"></label></div><p class="hint">' + how + "</p>";
   }
+  /* 免费模型 = 本机开源模型 + 有免费额度的服务；付费 API 单独一张卡 */
+  const API_KIND = { local: "free", free: "free", paid: "paid" };
+  PR.apiKind = (presets, id) => API_KIND[((presets.find((x) => x.id === id) || {}).group) || "local"] || "free";
   function apiFields() {
     const o = st.cfg.openai;
+    const kind = st.apiKind || PR.apiKind(st.presets, o.preset);
     const p = st.presets.find((x) => x.id === o.preset);
     const ollama = st.found && st.found.ollama;
     let model = '<input class="input" data-k="openai.model" value="' + PR.esc(o.model) + '" list="modelList" placeholder="模型名"><datalist id="modelList">' +
@@ -110,7 +114,7 @@
     }
     const saved = o.saved_keys || [];
     const tile = (x) => '<button data-preset="' + x.id + '" class="' + (o.preset === x.id ? "on" : "") + '">' + PR.esc(x.name) + (saved.includes(x.id) ? ' <span class="ok-dot" title="已存 Key"></span>' : "") + "</button>";
-    const tiles = st.groups.map(([g, label]) => '<div class="preset-group"><span>' + PR.esc(label) + "</span>" + st.presets.filter((x) => x.group === g).map(tile).join("") +
+    const tiles = st.groups.filter(([g]) => (API_KIND[g] || "free") === kind).map(([g, label]) => '<div class="preset-group"><span>' + PR.esc(label) + "</span>" + st.presets.filter((x) => x.group === g).map(tile).join("") +
       (g === "local" ? '<button data-preset="" class="' + (!o.preset ? "on" : "") + '">自定义地址</button>' : "") + "</div>").join("");
     let note = p && p.note ? PR.esc(p.note) : "";
     if (o.preset === "ollama" && st.found) note = (ollama && ollama.running ? "Ollama 在运行，已下载 " + ollama.models.length + " 个模型。" : '<span class="bad">没检测到 Ollama（127.0.0.1:11434）。</span>') + note;
@@ -121,6 +125,20 @@
       (p && !p.key ? "" : '<label class="field"><span>API Key' + (o.has_key ? "（已保存，留空不改）" : "") + '</span><input class="input" type="password" data-k="openai.api_key" value="' + PR.esc(o.api_key) + '" placeholder="sk-…" autocomplete="off"></label>') +
       '<label class="check" style="margin:0 0 10px"><input type="checkbox" data-k="openai.vision"' + (o.vision ? " checked" : "") + ">模型能看图（把原页图一起发过去，公式和表格更准）</label>" +
       '<p class="hint">Key 只存在本机的 config.json 里，只发给你填的这个地址。这里存的 Key，“问 AI”用同一家服务时也能直接用。</p>';
+  }
+
+  function pickPreset(s, id) {
+    const p = s.presets.find((x) => x.id === id);
+    const o = s.cfg.openai;
+    o.preset = id;
+    if (p) {
+      o.base_url = p.base_url;
+      const om = s.found && s.found.ollama && s.found.ollama.models;
+      o.model = p.id === "ollama" && om && om.length && !om.includes(p.model) ? om[0] : p.model;
+      o.vision = ["gemini", "openai", "anthropic"].includes(p.id);
+    }
+    const saved = (o.saved_keys || []).includes(o.preset);  // 每家的 Key 分开存，换回来不用重填
+    o.api_key = saved ? "••••" : ""; o.has_key = saved;
   }
 
   function collect(state) {
@@ -140,13 +158,15 @@
   }
   PR.settingsTabs.engine = {
     render(s) {
+      if (s.cfg.engine === "none") { s.cfg.engine = "claude"; s.cfg.auto_translate = false; }  // 旧的“不翻译”= 关掉自动翻译
       const e = s.cfg.engine;
-      const card = (k, title, text, extra) => '<button data-engine="' + k + '" class="' + (e === k ? "on" : "") + '"><b>' + title + "</b>" + text + (extra || "") + "</button>";
+      const cur = e === "openai" ? (s.apiKind || PR.apiKind(s.presets, s.cfg.openai.preset)) : e;
+      const card = (k, title, text, extra) => '<button data-engine="' + k + '" class="' + (cur === k ? "on" : "") + '"><b>' + title + "</b>" + text + (extra || "") + "</button>";
       let h = '<p class="set-lead">导入论文后，用哪个模型在后台把它译成中文。</p><div class="engine-cards">' +
-        card("claude", "Claude Code", "用本机已登录的 Claude Code，不用 Key。会看原页图核对公式，译文最好。", badge("claude")) +
-        card("codex", "Codex CLI", "用本机已登录的 Codex（ChatGPT 账号），不用 Key。", badge("codex")) +
-        card("openai", "API", "DeepSeek、智谱、通义、Kimi、Gemini、本机 Ollama……填个 Key 就行。") +
-        card("none", "不自动翻译", "只导入。之后在对话里让 agent 译，或再开引擎。") + "</div>";
+        card("claude", "Claude Code", "本机已登录的 Claude，不用 Key。会看原页图核对公式，译得最好。", badge("claude")) +
+        card("codex", "Codex CLI", "本机已登录的 Codex（ChatGPT 账号），不用 Key。", badge("codex")) +
+        card("free", "免费模型", "本机 Ollama 离线跑开源模型；或智谱、硅基流动、Gemini 等的免费模型。", '<span class="badge ok">免费</span>') +
+        card("paid", "付费 API", "DeepSeek、通义、Kimi、OpenAI……一篇几毛钱。") + "</div>";
       if (e === "claude" || e === "codex") h += cliFields(e);
       else if (e === "openai") h += apiFields();
       return h + '<div class="test-line"><button class="btn sm line" id="testBtn">' + PR.icon("sparkle", "sm") + '试译一句</button><span class="test-result" id="testRes"></span></div>' +
@@ -164,23 +184,19 @@
     },
     async click(e, s) {
       const card = e.target.closest("[data-engine]");
-      if (card) { this.sync(s); s.cfg.engine = card.dataset.engine; if (s.cfg.engine === "openai" && s.cfg.concurrency < 2) s.cfg.concurrency = 3; if (s.cfg.engine !== "openai" && s.cfg.concurrency > 2) s.cfg.concurrency = 1; return true; }
-      const pre = e.target.closest("[data-preset]");
-      if (pre) {
+      if (card) {
         this.sync(s);
-        const p = s.presets.find((x) => x.id === pre.dataset.preset);
-        const o = s.cfg.openai;
-        o.preset = pre.dataset.preset;
-        if (p) {
-          o.base_url = p.base_url;
-          const om = s.found && s.found.ollama && s.found.ollama.models;
-          o.model = p.id === "ollama" && om && om.length && !om.includes(p.model) ? om[0] : p.model;
-          o.vision = ["gemini", "openai", "anthropic"].includes(p.id);
-        }
-        const saved = (o.saved_keys || []).includes(o.preset);  // 每家的 Key 分开存，换回来不用重填
-        o.api_key = saved ? "••••" : ""; o.has_key = saved;
-        return true;
-      }
+        const k = card.dataset.engine;
+        if (k === "free" || k === "paid") {
+          s.cfg.engine = "openai"; s.apiKind = k;
+          if (PR.apiKind(s.presets, s.cfg.openai.preset) !== k || !s.cfg.openai.base_url) {  // 换到这一类的推荐项：免费先用本机 Ollama（在跑的话），否则智谱；付费用 DeepSeek
+            const ol = s.found && s.found.ollama && s.found.ollama.running && s.found.ollama.models.length;
+            pickPreset(s, k === "paid" ? "deepseek" : ol ? "ollama" : "zhipu");
+          }
+        } else { s.cfg.engine = k; s.apiKind = null; }
+        if (s.cfg.engine === "openai" && s.cfg.concurrency < 2) s.cfg.concurrency = 3; if (s.cfg.engine !== "openai" && s.cfg.concurrency > 2) s.cfg.concurrency = 1; return true; }
+      const pre = e.target.closest("[data-preset]");
+      if (pre) { this.sync(s); pickPreset(s, pre.dataset.preset); return true; }
       if (e.target.closest("#testBtn")) {
         const res = PR.$("#testRes");
         res.className = "test-result"; res.innerHTML = '<span class="spin"></span> 正在让模型回一句话…';

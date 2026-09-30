@@ -54,7 +54,6 @@
         (j.state === "partial" && failed.length ? '<button class="btn sm accent" data-d="retry-failed">重试这 ' + failed.length + " 页</button>" : "") +
         (!full && !(j.state === "partial" && failed.length) ? '<button class="btn sm accent" data-d="translate">' + (i.done_pages ? "继续翻译剩下的页" : "开始翻译") + "</button>" : "") +
         (!full && j.state === "partial" && failed.length && i.pages - i.done_pages > failed.length ? '<button class="btn sm line" data-d="translate">继续翻译剩下的页</button>' : "") +
-        '<button class="btn sm line" data-d="retranslate-all">全部重新翻译</button>' +
         (j.state ? '<button class="btn sm" data-d="log">' + PR.icon("log", "sm") + "翻译记录</button>" : "") + "</div>" +
         (L.engine === "none" ? '<div class="hint" style="margin-top:6px">当前没有开启翻译引擎，去设置里选一个。</div>' : "");
     }
@@ -79,7 +78,8 @@
     const tags = (i.tags || []).map((t) => '<span class="chip">' + PR.esc(t) + '<button data-untag="' + PR.esc(t) + '" title="去掉">×</button></span>').join("");
     const suggest = allTags().filter((t) => !(i.tags || []).includes(t)).slice(0, 12)
       .map((t) => '<button data-addtag="' + PR.esc(t) + '">+ ' + PR.esc(t) + "</button>").join("");
-    box.innerHTML = '<div class="detail-inner"><button class="btn icon detail-close" data-d="close" title="收起（Esc）">×</button>' +
+    box.innerHTML = '<div class="detail-head"><span>论文详情</span><button class="detail-close" data-d="close" title="收起（Esc）">' + PR.icon("x", "sm") + "</button></div>" +
+      '<div class="detail-inner">' +
       '<div class="cover">' + thumb + '<div class="actions">' +
       '<a class="btn accent" href="/read/' + i.id + '">' + PR.icon("book", "sm") + readLabel + "</a>" +
       '<a class="btn line" href="/p/' + i.id + '/source.pdf" target="_blank" rel="noopener">' + PR.icon("pdf", "sm") + "打开原 PDF</a>" +
@@ -88,17 +88,16 @@
       '<button class="btn icon line" data-d="more" title="更多：导出、打开文件夹、回收站">' + PR.icon("more", "sm") + "</button></div></div></div>" +
       '<div class="title-zh" contenteditable="plaintext-only" data-meta="title_zh" spellcheck="false">' + PR.esc(i.title_zh || "") + "</div>" +
       '<div class="title-en" contenteditable="plaintext-only" data-meta="title_en" lang="en" spellcheck="false">' + PR.esc(i.title_en || "") + "</div>" +
+      '<div class="tags">' + tags + '<input id="tagInput" placeholder="+ 加标签，回车" list="tagList"><datalist id="tagList">' + allTags().map((t) => '<option value="' + PR.esc(t) + '">').join("") + '</datalist></div>' +
+      (suggest ? '<div class="tag-suggest">' + suggest + "</div>" : "") +
       '<div class="seg">' + status + "</div>" +
       '<div class="kv"><span>作者</span><span contenteditable="plaintext-only" data-meta="authors">' + PR.esc(i.authors) + "</span>" +
       '<span>年份</span><span contenteditable="plaintext-only" data-meta="year">' + PR.esc(i.year) + "</span>" +
       '<span>出处</span><span contenteditable="plaintext-only" data-meta="venue">' + PR.esc(i.venue || i.arxiv) + "</span>" +
       '<span>链接</span><span contenteditable="plaintext-only" data-meta="url">' + PR.esc(i.url) + "</span>" +
       "<span>添加</span><span>" + PR.esc(PR.relTime(i.added)) + (i.last_opened ? "　·　上次打开 " + PR.esc(PR.relTime(i.last_opened)) : "") + "</span></div>" +
-      "<h4>标签</h4><div class=\"tags\">" + tags + '<input id="tagInput" placeholder="+ 添加标签" list="tagList"></div>' +
-      (suggest ? '<div class="tag-suggest">' + suggest + "</div>" : "") +
       "<h4>翻译</h4>" + jobHtml(i) +
-      "<h4>我的阅读</h4><div class=\"counts\"><span><b>" + Math.round((i.progress || 0) * 100) + "%</b>进度</span><span><b>" + i.notes + "</b>笔记</span><span><b>" + i.highlights +
-      "</b>划线</span><span><b>" + i.open_questions + "</b>待回答</span><span><b>" + i.discussions + "</b>AI 讨论</span></div>" +
+      (i.notes + i.highlights + i.open_questions ? '<p class="mine-line">' + [i.notes && i.notes + " 条笔记", i.highlights && i.highlights + " 处划线", i.open_questions && i.open_questions + " 个问题待回答"].filter(Boolean).join(" · ") + "</p>" : "") +
       (i.abstract ? '<h4>摘要</h4><div class="abstract" id="abs">' + PR.esc(i.abstract.replace(/\$([^$]+)\$/g, "$1")) + '</div><button class="linkish" data-d="abs">展开全文</button>' : "") +
       "</div>";
   };
@@ -150,12 +149,12 @@
     else if (act === "retry-failed") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { failed: true } }); PR.toast("正在重试"); L.load(); }
     else if (act === "log") { const r = await PR.api("/api/p/" + i.id + "/log"); PR.showText("翻译记录", r.text); }
     else if (act === "translate") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: {} }); PR.toast("已开始翻译"); L.load(); }
-    else if (act === "retranslate-all") {
-      if (!confirm("把全文重新翻译一遍？你改过的译文、笔记都保留；译者稿更新后，你改过的段落会提示对比。")) return;
-      await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { pages: "1-" + i.pages } });
-      PR.toast("已开始重新翻译"); L.load();
-    }
   });
+  async function retranslateAll(i) {
+    if (!confirm("把全文重新翻译一遍？会消耗模型额度。你改过的译文、笔记都保留。")) return;
+    await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { pages: "1-" + i.pages } });
+    PR.toast("已开始重新翻译"); L.load();
+  }
 
   PR.rowMenu = function (id, where) {
     const i = L.byId(id);
@@ -165,11 +164,13 @@
       { label: "打开原 PDF", icon: "pdf", fn: () => window.open("/p/" + id + "/source.pdf") },
       "-",
       { label: i.starred ? "取消星标" : "加星标", icon: "star", kbd: "S", fn: () => L.patch(id, { starred: !i.starred }) },
+      { label: "加标签…", icon: "tag", fn: () => { L.select(id); L.focusTag(); } },
       { label: "标为未读", fn: setStatus("unread") }, { label: "标为在读", fn: setStatus("reading") }, { label: "标为已读", fn: setStatus("done") },
       "-",
       { label: "复制 BibTeX", icon: "copy", fn: () => copy(PR.cite(i, "bibtex"), " BibTeX") },
       { label: "导出离线 HTML（可发给别人）", icon: "download", fn: () => { PR.toast("正在打包…"); location.href = "/api/p/" + id + "/export"; } },
       { label: "打开所在文件夹", icon: "folder", fn: () => PR.api("/api/p/" + id + "/reveal", { method: "POST", body: {} }).catch((e) => PR.toast(PR.esc(e.message))) },
+      { label: "全部重新翻译", icon: "redo", fn: () => retranslateAll(i) },
       { label: "翻译记录", icon: "log", fn: async () => { const r = await PR.api("/api/p/" + id + "/log"); PR.showText("翻译记录", r.text); } },
       { label: "移到回收站", icon: "trash", fn: async () => {
         if (!confirm("把《" + (i.title_zh || i.title_en) + "》移到回收站？文件会放进文献库的 .trash 目录，可以找回。")) return;

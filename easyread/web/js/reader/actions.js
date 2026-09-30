@@ -24,7 +24,7 @@
       { k: "note", label: "笔记", icon: "note", fn: () => PR.startNote({ anchor: id }) },
       { k: "question", label: "提问", icon: "question", fn: () => PR.startNote({ anchor: id, kind: "question" }) },
     ];
-    if (PR.canChat() && PR.feature("chat")) list.push({ k: "chat", label: "问 AI", icon: "sparkle", fn: () => PR.chatAsk({ anchor: id }) });
+    if (PR.canChat() && PR.feature("chat")) list.push({ k: "chat", label: PR.chatOpen && PR.chatOpen() ? "引用到对话" : "问 AI", icon: "sparkle", fn: () => PR.chatAsk({ anchor: id }) });
     if (hasEn && PR.feature("en")) list.push({ k: "en", label: "原文", icon: "en", fn: () => PR.toggleEn(id) });
     if (keys.length && PR.feature("edit")) list.push({ k: "edit", label: "改译文", icon: "edit", fn: () => { const zh = PR.$("#b-" + CSS.escape(id) + " .zh[data-key]"); zh && PR.editZh(zh); } });
     if (b.page && PR.feature("pages")) list.push({ k: "page", label: "原页 p." + b.page, icon: "page", fn: () => PR.openPage(b.page, id) });
