@@ -201,18 +201,21 @@ def _sleep(seconds: float, cancel) -> None:
 def parse_json(text: str):
     """从模型输出里取出 JSON（容忍 ```json 围栏和前后废话）。"""
     t = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()  # 推理模型（deepseek-r1、qwen3）先输出的思考过程
-    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", t)
-    if fence:
-        t = fence.group(1).strip()
-    start = min([i for i in (t.find("{"), t.find("[")) if i >= 0], default=-1)
-    if start < 0:
+    # 先取最外层的 { … }：译文里可能本身带代码块（论文附录的 PyTorch 代码），按 ``` 围栏切会切到半截
+    bodies = []
+    for s in (t, *(m.group(1).strip() for m in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", t))):
+        start = min([i for i in (s.find("{"), s.find("[")) if i >= 0], default=-1)
+        if start >= 0:
+            bodies.append(s[start:max(s.rfind("}"), s.rfind("]")) + 1])
+    if not bodies:
         raise EngineError("模型输出里没有 JSON：" + text[:200])
-    end = max(t.rfind("}"), t.rfind("]"))
-    body = t[start:end + 1]
-    try:
-        return json.loads(body)
-    except json.JSONDecodeError as e:
-        first = e
+    first = None
+    for body in bodies:
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError as e:
+            first = first or e
+    body = bodies[0]
     # 常见毛病：TeX 反斜杠没写成两个（\alpha、\sum）、字符串里有原样换行
     fixed = re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", body)
     try:

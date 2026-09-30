@@ -130,15 +130,33 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
                 data = fixed
         except engines.EngineError as e:
             journal(ws, f"第 {batch} 页修正失败，保留原译：{e}")
-    if not data["blocks"]:
+    if not data["blocks"] and not data.get("references"):  # 整页都是参考文献时只有 references，没有新块，也算译完
         raise engines.EngineError("模型没有译出任何内容")
     with _merge_lock:
         data = _normalize(data, batch, _taken(ws, batch))  # 并发时别的批可能刚占用了同名 id
         merge_blocks(ws, data, done=batch, replace_pages=batch)
+        _save_checks(ws, data.get("checks"), batch)
         try:
             pdfwork.locate(ws.root)
         except Exception:  # noqa: BLE001 —— 定位失败不影响阅读
             log.exception("locate 失败 %s", ws.id)
+
+
+def _save_checks(ws: Workspace, checks, batch: list[int]) -> None:
+    """模型发现的原文问题 → 页边的“原文核对提示”。重译这几页时，先去掉上次翻译留下的那几条。"""
+    pages = {b["id"]: b.get("page") for b in ws.load("paper").get("blocks", [])}
+    old = [e["id"] for e in ws.load("discussion").get("entries", [])
+           if e.get("kind") == "check" and e.get("by") == "translator" and pages.get(e.get("anchor")) in batch]
+    if old:
+        ws.update("discussion", lambda d: d.__setitem__("entries", [e for e in d["entries"] if e.get("id") not in old]))
+    items = [{"kind": "check", "by": "translator", "anchor": c["anchor"], "quote": str(c.get("quote") or "")[:200],
+              "title": str(c.get("title") or "")[:80], "body": str(c["body"])}
+             for c in (checks or []) if isinstance(c, dict) and c.get("anchor") in pages and str(c.get("body") or "").strip()]
+    if items:
+        try:
+            add_discussion(ws, items)
+        except ValueError as e:
+            journal(ws, f"核对提示没存上：{e}")
 
 
 def translate_pages(ws: Workspace, cfg: dict, pages: list[int], cancel, report) -> dict[int, str]:

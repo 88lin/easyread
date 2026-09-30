@@ -100,3 +100,11 @@ body.pv-zoom .pv-page { width: 165%; max-width: none; }
 #popover textarea { font-size: 13px; }
 .pv-page.loading { min-height: 60vh; background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%) 0 0 / 300% 100%; animation: pv-shimmer 1.2s linear infinite; }
 @keyframes pv-shimmer { to { background-position: -300% 0; } }
+
+/* 跳转后的“返回刚才读的地方” */
+.jump-back { position: fixed; left: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 45; display: inline-flex; align-items: center; gap: 7px; max-width: min(420px, calc(100vw - 40px)); height: 38px; padding: 0 14px 0 11px; border-radius: 19px; font-size: 13px; color: #fff; background: var(--accent); box-shadow: var(--shadow); }
+.jump-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jump-back em { font-style: normal; font-size: 11px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: rgba(255,255,255,.25); text-align: center; }
+.jump-back:hover { filter: brightness(1.08); }
+:root[data-theme="dark"] .jump-back { color: #10201f; }
+@media (max-width: 760px) { .jump-back { left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }

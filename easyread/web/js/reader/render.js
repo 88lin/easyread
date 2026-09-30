@@ -59,7 +59,7 @@
       const tag = (b.level || 1) === 1 ? "h2" : "h3";
       return "<" + tag + ' class="zh" data-key="' + b.id + '">' + (b.num ? '<span class="num">' + PR.esc(b.num) + "</span>" : "") +
         "<span>" + PR.md(PR.textFor(b.id)) + "</span>" + staleTag(b.id) +
-        (b.en ? '<span class="en-title" lang="en">' + PR.esc(b.en) + "</span>" : "") + "</" + tag + ">";
+        (b.en ? '<span class="en-title" lang="en">' + PR.md(b.en, { cite: false, xref: false }) + "</span>" : "") + "</" + tag + ">";
     },
     para: (b) => zhDiv(b.id) + enDiv(b.en),
     list(b) {

@@ -181,9 +181,10 @@
   PR.jumpTo = function (domId, opts) {
     const el = document.getElementById(domId);
     if (!el) return;
+    if (!(opts && opts.noBack) && PR.rememberSpot) PR.rememberSpot(el);  // 跳得远就记下原处，好回去
     el.scrollIntoView({ block: (opts && opts.block) || "center", behavior: "smooth" });
     el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
-    history.replaceState(null, "", "#" + domId);
+    history.replaceState(history.state, "", "#" + domId);
   };
 
   /* 当前段的键盘操作 */

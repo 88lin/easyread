@@ -85,6 +85,19 @@ class TranslateTest(unittest.TestCase):
         self.assertEqual(translate.scope_pages(self.ws, "first:2"), [1, 2])
         self.assertIsNone(translate.scope_pages(self.ws, "all"))
 
+    def test_checks_saved_and_replaced_on_retranslate(self):
+        self.ws.update("paper", lambda p: p.__setitem__("blocks", [{"id": "tab1", "type": "table", "page": 2}]))
+        chk = [{"anchor": "tab1", "title": "两张表数字对不上", "body": "表 1 写 87.7%，表 2 写 86.7%。"}, {"anchor": "nope", "body": "锚点不存在的丢掉"}]
+        translate._save_checks(self.ws, chk, [2])
+        translate._save_checks(self.ws, chk[:1], [2])  # 重译同一页：不重复
+        entries = self.ws.load("discussion").get("entries", [])
+        self.assertEqual([(e["kind"], e["anchor"]) for e in entries], [("check", "tab1")])
+
+    def test_json_with_code_fence_inside_string(self):
+        # 附录里的代码块原样放进译文：输出里有 ``` 围栏套着 JSON，JSON 字符串里又有 ```python
+        text = '```json\n{"blocks": [{"id": "c1", "type": "para", "zh": "代码如下：\\n```python\\nloss = -F.logsigmoid(x)\\n```"}]}\n```'
+        self.assertEqual(engines.parse_json(text)["blocks"][0]["id"], "c1")
+
 
 if __name__ == "__main__":
     unittest.main()
