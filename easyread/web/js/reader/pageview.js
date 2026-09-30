@@ -1,0 +1,98 @@
+/* 右侧面板：原文页（随阅读位置翻页、框出当前段）。和笔记面板共用右侧，一次开一个。 */
+(function (PR) {
+  "use strict";
+  const S = PR.state;
+  const body = document.body;
+  let pvPage = 1, pvBlock = null;
+  const pages = () => (S.paper.meta || {}).pages || [];
+
+  /* 右侧面板开关：pages | notes | null */
+  PR.side = null;
+  PR.openSide = function (name) {
+    PR.side = name;
+    body.classList.toggle("side-open", !!name);
+    body.classList.toggle("pv-open", name === "pages");
+    body.classList.toggle("np-open", name === "notes");
+    body.classList.toggle("ch-open", name === "chat");
+    PR.$('[data-act="chat"]').classList.toggle("on", name === "chat");
+    PR.$('[data-act="pages"]').classList.toggle("on", name === "pages");
+    PR.$('[data-act="notes"]').classList.toggle("on", name === "notes");
+    setTimeout(() => { PR.fitWide(); PR.renderMargin(); }, 320);
+  };
+
+  PR.togglePages = function (force) {
+    const open = force != null ? force : PR.side !== "pages";
+    PR.openSide(open ? "pages" : null);
+    if (open) PR.syncPage(true);
+  };
+  PR.openPage = function (page, blockId) {
+    pvBlock = blockId || null;
+    if (PR.side !== "pages") PR.openSide("pages");
+    showPage(page, blockId);
+  };
+
+  /* 原图是 2.4 倍渲染（约 1500 像素宽、几百 KB），面板用不了那么大：要一张和面板一样宽的，服务端生成一次后缓存 */
+  function srcOf(n) {
+    const p = pages()[n - 1];
+    if (!p) return "";
+    const base = PR.imageUrl(p.img);
+    if (PR.store.mode !== "server") return base;
+    const need = (PR.$(".pv-scroll").clientWidth || 480) * (body.classList.contains("pv-zoom") ? 1.65 : 1) * (devicePixelRatio || 1);
+    return need <= 1000 ? base + "?w=1000" : need <= 1600 ? base + "?w=1600" : base;  // 1000 宽的服务端已提前生成好
+  }
+  const preloaded = new Set();
+  function preload(n) {
+    const s = srcOf(n);
+    if (s && !preloaded.has(s)) { preloaded.add(s); const im = new Image(); im.decoding = "async"; im.src = s; }
+  }
+  PR.preloadPage = () => { const b = PR.blockById[PR.readingBlock()]; if (b && b.page) preload(b.page); };
+
+  function showPage(page, blockId) {
+    const list = pages();
+    if (!list.length) return;
+    pvPage = Math.min(list.length, Math.max(1, page));
+    const img = PR.$(".pv-page img");
+    img.decoding = "async";
+    const src = srcOf(pvPage);
+    if (img.getAttribute("src") !== src) { img.setAttribute("src", src); PR.$(".pv-page").classList.add("loading"); img.onload = () => PR.$(".pv-page").classList.remove("loading"); }
+    preload(pvPage + 1); preload(pvPage - 1);
+    PR.$(".pv-label").textContent = "第 " + pvPage + " / " + list.length + " 页";
+    const pdf = PR.$('[data-pv="pdf"]');
+    const url = PR.pdfUrl(pvPage);
+    pdf.style.display = url ? "" : "none";
+    if (url) pdf.href = url;
+    const hl = PR.$(".pv-hl");
+    const loc = blockId && S.layout[blockId];
+    if (loc && loc.page === pvPage) {
+      const [x0, y0, x1, y1] = loc.box;
+      Object.assign(hl.style, { left: (x0 * 100 - 0.8) + "%", top: (y0 * 100 - 0.4) + "%", width: ((x1 - x0) * 100 + 1.6) + "%", height: ((y1 - y0) * 100 + 0.8) + "%" });
+      hl.classList.add("on");
+      const scroller = PR.$(".pv-scroll");
+      const doScroll = () => scroller.scrollTo({ top: Math.max(0, y0 * PR.$(".pv-page").offsetHeight + 18 - scroller.clientHeight * 0.3), behavior: "smooth" });
+      img.complete ? doScroll() : img.addEventListener("load", doScroll, { once: true });
+    } else hl.classList.remove("on");
+  }
+
+  PR.syncPage = function (force) {
+    if (PR.side !== "pages") return;
+    if (!force && !PR.$(".pv-follow input").checked) return;
+    const id = (PR.currentBlock && PR.currentBlock()) || PR.readingBlock();
+    const b = PR.blockById[id];
+    if (!b) return;
+    if (!force && id === pvBlock) return;
+    pvBlock = id;
+    const loc = S.layout[id];
+    showPage(loc ? loc.page : b.page, id);
+  };
+
+  PR.$("#pageview").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pv]");
+    if (!b) return;
+    const act = b.dataset.pv;
+    if (act === "close") PR.togglePages(false);
+    if (act === "prev") showPage(pvPage - 1, pvBlock);
+    if (act === "next") showPage(pvPage + 1, pvBlock);
+    if (act === "zoom") { body.classList.toggle("pv-zoom"); b.textContent = body.classList.contains("pv-zoom") ? "适宽" : "放大"; showPage(pvPage, pvBlock); }
+  });
+  PR.pageStep = (d) => showPage(pvPage + d, pvBlock);
+})(window.PR);
