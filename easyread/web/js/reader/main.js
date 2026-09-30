@@ -124,13 +124,13 @@
     }
     if (PR.store.mode === "static") PR.$("#backBtn").style.display = "none";
     PR.applyFeatures();
-    PR.setupDemo();
     const m = S.paper.meta || {};
     document.title = (m.short_zh || m.title_zh || m.title_en || "论文") + " · EasyRead";
     PR.$(".bar-title").textContent = m.short_zh || m.title_zh || m.title_en || "";
     PR.ls.get("pr-seen-" + PR.paperKey, (S.discussion.entries || []).map((e) => e.id)).forEach((id) => seen.add(id));
     PR.ls.set("pr-seen-" + PR.paperKey, Array.from(seen));
     PR.renderPaper();
+    PR.setupDemo();  // 署名要放在论文标题下面，得等正文渲染出来
     PR.applyMarks();
     PR.renderMargin();
     PR.renderJobState();

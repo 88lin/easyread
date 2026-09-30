@@ -78,8 +78,6 @@
     back.href = S.demo.home || "../"; back.title = "EasyRead 主页"; back.style.display = "";
     const pill = PR.el("a", { class: "demo-pill", href: S.demo.repo, target: "_blank", rel: "noopener", title: "这是在线演示；在 GitHub 上免费下载，装到自己电脑" }, "在线演示<span> · 免费下载</span>");
     PR.$("#bar .save-state").before(pill);
-    const head = PR.$("#paper .paper-head");
-    if (S.demo.credit && head) head.appendChild(PR.el("p", { class: "demo-credit" }, S.demo.credit));
   };
   PR.$('[data-act="drawer"]').innerHTML = PR.icon("menu");
   PR.$('[data-act="pages"]').innerHTML = PR.icon("page", "sm") + "<span>原页</span>";

@@ -52,8 +52,17 @@
     return s;
   }
 
+  /* AI 回答里偶尔会带出段落编号 [p4-5]、[eq7]，换成读者看得懂的“式 7”“第 4 页” */
+  function blockLabel(s) {
+    return s.replace(/\[([a-z]+\d*(?:-[\w-]+)?)\]/g, (m, id) => {
+      const b = PR.blockById && PR.blockById[id];
+      if (!b) return m;
+      return b.type === "math" && b.tag ? "（式 " + b.tag + "）" : b.page ? "（第 " + b.page + " 页）" : m;
+    });
+  }
+
   function inline(text, opts) {
-    let s = PR.esc(text).replace(/\\\$/g, "$");
+    let s = blockLabel(PR.esc(text).replace(/\\\$/g, "$"));
     s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>");
     s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
@@ -66,34 +75,36 @@
   PR.md = function (text, opts) {
     opts = opts || {};
     text = String(text == null ? "" : text);
-    let out = "", last = 0;
+    // 公式先换成占位符再处理粗体等标记，这样 **粗体里带 $公式$** 也能认出来
+    const maths = [];
     MATH.lastIndex = 0;
-    for (let m; (m = MATH.exec(text));) {
-      out += inline(text.slice(last, m.index), opts) + PR.tex(m[1].replace(/\\\$/g, "\\$"), false);
-      last = m.index + m[0].length;
-    }
-    return out + inline(text.slice(last), opts);
+    const s = text.replace(MATH, (m, t) => "" + (maths.push(t) - 1) + "");
+    return inline(s, opts).replace(/(\d+)/g, (m, i) => PR.tex(maths[i].replace(/\\\$/g, "\\$"), false));
   };
 
-  /* 多段文字（讨论、笔记正文）：空行分段；单独一行的 $$...$$ 是行间公式 */
+  /* 多段文字（讨论、笔记正文）：空行分段；$$...$$ 是行间公式——AI 常把它紧贴在上一行文字或列表后面，也要拆出来 */
   PR.mdBlocks = function (text, opts) {
-    return String(text || "").trim().split(/\n\s*\n/).map((p) => {
-      const d = p.trim().match(/^\$\$([\s\S]+)\$\$$/);
-      if (d) return '<div class="eq">' + PR.tex(d[1], true) + "</div>";
-      const h = p.trim().match(/^#{1,4}\s+(.+)$/);
-      if (h) return '<p class="md-h">' + PR.md(h[1], opts) + "</p>";
-      const lines = p.trim().split("\n");
-      // 列表：从某行起每行都以 “- ”“* ”或“1. ”开头（AI 的回答常用“引子：\n- …\n- …”）
-      const isItem = (l) => /^\s*([-*•]|\d+[.、)])\s+/.test(l);
-      const k = lines.findIndex(isItem);
-      if (k >= 0 && lines.slice(k).every(isItem)) {
-        const ordered = /^\s*\d/.test(lines[k]);
-        return (k ? "<p>" + PR.md(lines.slice(0, k).join("\n"), opts) + "</p>" : "") + (ordered ? "<ol>" : "<ul>") +
-          lines.slice(k).map((l) => "<li>" + PR.md(l.replace(/^\s*([-*•]|\d+[.、)])\s+/, ""), opts) + "</li>").join("") + (ordered ? "</ol>" : "</ul>");
-      }
-      return "<p>" + PR.md(p, opts) + "</p>";
-    }).join("");
+    return String(text || "").trim().split(/\n\s*\n/).map((p) =>
+      p.split(/(?<!\\)\$\$([\s\S]+?)\$\$/).map((part, i) =>
+        i % 2 ? '<div class="eq">' + PR.tex(part.trim(), true) + "</div>" : para(part, opts)).join("")).join("");
   };
+
+  function para(p, opts) {
+    p = p.trim();
+    if (!p) return "";
+    const h = p.match(/^#{1,4}\s+(.+)$/);
+    if (h) return '<p class="md-h">' + PR.md(h[1], opts) + "</p>";
+    const lines = p.split("\n");
+    // 列表：从某行起每行都以 “- ”“* ”或“1. ”开头（AI 的回答常用“引子：\n- …\n- …”）
+    const isItem = (l) => /^\s*([-*•]|\d+[.、)])\s+/.test(l);
+    const k = lines.findIndex(isItem);
+    if (k >= 0 && lines.slice(k).every(isItem)) {
+      const ordered = /^\s*\d/.test(lines[k]);
+      return (k ? "<p>" + PR.md(lines.slice(0, k).join("\n"), opts) + "</p>" : "") + (ordered ? "<ol>" : "<ul>") +
+        lines.slice(k).map((l) => "<li>" + PR.md(l.replace(/^\s*([-*•]|\d+[.、)])\s+/, ""), opts) + "</li>").join("") + (ordered ? "</ol>" : "</ul>");
+    }
+    return "<p>" + PR.md(p, opts) + "</p>";
+  }
 
   /* 去掉标记的纯文字，给目录、列表摘要用 */
   PR.plain = (text) => String(text || "").replace(MATH, (m, t) => t).replace(/\*\*|`/g, "");

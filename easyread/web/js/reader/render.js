@@ -104,6 +104,14 @@
       R[b.type](b) + (edited(b) ? '<span class="edited-dot" title="这里有你改过的译文"></span>' : "") + "</section>";
   }
 
+  /* 在线演示的署名和许可（CC BY 要求写明出处），网址做成链接 */
+  function creditHtml() {
+    const c = S.demo && S.demo.credit;
+    if (!c) return "";
+    const link = (u) => '<a href="' + u + '" target="_blank" rel="noopener">' + u.replace(/^https?:\/\//, "") + "</a>";
+    return '<p class="demo-credit">' + PR.esc(c).replace(/https?:\/\/[^\s（）()，。,]+/g, link) + "</p>";
+  }
+
   function headHtml() {
     const m = S.paper.meta || {};
     const tr = S.paper.translation || {};
@@ -116,7 +124,7 @@
     return '<header class="paper-head" id="b-head" data-id="head">' + (kicker ? '<div class="kicker">' + kicker + "</div>" : "") +
       "<h1>" + PR.esc(m.title_zh || m.title_en || "（正在识别标题）") + "</h1>" +
       (m.title_zh && m.title_en ? '<p class="title-en" lang="en">' + PR.esc(m.title_en) + "</p>" : "") +
-      (by ? '<p class="byline">' + by + "</p>" : "") + '<p class="scope">' + scope + "</p></header>";
+      (by ? '<p class="byline">' + by + "</p>" : "") + '<p class="scope">' + scope + "</p>" + creditHtml() + "</header>";
   }
 
   /* 还没译的页：放原页图，边译边读 */

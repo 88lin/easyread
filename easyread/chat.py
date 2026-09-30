@@ -132,7 +132,7 @@ def prompt(ws: Workspace, messages: list[dict], anchor: str | None, quote: str, 
     marks = _marks(ws, colors) if want else _marks_summary(ws)
     return ("你在陪读者读一篇学术论文，回答他边读边冒出来的问题。用中文，直接、具体，能举例就举例；"
             "区分“论文里写了什么”和“你的补充解释”，论文里没有的内容不要说成是论文说的。"
-            "行内公式写 $TeX$，行间公式写 $$TeX$$。只输出回答本身，不要客套，不要重复问题。\n" + tool + "\n"
+            "行内公式写 $TeX$，行间公式写 $$TeX$$。提到原文位置时说“式 5”“第 4 页那段”，不要写 [p4-5] 这类内部编号。只输出回答本身，不要客套，不要重复问题。\n" + tool + "\n"
             + _context(ws, anchor, quote, refs)
             + ("\n\n" + marks if marks else "")
             + (f"\n\n之前的对话：\n{convo}" if convo else "")
