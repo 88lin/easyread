@@ -1,4 +1,4 @@
-/* 文献库右侧详情：元数据编辑、标签、状态、翻译任务、引用、删除。 */
+/* 文献库右侧详情：元数据编辑、分类、状态、翻译任务、引用、删除。 */
 (function (PR) {
   "use strict";
   const L = PR.lib;
@@ -29,11 +29,6 @@
     catch (e) { PR.toast("复制失败，请手动选中"); }
   }
 
-  function allTags() {
-    const s = new Set();
-    L.items.forEach((i) => (i.tags || []).forEach((t) => s.add(t)));
-    return Array.from(s);
-  }
 
   function jobHtml(i) {
     const j = i.job || {};
@@ -75,9 +70,8 @@
     const readLabel = i.progress > 0.02 ? "继续阅读 · " + Math.round(i.progress * 100) + "%" : "开始阅读";
     const status = [["unread", "未读"], ["reading", "在读"], ["done", "已读"]].map(([k, l]) =>
       '<button data-status="' + k + '" class="' + ((i.status || "unread") === k ? "on" : "") + '">' + l + "</button>").join("");
-    const tags = (i.tags || []).map((t) => '<span class="chip">' + PR.esc(t) + '<button data-untag="' + PR.esc(t) + '" title="去掉">×</button></span>').join("");
-    const suggest = allTags().filter((t) => !(i.tags || []).includes(t)).slice(0, 12)
-      .map((t) => '<button data-addtag="' + PR.esc(t) + '">+ ' + PR.esc(t) + "</button>").join("");
+    // 分类：全部分类都列出来，点一下放进 / 拿出
+    const cats = L.cats().map((c) => '<button class="catchip' + ((i.tags || []).includes(c) ? " on" : "") + '" data-cattoggle="' + PR.esc(c) + '">' + PR.icon((i.tags || []).includes(c) ? "check" : "folder", "sm") + PR.esc(c) + "</button>").join("");
     box.innerHTML = '<div class="detail-head"><span>论文详情</span><button class="detail-close" data-d="close" title="收起（Esc）">' + PR.icon("x", "sm") + "</button></div>" +
       '<div class="detail-inner">' +
       '<div class="cover">' + thumb + '<div class="actions">' +
@@ -88,8 +82,7 @@
       '<button class="btn icon line" data-d="more" title="更多：导出、打开文件夹、回收站">' + PR.icon("more", "sm") + "</button></div></div></div>" +
       '<div class="title-zh" contenteditable="plaintext-only" data-meta="title_zh" spellcheck="false">' + PR.esc(i.title_zh || "") + "</div>" +
       '<div class="title-en" contenteditable="plaintext-only" data-meta="title_en" lang="en" spellcheck="false">' + PR.esc(i.title_en || "") + "</div>" +
-      '<div class="tags">' + tags + '<input id="tagInput" placeholder="+ 加标签，回车" list="tagList"><datalist id="tagList">' + allTags().map((t) => '<option value="' + PR.esc(t) + '">').join("") + '</datalist></div>' +
-      (suggest ? '<div class="tag-suggest">' + suggest + "</div>" : "") +
+      '<div class="cats">' + cats + '<input id="catInput" placeholder="＋ 新分类" maxlength="30"></div>' +
       '<div class="seg">' + status + "</div>" +
       '<div class="kv"><span>作者</span><span contenteditable="plaintext-only" data-meta="authors">' + PR.esc(i.authors) + "</span>" +
       '<span>年份</span><span contenteditable="plaintext-only" data-meta="year">' + PR.esc(i.year) + "</span>" +
@@ -114,22 +107,15 @@
   box.addEventListener("focusout", (e) => { if (e.target.matches("[data-meta]")) saveMeta(e.target); });
   box.addEventListener("keydown", (e) => {
     if (e.target.matches("[data-meta]") && e.key === "Enter") { e.preventDefault(); e.target.blur(); }
-    if (e.target.id === "tagInput" && e.key === "Enter") {
-      const v = e.target.value.trim();
-      const i = L.byId(L.selected);
-      if (v && !(i.tags || []).includes(v)) L.patch(i.id, { tags: (i.tags || []).concat(v) });
-      e.target.value = "";
-    }
+    if (e.target.id === "catInput" && e.key === "Enter") { L.addCat(e.target.value, L.selected); e.target.value = ""; }
   });
   box.addEventListener("click", async (e) => {
     const i = L.byId(L.selected);
     if (!i) return;
     const st = e.target.closest("[data-status]");
     if (st) return L.patch(i.id, { status: st.dataset.status });
-    const un = e.target.closest("[data-untag]");
-    if (un) return L.patch(i.id, { tags: i.tags.filter((t) => t !== un.dataset.untag) });
-    const ad = e.target.closest("[data-addtag]");
-    if (ad) return L.patch(i.id, { tags: (i.tags || []).concat(ad.dataset.addtag) });
+    const ct = e.target.closest("[data-cattoggle]");
+    if (ct) return L.toggleInCat(i.id, ct.dataset.cattoggle);
     const d = e.target.closest("[data-d]");
     if (!d) return;
     const act = d.dataset.d;
@@ -164,7 +150,9 @@
       { label: "打开原 PDF", icon: "pdf", fn: () => window.open("/p/" + id + "/source.pdf") },
       "-",
       { label: i.starred ? "取消星标" : "加星标", icon: "star", kbd: "S", fn: () => L.patch(id, { starred: !i.starred }) },
-      { label: "加标签…", icon: "tag", fn: () => { L.select(id); L.focusTag(); } },
+      { label: L.side.pinned.includes("p:" + id) ? "取消置顶" : "置顶到侧栏", icon: "pin", fn: () => L.togglePin("p:" + id) },
+      "-",
+      ...L.catMenuItems(id),
       { label: "标为未读", fn: setStatus("unread") }, { label: "标为在读", fn: setStatus("reading") }, { label: "标为已读", fn: setStatus("done") },
       "-",
       { label: "复制 BibTeX", icon: "copy", fn: () => copy(PR.cite(i, "bibtex"), " BibTeX") },

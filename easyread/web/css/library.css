@@ -198,3 +198,40 @@
 .detail .tags input { width: 120px; }
 .detail .seg { margin-bottom: 4px; }
 .mine-line { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }
+
+/* 侧栏（sidebar.js）：置顶 / 分类 / 最近阅读 */
+.side h3 { display: flex; align-items: center; justify-content: space-between; }
+.side .h-add { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-3); }
+.side .h-add:hover { background: var(--accent-soft-2); color: var(--ink); }
+.side .sgroup { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+.side { overflow-x: hidden; }
+.side .srow { box-sizing: border-box; position: relative; display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 8px 0 10px; border-radius: 8px; color: var(--ink-2); font-size: 13.5px; text-align: left; text-decoration: none; cursor: pointer; user-select: none; }
+.side .srow svg.i { color: var(--ink-3); flex: none; }
+.side .srow .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side .srow .n, .side .srow em { font-size: 12px; font-style: normal; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.side .srow .more { display: none; width: 22px; height: 22px; border-radius: 6px; place-items: center; color: var(--ink-3); flex: none; margin-right: -4px; }
+.side .srow:hover { background: var(--accent-soft); color: var(--ink); }
+.side .srow:hover .more { display: grid; }
+.side .srow:hover .n, .side .srow:hover em { display: none; }
+.side .srow .more:hover { background: var(--surface); color: var(--ink); }
+.side .srow.on { background: var(--accent-soft-2); color: var(--ink); font-weight: 500; }
+.side .srow.on svg.i { color: var(--accent); }
+.side .srow.paper svg.i { color: var(--accent); }
+.side .srow.editing { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--accent); cursor: text; }
+.side .side-input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; color: var(--ink); }
+.side .hint-row, .side .toggle-more { color: var(--ink-3); font-size: 12.5px; }
+.side .toggle-more { padding-left: 34px; height: 28px; }
+.side.dragging [data-drop-zone] .srow[data-cat], .side.dragging .srow[data-view="starred"] { outline: 1px dashed var(--rule-2); outline-offset: -1px; }
+.side .srow.drop { background: var(--accent-soft-2); box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--ink); }
+.side .srow[data-pinrow] .n { display: none; }
+
+/* 列表行上的分类、详情里的分类开关 */
+.row .chip.cat { display: inline-flex; align-items: center; gap: 3px; }
+.row .chip.cat svg { width: 11px; height: 11px; color: var(--ink-3); }
+.row[draggable="true"] { -webkit-user-drag: element; }
+.detail .cats { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 12px; }
+.detail .catchip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-radius: 12px; font-size: 12.5px; color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.detail .catchip svg { width: 12px; height: 12px; }
+.detail .catchip:hover { color: var(--ink); }
+.detail .catchip.on { color: var(--accent); background: var(--accent-soft-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.detail #catInput { border: 0; outline: 0; background: none; font-size: 12.5px; width: 90px; height: 24px; color: var(--ink); }

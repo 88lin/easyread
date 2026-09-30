@@ -4,7 +4,8 @@
 (function (PR) {
   "use strict";
   const dlg = () => PR.$("#settingsDlg");
-  const TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["keys", "快捷键"]];
+  const ALL_TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["keys", "快捷键"], ["library", "文献库"]];
+  const tabs = () => ALL_TABS.filter(([k]) => PR.settingsTabs[k]);  // “文献库”页只在文献库页面有
   PR.settingsTabs = PR.settingsTabs || {};
   const st = (PR.settingsState = { tab: "engine", cfg: null, presets: [], groups: [], found: null, chat: null, ui: null });
 
@@ -30,7 +31,7 @@
   function render() {
     const t = PR.settingsTabs[st.tab];
     dlg().querySelector(".dialog").innerHTML =
-      '<div class="set-head"><h2>设置</h2><div class="set-tabs">' + TABS.map(([k, l]) => '<button data-set-tab="' + k + '" class="' + (st.tab === k ? "on" : "") + '">' + l + "</button>").join("") + "</div></div>" +
+      '<div class="set-head"><h2>设置</h2><div class="set-tabs">' + tabs().map(([k, l]) => '<button data-set-tab="' + k + '" class="' + (st.tab === k ? "on" : "") + '">' + l + "</button>").join("") + "</div></div>" +
       '<div class="set-body">' + (t ? t.render(st) : "") + "</div>" +
       '<div class="actions set-foot"><button class="linkish" id="showLog">运行日志</button><span class="grow"></span><button class="btn" id="setCancel">取消</button><button class="btn primary" id="setSave">保存</button></div>';
   }

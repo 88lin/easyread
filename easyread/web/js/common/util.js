@@ -92,12 +92,17 @@ window.PR = window.PR || {};
   PR.savePrefs = function (section, obj) {
     prefQueue[section] = Object.assign(prefQueue[section] || {}, obj);
     clearTimeout(prefT);
-    prefT = setTimeout(() => {
-      if (!PR.token || location.protocol === "file:") return;
-      const body = prefQueue; prefQueue = {};
-      PR.api("/api/prefs", { method: "POST", body }).catch(() => { /* 下次改动再存 */ });
-    }, 700);
+    prefT = setTimeout(flushPrefs, 700);
   };
+  function flushPrefs(leaving) {
+    clearTimeout(prefT);
+    if (!PR.token || location.protocol === "file:" || !Object.keys(prefQueue).length) return;
+    const body = prefQueue; prefQueue = {};
+    if (leaving) {  // 关页面、刷新时：keepalive 让请求在页面走掉后也能发完
+      fetch("/api/prefs", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", "X-Token": PR.token }, body: JSON.stringify(body) }).catch(() => {});
+    } else PR.api("/api/prefs", { method: "POST", body }).catch(() => { /* 下次改动再存 */ });
+  }
+  window.addEventListener("pagehide", () => flushPrefs(true));
   PR.loadPrefs = async function () {
     if (location.protocol === "file:") return {};
     try {
@@ -141,6 +146,7 @@ window.PR = window.PR || {};
     log: "M5 5h10M5 8.5h10M5 12h7M5 15.5h5",
     check: "M4.5 10.5l3.5 3.5 7.5-8",
     tag: "M3.5 3.5h6l7 7-6 6-7-7zM7 7h.01",
+    pin: "M7.5 3.5h5l-.7 4.3 2.7 2.7v1.2h-9v-1.2l2.7-2.7zM10 11.7v4.8",
     link: "M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-1 1M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1-1",
     sparkle: "M10 3v4M10 13v4M3 10h4M13 10h4M5.5 5.5l2 2M12.5 12.5l2 2M14.5 5.5l-2 2M7.5 12.5l-2 2",
     question: "M7.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.8M10 14.5v.01M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z",

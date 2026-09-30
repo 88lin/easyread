@@ -86,3 +86,6 @@ label.check input { accent-color: var(--accent); width: 15px; height: 15px; marg
 .engine-cards.small button b { font-size: 13px; margin-bottom: 1px; }
 .engine-cards button .badge { margin-top: auto; }
 .engine-cards button { min-height: 100%; }
+.set-h { font-size: 12px; font-weight: 500; letter-spacing: .1em; color: var(--ink-3); margin: 16px 0 6px; }
+.set-h:first-of-type { margin-top: 4px; }
+.cm-row .input { flex: 1; height: 30px; }
