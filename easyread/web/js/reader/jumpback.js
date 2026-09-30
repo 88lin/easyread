@@ -35,8 +35,8 @@
     const s = stack.pop();
     if (!s) return;
     const el = document.getElementById("b-" + s.id);
-    const top = el ? scrollY + el.getBoundingClientRect().top - s.off : s.y;  // 按段落找回去，版面变过也不偏
-    window.scrollTo({ top, behavior: "smooth" });
+    if (el) el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.8 ? "start" : "center", behavior: "smooth" });  // 回来也放在屏幕中间
+    else window.scrollTo({ top: s.y, behavior: "smooth" });
     if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
     if (stack.length) show(); else btn.hidden = true;
   }

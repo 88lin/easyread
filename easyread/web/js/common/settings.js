@@ -4,8 +4,8 @@
 (function (PR) {
   "use strict";
   const dlg = () => PR.$("#settingsDlg");
-  const ALL_TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["keys", "快捷键"], ["library", "文献库"]];
-  const tabs = () => ALL_TABS.filter(([k]) => PR.settingsTabs[k]);  // “文献库”页只在文献库页面有
+  const ALL_TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["keys", "快捷键"], ["library", "侧边栏"]];
+  const tabs = () => ALL_TABS.filter(([k]) => PR.settingsTabs[k]);  // “侧边栏”页只在文献库页面有
   PR.settingsTabs = PR.settingsTabs || {};
   const st = (PR.settingsState = { tab: "engine", cfg: null, presets: [], groups: [], found: null, chat: null, ui: null });
 
