@@ -339,7 +339,8 @@ def _engine_label(cfg: dict) -> str:
     name = engines.ENGINE_NAMES.get(e, e or "")
     if e == "claude":  # 带上实际用的模型：Claude Code · Claude Opus 5.5
         m = cfg["claude"].get("model") or ""
-        model = chat_models.pretty(chat_models.actual_of(m) or m) if m else cli_models.claude_default()
+        actual = chat_models.actual_of(m) if m else ""
+        model = chat_models.pretty(actual) if actual else ("Claude " + m.capitalize() if m in ("opus", "sonnet", "haiku") else m) if m else cli_models.claude_default()
     elif e == "codex":
         model = chat_models.label({"engine": "codex", "model": cfg["codex"].get("model") or ""})
     else:

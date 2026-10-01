@@ -99,5 +99,20 @@ class TranslateTest(unittest.TestCase):
         self.assertEqual(engines.parse_json(text)["blocks"][0]["id"], "c1")
 
 
+
+class ScopePagesTest(unittest.TestCase):
+    def test_range(self):
+        from easyread.translate import scope_pages
+
+        class WS:
+            def load(self, name):
+                return {"meta": {"page_count": 20}}
+        ws = WS()
+        self.assertEqual(scope_pages(ws, "range:3-5"), [3, 4, 5])
+        self.assertEqual(scope_pages(ws, "range:18-30"), [18, 19, 20])   # 超出总页数就截到最后一页
+        self.assertEqual(scope_pages(ws, "range:5-3"), [3, 4, 5])        # 填反了也行
+        self.assertEqual(scope_pages(ws, "first:2"), [1, 2])              # 旧写法还认
+
+
 if __name__ == "__main__":
     unittest.main()

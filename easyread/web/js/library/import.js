@@ -3,9 +3,13 @@
   "use strict";
   const L = PR.lib;
   const dlg = PR.$("#importDlg");
-  const SCOPES = [["all", "全文"], ["body", "正文（到参考文献为止）"], ["first", "前几页"]];
+  const SCOPES = [["all", "全文"], ["body", "正文（到参考文献为止）"], ["range", "指定页"]];
 
-  const pref = () => Object.assign({ auto: true, scope: "all", first: 10 }, PR.ls.get("easyread-import", {}));
+  const pref = () => {
+    const p = Object.assign({ auto: true, scope: "all", from: 1, to: 10 }, PR.ls.get("easyread-import", {}));
+    if (p.scope === "first") Object.assign(p, { scope: "range", from: 1, to: p.first || 10 });  // 旧的“前几页”
+    return p;
+  };
   const savePref = (p) => PR.ls.set("easyread-import", Object.assign(pref(), p));
 
   PR.openImport = function (ref) {
@@ -19,7 +23,7 @@
       '<button class="btn accent" id="arxivGo">导入</button></div></label>' +
       '<div class="imp-opts"><label class="check"><input type="checkbox" id="autoTr"' + (p.auto && !off ? " checked" : "") + (off ? " disabled" : "") + ">导入后翻译</label>" +
       '<div class="seg" id="scopeSeg">' + SCOPES.map(([k, l]) => '<button data-scope="' + k + '" class="' + (p.scope === k ? "on" : "") + '">' + l + "</button>").join("") + "</div>" +
-      '<span class="first-n"' + (p.scope === "first" ? "" : " hidden") + '><input class="input" id="firstN" type="number" min="1" value="' + p.first + '"> 页</span></div>' +
+      '<span class="first-n"' + (p.scope === "range" ? "" : " hidden") + '>第 <input class="input" id="pgFrom" type="number" min="1" value="' + p.from + '"> 到 <input class="input" id="pgTo" type="number" min="1" value="' + p.to + '"> 页</span></div>' +
       '<p class="hint" style="margin-top:8px">用 ' + PR.esc(L.engineLabel || "（未设置）") + ' 翻译 · <button class="linkish" id="impEngine">换引擎</button>。长论文可以先译正文，附录之后在详情里点“继续翻译”。</p>' +
       '<div class="actions"><button class="btn" id="impClose">关闭</button></div>';
     dlg.classList.add("open");
@@ -30,7 +34,8 @@
     const p = pref();
     const c = PR.$("#autoTr");
     const auto = c ? c.checked : p.auto && L.engine !== "none";
-    const scope = p.scope === "first" ? "first:" + Math.max(1, +p.first || 10) : p.scope;
+    const from = Math.max(1, +p.from || 1), to = Math.max(1, +p.to || from);
+    const scope = p.scope === "range" ? "range:" + Math.min(from, to) + "-" + Math.max(from, to) : p.scope;
     return { translate: auto, scope };
   }
 
@@ -43,12 +48,15 @@
     if (s) {
       savePref({ scope: s.dataset.scope });
       PR.$$("[data-scope]", dlg).forEach((b) => b.classList.toggle("on", b === s));
-      PR.$(".first-n", dlg).hidden = s.dataset.scope !== "first";
+      PR.$(".first-n", dlg).hidden = s.dataset.scope !== "range";
     }
   });
   dlg.addEventListener("change", (e) => {
     if (e.target.id === "autoTr") savePref({ auto: e.target.checked });
-    if (e.target.id === "firstN") savePref({ first: +e.target.value || 10 });
+  });
+  dlg.addEventListener("input", (e) => {  // 边输边存：输完直接点“导入”也用新的页码
+    if (e.target.id === "pgFrom") savePref({ from: +e.target.value || 1 });
+    if (e.target.id === "pgTo") savePref({ to: +e.target.value || 1 });
   });
   dlg.addEventListener("keydown", (e) => { if (e.target.id === "arxivRef" && e.key === "Enter") importRef(e.target.value); if (e.key === "Escape") close(); });
   PR.$("#importBtn").onclick = () => PR.openImport();

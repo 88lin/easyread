@@ -41,6 +41,8 @@ def claude_default() -> str:
     except (OSError, ValueError, AttributeError):
         model = ""
     actual = (chat_models.actual_of(model) or model) if model else chat_models.actual_of("_default")
+    if actual in ("opus", "sonnet", "haiku", "fable"):  # 别名还没查到对应版本
+        return "Claude " + actual.capitalize()
     return chat_models.pretty(actual) if actual else ""
 
 

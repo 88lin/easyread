@@ -33,7 +33,7 @@ class Jobs:
         ws.update("job", apply)
 
     def enqueue(self, ws: Workspace, pages: list[int] | None = None, translate_after: bool = True, scope: str | None = None):
-        """pages=None：按 scope（all / body / first:N）翻译还没译的页。"""
+        """pages=None：按 scope（all / body / range:A-B / first:N）翻译还没译的页。"""
         self._write(ws, type="translate" if translate_after else "prepare", state="queued", message="排队中",
                     pages=pages, scope=scope or "all", translate=translate_after, done=0, total=0, error="", failed={})
         self.bulk.put(ws.id)

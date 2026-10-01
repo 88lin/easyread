@@ -50,11 +50,17 @@ def references_page(ws: Workspace) -> int | None:
 
 
 def scope_pages(ws: Workspace, scope: str | None) -> list[int] | None:
-    """翻译范围：all 全文；body 到参考文献那页为止；first:N 前 N 页。返回 None 表示全文。"""
+    """翻译范围：all 全文；body 到参考文献那页为止；range:A-B 第 A 到 B 页；first:N 前 N 页（旧写法）。返回 None 表示全文。"""
     n = ws.load("paper").get("meta", {}).get("page_count") or 0
     if scope == "body":
         ref = references_page(ws)
         return list(range(1, ref + 1)) if ref else None
+    if scope and scope.startswith("range:"):
+        a, _, b = scope.split(":", 1)[1].partition("-")
+        lo, hi = max(1, int(a or 1)), min(n, int(b or n))
+        if lo > hi:
+            lo, hi = hi, lo
+        return list(range(max(1, lo), hi + 1)) or None
     if scope and scope.startswith("first:"):
         k = int(scope.split(":", 1)[1] or 0)
         return list(range(1, min(n, k) + 1)) if k > 0 else None
