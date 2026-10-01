@@ -29,6 +29,7 @@
     L.engineLabel = d.engine_label;
     L.firstRun = d.first_run;
     L.version = d.version;
+    L.trashCount = d.trash || 0;
     engineChip();
     L.items = d.items;
     L.render();
