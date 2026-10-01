@@ -31,6 +31,7 @@ def python_with_pyinstaller() -> list[str]:
 
 
 def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows 控制台默认不是 UTF-8，下面的中文提示会让脚本崩掉
     OUT.mkdir(parents=True, exist_ok=True)
     WORK.mkdir(parents=True, exist_ok=True)
     for old in OUT.iterdir():
