@@ -53,7 +53,7 @@ Settings auto-detect what's installed; "Test one sentence" tells you right away 
 
 **Easiest: download the installer** (no Python needed). From [Releases](https://github.com/Edwardxlai/easyread/releases/latest):
 
-- **Windows**: `EasyRead Setup x.x.x.exe`. It is not code-signed; if SmartScreen says "Windows protected your PC", click "More info → Run anyway".
+- **Windows**: `EasyRead-Setup-x.x.x.exe`. It is not code-signed; if SmartScreen says "Windows protected your PC", click "More info → Run anyway".
 - **macOS** (Apple silicon): `EasyRead-x.x.x-arm64.dmg`, drag EasyRead into Applications. The first launch says the developer cannot be verified: open System Settings → Privacy & Security and click "Open Anyway"; after that it opens normally.
 - **Linux**: `EasyRead-x.x.x.AppImage`, `chmod +x` and run it.
 

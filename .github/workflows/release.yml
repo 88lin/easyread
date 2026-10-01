@@ -49,7 +49,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: easyread-${{ matrix.name }}
-          path: dist/electron/*
+          # 只要安装包本身；dist/electron 里还有解包后的程序目录（Mac 的 .app 里有上百个文件）
+          path: |
+            dist/electron/*.exe
+            dist/electron/*.dmg
+            dist/electron/*.AppImage
           if-no-files-found: error
 
   release:
@@ -67,5 +71,8 @@ jobs:
       - name: Publish installers
         uses: softprops/action-gh-release@v2
         with:
-          files: release-assets/**/*
+          files: |
+            release-assets/**/*.exe
+            release-assets/**/*.dmg
+            release-assets/**/*.AppImage
           generate_release_notes: false  # 发版说明手写，只往已有的 Release 上挂安装包

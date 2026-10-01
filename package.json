@@ -50,7 +50,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "artifactName": "EasyRead-Setup-${version}.exe"
     },
     "mac": {
       "icon": "electron/assets/icon.png",

@@ -3,7 +3,7 @@
 ## v1.2.0（2026-10-01）
 
 **桌面版安装包**（感谢 [@Wang-auspicious](https://github.com/Wang-auspicious)）
-- Releases 里有打包好的安装包，不用装 Python：Windows `EasyRead Setup 1.2.0.exe`、macOS（Apple 芯片）`.dmg`、Linux `.AppImage`。点图标打开的是独立窗口，关掉窗口后台服务一起退出。
+- Releases 里有打包好的安装包，不用装 Python：Windows `EasyRead.Setup.1.2.0.exe`、macOS（Apple 芯片）`.dmg`、Linux `.AppImage`。点图标打开的是独立窗口，关掉窗口后台服务一起退出。
 - 安装包没有代码签名：Windows 弹“已保护你的电脑”时点“更多信息 → 仍要运行”；macOS 第一次打开去“系统设置 → 隐私与安全性”点“仍要打开”。
 - 论文和设置放在用户目录下的 `EasyRead` 文件夹，和 pip 安装版同一处，卸载重装不会丢。
 
