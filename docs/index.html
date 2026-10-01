@@ -8,113 +8,25 @@
 <meta property="og:title" content="EasyRead · 把英文论文读成舒服的中文">
 <meta property="og:description" content="导入 PDF，后台逐页翻译；公式表格照原文排好，随时对照原页，边读边划线、问 AI。本地运行，免费开源。">
 <meta property="og:image" content="images/chat.jpg">
+<link rel="alternate" hreflang="en" href="en/index.html">
 <link rel="icon" href="images/logo.svg">
-<style>
-:root {
-  --bg: #f6f3ec; --surface: #fbf9f4; --ink: #22201c; --ink-2: #57524a; --ink-3: #8c867b; --rule: #e4ded2;
-  --accent: #2d6173; --accent-soft: #e3ecee; --mine: #a8652a; --pink: #f3cfcb;
-  --serif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", "SimSun", serif;
-  --sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #1b1a18; --surface: #232220; --ink: #ebe6dc; --ink-2: #bdb6a9; --ink-3: #8c867b; --rule: #34322e; --accent: #7fb3c2; --accent-soft: #24343a; --pink: #5a3531; color-scheme: dark; }
-  .shot img { filter: brightness(.92); }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.75 var(--sans); -webkit-font-smoothing: antialiased; }
-a { color: var(--accent); }
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
-header.top { display: flex; align-items: center; gap: 12px; padding: 20px 0; }
-header.top .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
-header.top .brand b { color: var(--accent); }
-header.top .grow { flex: 1; }
-header.top nav a { color: var(--ink-2); text-decoration: none; font-size: 14.5px; margin-left: 22px; }
-header.top nav a:hover { color: var(--ink); }
-
-.hero { text-align: center; padding: 56px 0 36px; }
-.hero h1 { font: 700 clamp(34px, 6vw, 56px)/1.25 var(--serif); letter-spacing: .02em; margin: 0 0 18px; }
-.hero h1 mark { background: linear-gradient(transparent 58%, var(--pink) 58%); color: inherit; padding: 0 .08em; }
-.hero p.sub { font-size: clamp(16px, 2.2vw, 19px); color: var(--ink-2); max-width: 720px; margin: 0 auto 30px; }
-.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.btn { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 12px; font-size: 15.5px; font-weight: 600; text-decoration: none; }
-.btn.primary { background: var(--accent); color: #fff; }
-.btn.primary:hover { filter: brightness(1.08); }
-.btn.line { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--rule); background: var(--surface); }
-.btn.line:hover { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
-.hero .note { font-size: 13px; color: var(--ink-3); margin-top: 14px; }
-
-.shot { margin: 0; border-radius: 14px; overflow: hidden; background: var(--surface); box-shadow: 0 0 0 1px var(--rule), 0 18px 50px rgba(40, 30, 10, .12); }
-.shot img { display: block; width: 100%; height: auto; }
-.hero .shot { margin-top: 44px; }
-
-section { padding: 64px 0; }
-section h2 { font: 700 clamp(24px, 3.6vw, 32px)/1.35 var(--serif); margin: 0 0 10px; }
-section .lead { color: var(--ink-2); margin: 0 0 32px; max-width: 760px; }
-
-.feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.feat div { padding: 20px 22px; border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 1px var(--rule); }
-.feat h3 { font-size: 16.5px; margin: 0 0 6px; }
-.feat p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.7; }
-
-.row { display: grid; grid-template-columns: 1fr 1.55fr; gap: 40px; align-items: center; margin-bottom: 72px; }
-.row.flip { grid-template-columns: 1.55fr 1fr; }
-.row.flip .text { order: 2; }
-.row h3 { font: 700 22px/1.4 var(--serif); margin: 0 0 12px; }
-.row p { color: var(--ink-2); margin: 0 0 10px; }
-.row ul { color: var(--ink-2); padding-left: 1.2em; margin: 0; }
-.row li { margin: 4px 0; }
-.quote { font: 15px/1.8 var(--serif); padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; color: var(--ink); margin: 14px 0 0; }
-.quote small { display: block; font: 12.5px var(--sans); color: var(--ink-3); margin-top: 4px; }
-
-table.engines { width: 100%; border-collapse: collapse; font-size: 14.5px; background: var(--surface); border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px var(--rule); }
-.engines th, .engines td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-.engines th { font-size: 13px; color: var(--ink-3); font-weight: 500; }
-.engines tr:last-child td { border-bottom: 0; }
-.engines .tag { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; }
-.tablebox { overflow-x: auto; }
-
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: s; }
-.steps div { counter-increment: s; padding: 22px; border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 1px var(--rule); }
-.steps div::before { content: counter(s); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; margin-bottom: 12px; }
-.steps h3 { margin: 0 0 6px; font-size: 16.5px; }
-.steps p { margin: 0; font-size: 14.5px; color: var(--ink-2); }
-code { font: 13.5px ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; }
-pre { background: var(--surface); box-shadow: 0 0 0 1px var(--rule); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 10px 0 0; }
-pre code { background: none; padding: 0; }
-
-.faq details { background: var(--surface); box-shadow: 0 0 0 1px var(--rule); border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; }
-.faq summary { cursor: pointer; font-weight: 600; }
-.faq details p { color: var(--ink-2); margin: 10px 0 0; }
-
-.phone { display: flex; justify-content: center; }
-.phone .shot { width: min(300px, 80vw); border-radius: 28px; }
-
-footer { padding: 40px 0 60px; color: var(--ink-3); font-size: 13.5px; text-align: center; border-top: 1px solid var(--rule); }
-footer a { color: var(--ink-2); }
-
-@media (max-width: 860px) {
-  .feat, .steps { grid-template-columns: 1fr; }
-  .row, .row.flip { grid-template-columns: 1fr; gap: 18px; margin-bottom: 56px; }
-  .row.flip .text { order: 0; }
-  header.top nav a:not(.gh) { display: none; }
-  section { padding: 44px 0; }
-}
-</style>
+<link rel="stylesheet" href="site.css">
 </head>
 <body>
-<div class="wrap">
+<div class="topbar"><div class="wrap">
   <header class="top">
-    <a class="brand" href="./"><img src="images/logo.svg" width="30" height="30" alt=""><span>Easy<b>Read</b></span></a>
+    <a class="brand" href="index.html"><img src="images/logo.svg" width="30" height="30" alt=""><span>Easy<b>Read</b></span></a>
     <span class="grow"></span>
-    <nav><a href="#features">功能</a><a href="#engines">翻译模型</a><a href="#install">安装</a><a class="gh" href="https://github.com/Edwardxlai/easyread">GitHub</a></nav>
+    <nav><a href="#features">功能</a><a href="#engines">翻译模型</a><a href="#install">安装</a><a href="#faq">常见问题</a><a class="gh" href="https://github.com/Edwardxlai/easyread">GitHub</a><a class="lang" href="en/index.html" hreflang="en">EN</a></nav>
   </header>
+</div></div>
 
+<div class="wrap">
   <div class="hero">
     <h1>把英文论文，<br>读成<mark>舒服的中文</mark></h1>
     <p class="sub">导入 PDF，用你已经在用的 Claude Code、Codex，或者免费模型，在后台逐页翻译。公式、表格照原文排好，随时对照原页，边读边划线、记笔记、问 AI。</p>
     <div class="cta">
-      <a class="btn primary" href="demo/">在线试读一篇 →</a>
+      <a class="btn primary" href="demo/index.html">在线试读一篇 →</a>
       <a class="btn line" href="https://github.com/Edwardxlai/easyread">免费下载 · GitHub</a>
     </div>
     <p class="note">开源免费 · 本地运行，论文和笔记只存在你自己的电脑上</p>
@@ -204,7 +116,7 @@ footer a { color: var(--ink-2); }
 easyread</code></pre>
 </div></section>
 
-<section class="faq"><div class="wrap">
+<section id="faq" class="faq"><div class="wrap">
   <h2>常见问题</h2>
   <details><summary>要花钱吗？</summary><p>EasyRead 本身免费开源。翻译用的是你自己的模型：Claude Code / Codex 用你已有的订阅额度，免费模型不花钱，付费 API 按量计费。</p></details>
   <details><summary>用 Claude Code 翻译要挂梯子吗？</summary><p>和你平时在终端里用 <code>claude</code> 一样：平时要，这里也要。不想折腾的话，选“免费模型”里的智谱、硅基流动，或者本机 Ollama，国内直连。</p></details>
@@ -215,5 +127,6 @@ easyread</code></pre>
 <footer>
   <div class="wrap">EasyRead · MIT 许可 · <a href="https://github.com/Edwardxlai/easyread">GitHub</a> · 演示论文：Rafailov et al., <i>Direct Preference Optimization</i>（<a href="https://arxiv.org/abs/2305.18290">arXiv:2305.18290</a>，CC BY 4.0），译文由 EasyRead 调用 Claude 生成</div>
 </footer>
+<script src="site.js"></script>
 </body>
 </html>
