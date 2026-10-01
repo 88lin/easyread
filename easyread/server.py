@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs
+from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs, trash
 from .log import log, setup as setup_log, tail
 from .jobs import Jobs
 from .library import Library
@@ -160,7 +160,9 @@ class Handler(BaseHTTPRequestHandler):
             cfg = config.load()
             return self._json(200, {"items": lib.list(), "token": app.token, "jobs": app.jobs.small_status(),
                                     "engine": cfg.get("engine"), "engine_label": _engine_label(cfg),
-                                    "first_run": config.is_first_run(), "version": __version__})
+                                    "first_run": config.is_first_run(), "version": __version__, "trash": len(trash.items(lib.root))})
+        if path == "/api/trash":
+            return self._json(200, {"items": trash.items(lib.root)})
         if path == "/api/config":
             return self._json(200, {"config": config.public(config.load()), "presets": config.PRESETS, "groups": config.PRESET_GROUPS})
         if path == "/api/engines":
@@ -249,6 +251,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"config": config.public(cfg)})
         if path == "/api/prefs":
             return self._json(200, prefs.save(json.loads(self._body() or b"{}")))
+        if path == "/api/trash":  # 回收站：restore 恢复一篇 / purge 彻底删一篇 / empty 清空
+            body = json.loads(self._body() or b"{}")
+            act, name = body.get("action"), body.get("name", "")
+            if act not in ("restore", "purge", "empty"):
+                raise ValueError("action 只能是 restore / purge / empty")
+            if act == "restore":
+                return self._json(200, {"id": trash.restore(lib.root, name)})
+            return self._json(200, {"deleted": trash.purge(lib.root, name) if act == "purge" else trash.empty(lib.root)})
         if path == "/api/chat/models":  # 设置页保存名单和默认模型；或面板里只改默认
             body = json.loads(self._body() or b"{}")
             patch = {}

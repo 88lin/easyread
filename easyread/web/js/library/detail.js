@@ -171,9 +171,12 @@
       { label: "全部重新翻译", icon: "redo", fn: () => retranslateAll(i) },
       { label: "翻译记录", icon: "log", fn: async () => { const r = await PR.api("/api/p/" + id + "/log"); PR.showText("翻译记录", r.text); } },
       { label: "移到回收站", icon: "trash", fn: async () => {
-        if (!(await PR.confirm({ title: "移到回收站？", body: "《" + (i.title_zh || i.title_en) + "》会放进文献库的 .trash 目录，可以找回。", ok: "移到回收站", danger: true }))) return;
-        await PR.api("/api/p/" + id + "/delete", { method: "POST", body: {} });
-        L.select(null); L.load(); PR.toast("已移到回收站");
+        if (!(await PR.confirm({ title: "移到回收站？", body: "《" + (i.title_zh || i.title_en) + "》会放进回收站，随时可以在左侧“回收站”里恢复。", ok: "移到回收站", danger: true }))) return;
+        const r = await PR.api("/api/p/" + id + "/delete", { method: "POST", body: {} }).catch((e) => { PR.toast("没删成：" + PR.esc(e.message)); return null; });
+        if (!r) return;
+        L.select(null); await L.load();
+        const name = r && r.trash ? r.trash.split(/[\\/]/).pop() : "";
+        PR.toast("已移到回收站", name ? { label: "撤销", fn: () => PR.restoreTrash(name) } : null);
       } },
     ]);
   };

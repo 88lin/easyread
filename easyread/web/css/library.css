@@ -246,3 +246,12 @@ body.resizing { cursor: col-resize; user-select: none; }
 .side.dragging .sgroup[data-drop-zone] { background: color-mix(in srgb, var(--accent-soft) 60%, transparent); border-radius: 10px; }
 .side.dragging .srow[data-add] { color: var(--accent); }
 .row[draggable="true"] { cursor: grab; }
+/* 回收站 */
+.side-trash { margin-top: 18px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.trash-list { max-height: 60vh; overflow-y: auto; margin: 4px -4px 0; }
+.trash-row { display: flex; align-items: center; gap: 8px; padding: 10px 4px; border-bottom: 1px solid var(--rule); }
+.trash-row:last-child { border-bottom: 0; }
+.trash-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trash-t b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trash-t small { color: var(--ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#trashDlg .actions .grow { flex: 1; }
