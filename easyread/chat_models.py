@@ -101,9 +101,10 @@ def label(m: dict) -> str:
     """面板上显示的名字：Claude 别名显示实际版本（Claude Opus 5），Codex 没填模型时带上它实际用的模型。"""
     if m.get("engine") == "claude" and m.get("model") in ("opus", "sonnet", "haiku") and actual_of(m["model"]):
         return pretty(actual_of(m["model"]))
-    if m.get("engine") == "codex" and not m.get("model"):
-        cm = codex_default_model()
-        return f"{m.get('name') or 'GPT'}" + (f" · {cm}" if cm and cm not in (m.get("name") or "") else "")
+    if m.get("engine") == "codex" and (not m.get("name") or m.get("name") in ("GPT", m.get("model"))):
+        from . import cli_models  # 用 Codex 里 /model 显示的名字，比如 GPT-6-Astra
+        slug = m.get("model") or codex_default_model()
+        return next((x["name"] for x in cli_models.codex()["models"] if x["id"] == slug), slug or "GPT")
     return m.get("name") or m.get("model") or "模型"
 
 
@@ -124,7 +125,8 @@ def listing(cfg: dict) -> dict:
             source = p["name"] if p else "自定义接口"
             hint = "" if ready else f"还没填 {source} 的 Key（设置 → 问 AI → 改）"
         out.append({**m, "label": label(m), "source": source, "ready": ready, "hint": hint,
-                    "detail": (actual_of(m.get("model", "")) or m.get("model")) if e == "claude" else m.get("model") or (codex_default_model() if e == "codex" else "")})
+                    "detail": (actual_of(m.get("model", "")) or m.get("model")) if e == "claude"
+                    else m.get("model") or ((codex_default_model() + "（跟随 Codex 默认）") if e == "codex" and codex_default_model() else "")})
     default = (cfg.get("chat") or {}).get("default") or (out[0]["id"] if out else "")
     return {"models": out, "default": default, "presets": [{"id": p["id"], "name": p["name"], "models": p.get("models", [])} for p in PRESETS]}
 

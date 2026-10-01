@@ -1,25 +1,39 @@
-/* 设置 → 问 AI：阅读页右侧能选的模型名单。
-   加一项和“翻译”页一样：先选来源卡片（Claude Code / Codex / 免费模型 / 付费 API），再选模型；API 的 Key 和翻译共用。 */
+/* 设置 → 问 AI：阅读页右侧能选的模型。和“翻译”页同一套样子：
+   上面一排卡片是名单里的模型（点一下设为新对话默认，右上角 ⋯ 改名、换模型、删除），最后一张是“添加”；
+   添加或修改时，下面出现和“翻译”页一样的来源卡片（Claude Code / Codex / 免费模型 / 付费 API）和模型选择。
+   API 的 Key 和翻译共用。 */
 (function (PR) {
   "use strict";
   const T = PR.settingsTabs;
-  const CLAUDE = [["opus", "Opus（最强，最新版）"], ["sonnet", "Sonnet（快、省）"], ["haiku", "Haiku（最快）"]];
   const KIND_OF = { local: "free", free: "free", paid: "paid" };
   const kindOf = (s, m) => (m.engine === "openai" ? KIND_OF[((s.presets.find((p) => p.id === m.preset) || {}).group) || "local"] || "free" : m.engine);
   const hasKey = (s, preset) => (s.cfg.openai.saved_keys || []).includes(preset) || !!(s.chatKeys || {})[preset];
   const isApi = (k) => k === "free" || k === "paid";
 
+  function cardsHtml(s) {
+    const list = s.chat.models;
+    return '<div class="engine-cards mc-cards">' + list.map((m, i) => {
+      const def = s.chat.default === m.id;
+      const badge = m.ready === false ? '<span class="badge bad" title="' + PR.esc(m.hint || "") + '">' + PR.esc(m.hint || "还不能用") + "</span>"
+        : def ? '<span class="badge ok">新对话默认</span>' : "";
+      return '<div class="mc' + (def ? " on" : "") + (s.editing === m.id ? " editing" : "") + (m.ready === false ? " off" : "") + '" data-cm="default" data-i="' + i + '" role="button" tabindex="0" title="设为新对话默认">' +
+        '<button class="mc-more" data-cm="more" data-i="' + i + '" title="改、删">' + PR.icon("more", "sm") + "</button>" +
+        "<b>" + PR.esc(m.label || m.name) + "</b>" + PR.esc([m.source, m.detail].filter(Boolean).join(" · ")) + badge + "</div>";
+    }).join("") +
+      '<div class="mc add' + (s.editing === "new" ? " editing" : "") + '" data-cm="add" role="button" tabindex="0">' + PR.icon("plus") + "<b>添加模型</b>Claude、GPT、免费或付费 API</div></div>";
+  }
+
   function formHtml(s) {
     const f = s.form;
     const card = (k, title, text) => '<button data-cmk="' + k + '" class="' + (f.kind === k ? "on" : "") + '"><b>' + title + "</b>" + text + "</button>";
-    let h = '<div class="cm-form"><div class="engine-cards small">' +
-      card("claude", "Claude Code", "本机账号，不用 Key") + card("codex", "Codex CLI", "本机 ChatGPT 账号") +
+    let h = '<div class="mc-form"><h4 class="set-h">' + (s.editing === "new" ? "添加一个模型" : "修改“" + PR.esc(f.name || autoName(s, f)) + "”") + "</h4>" +
+      '<div class="engine-cards small">' +
+      card("claude", "Claude Code", "本机已登录的 Claude") + card("codex", "Codex CLI", "本机已登录的 ChatGPT") +
       card("free", "免费模型", "本机 Ollama、智谱等") + card("paid", "付费 API", "DeepSeek、通义等") + "</div>";
-    if (f.kind === "claude") {
-      h += '<label class="field"><span>模型</span><select class="input" id="cmModel">' + PR.opt(CLAUDE.concat(CLAUDE.some(([v]) => v === f.model) ? [] : [[f.model, f.model]]), f.model || "opus") + "</select></label>" +
-        '<p class="hint">Claude Code 会用它支持的最新版（现在是 Opus 5.5 / Sonnet 5.5）；新模型出来后运行 <code>claude update</code>。</p>';
-    } else if (f.kind === "codex") {
-      h += '<label class="field"><span>模型</span><input class="input" id="cmModel" value="' + PR.esc(f.model) + '" placeholder="留空用 Codex 自己的默认模型"></label>';
+    if (f.kind === "claude" || f.kind === "codex") {
+      h += '<label class="field"><span>模型</span>' + PR.cliModelSelect(s, f.kind, f.model, 'id="cmModel"', f.kind === "codex") + "</label>" +
+        '<p class="hint">' + (f.kind === "claude" ? "Opus / Sonnet 自动用 Claude Code 支持的最新版；新模型出来后运行 <code>claude update</code>。"
+          : (PR.cliModelDesc(s, "codex", f.model) ? PR.esc(PR.cliModelDesc(s, "codex", f.model)) + "<br>" : "") + "名单和 Codex 里 <code>/model</code> 看到的一样。") + "</p>";
     } else {
       const groups = s.groups.filter(([g]) => (KIND_OF[g] || "free") === f.kind);
       h += '<div class="preset-tiles grouped">' + groups.map(([g, label]) => '<div class="preset-group"><span>' + PR.esc(label) + "</span>" +
@@ -38,8 +52,12 @@
       '<button class="btn sm" data-cm="cancel">取消</button><button class="btn sm accent" data-cm="ok">' + (s.editing === "new" ? "加进名单" : "改好了") + "</button></div></div>";
   }
   function autoName(s, f) {
-    if (f.kind === "claude") { const m = f.model || "opus"; return "Claude " + m.charAt(0).toUpperCase() + m.slice(1); }
-    if (f.kind === "codex") return f.model || "GPT";
+    if (f.kind === "claude" || f.kind === "codex") {
+      const o = PR.cliModelOptions(s, f.kind, f.model, f.kind === "codex").find(([v]) => v === (f.model || ""));
+      if (!o) return f.kind === "claude" ? "Claude" : "GPT";
+      const inner = o[1].match(/^跟随.*（(.+)）$/);  // “跟随 Codex 默认（GPT-6-Astra）”→ GPT-6-Astra
+      return inner ? inner[1] : o[1].replace(/（.*$/, "");
+    }
     const p = s.presets.find((x) => x.id === f.preset);
     return f.model || (p ? p.name : "模型");
   }
@@ -52,28 +70,22 @@
     if (v("cmKey") !== null) f.key = v("cmKey");
   }
   function startForm(s, m) {
-    s.form = m ? { kind: kindOf(s, m), model: m.model || "", preset: m.preset || "", name: m.name || "", key: "" }
+    s.form = m ? { kind: kindOf(s, m), model: m.model || "", preset: m.preset || "", name: m.name === m.label || m.name === "GPT" ? "" : m.name || "", key: "" }
       : { kind: "claude", model: "opus", preset: "", name: "", key: "" };
   }
 
   T.chat = {
     render(s) {
       if (!s.chat) return '<p class="hint">读不到模型名单。</p>';
-      const rows = s.chat.models.map((m, i) => {
-        if (s.editing === m.id) return formHtml(s);
-        const def = s.chat.default === m.id;
-        return '<div class="cm-row' + (m.ready === false ? " off" : "") + '"><button class="cm-radio' + (def ? " on" : "") + '" data-cm="default" data-i="' + i + '" title="设为默认"></button>' +
-          '<div class="cm-main"><b>' + PR.esc(m.label || m.name) + "</b>" + (def ? '<span class="cm-def">默认</span>' : "") +
-          '<div class="cm-sub">' + PR.esc([m.source, m.detail].filter(Boolean).join(" · ")) + (m.ready === false ? ' · <span class="bad">' + PR.esc(m.hint || "还不能用") + "</span>" : "") + "</div></div>" +
-          '<button class="btn sm" data-cm="up" data-i="' + i + '" title="上移"' + (i ? "" : " disabled") + ">↑</button>" +
-          '<button class="btn sm" data-cm="edit" data-i="' + i + '">改</button><button class="btn sm danger" data-cm="del" data-i="' + i + '">删</button></div>';
-      }).join("");
-      return '<p class="set-lead">阅读页右侧“问 AI”能选的模型。圆点是新对话默认用的；对话框左下角可以随时换。</p>' +
-        '<div class="cm-list">' + rows + "</div>" +
-        (s.editing === "new" ? formHtml(s) : '<button class="btn sm line" data-cm="add">' + PR.icon("plus", "sm") + "添加模型</button>") +
+      return '<p class="set-lead">阅读页右侧“问 AI”可以选的模型。点一张卡片，设为新对话默认用的；读的时候在对话框左下角随时换。</p>' +
+        cardsHtml(s) + (s.editing ? formHtml(s) : "") +
         '<p class="hint" style="margin-top:14px">每次提问会带上：你正在读的段落、你引用的几段、摘要和术语表。问到“标红的”“划线”“我的笔记”时，才会找出对应颜色的标记一起发过去。</p>';
     },
     sync(s) { readForm(s); },
+    change(e, s) {
+      if (e.target.id === "cmModel" && e.target.tagName === "SELECT") { readForm(s); return true; }  // 换了模型，说明和默认名字跟着变
+      return false;
+    },
     click(e, s) {
       const k = e.target.closest("[data-cmk]");
       if (k && s.form) {
@@ -93,11 +105,25 @@
       const b = e.target.closest("[data-cm]");
       if (!b) return false;
       const i = +b.dataset.i, list = s.chat.models, act = b.dataset.cm;
-      if (act === "default") s.chat.default = list[i].id;
-      if (act === "up" && i > 0) list.splice(i - 1, 0, list.splice(i, 1)[0]);
-      if (act === "del") { if (list.length <= 1) { PR.toast("至少留一个模型"); return false; } const [x] = list.splice(i, 1); if (s.chat.default === x.id) s.chat.default = list[0].id; }
-      if (act === "edit") { s.editing = list[i].id; startForm(s, list[i]); }
-      if (act === "add") { s.editing = "new"; startForm(s); }
+      if (act === "more") {
+        const m = list[i];
+        PR.menu(b, [
+          { label: "修改", icon: "edit", fn: () => { readForm(s); s.editing = m.id; startForm(s, m); PR.settingsRender(); } },
+          { label: "往前挪", icon: "back", disabled: i === 0, fn: () => { list.splice(i - 1, 0, list.splice(i, 1)[0]); PR.settingsRender(); } },
+          "-",
+          { label: "从名单里删掉", icon: "trash", fn: async () => {
+            if (list.length <= 1) return PR.toast("至少留一个模型");
+            if (!(await PR.confirm({ title: "删掉“" + (m.label || m.name) + "”？", body: "只是从“问 AI”的名单里拿掉，已有的对话不受影响。", ok: "删掉", danger: true }))) return;
+            const at = list.indexOf(m); if (at >= 0) list.splice(at, 1);
+            if (s.chat.default === m.id) s.chat.default = list[0].id;
+            if (s.editing === m.id) { s.editing = null; s.form = null; }
+            PR.settingsRender();
+          } },
+        ]);
+        return false;
+      }
+      if (act === "default") { if (s.chat.default === list[i].id) return false; s.chat.default = list[i].id; }
+      if (act === "add") { readForm(s); s.editing = "new"; startForm(s); }
       if (act === "cancel") { s.editing = null; s.form = null; }
       if (act === "ok") {
         readForm(s);
@@ -108,7 +134,7 @@
         if (api && f.key) (s.chatKeys = s.chatKeys || {})[f.preset] = f.key;
         const name = f.name || autoName(s, f);
         const m = { engine: api ? "openai" : f.kind, preset: api ? f.preset : "", model: f.model, name, label: name,
-          source: api ? (p ? p.name : "API") : f.kind === "claude" ? "Claude Code" : "Codex CLI", detail: f.model, ready: true };
+          source: api ? (p ? p.name : "API") : f.kind === "claude" ? "Claude Code" : "Codex CLI", detail: f.model || "跟随 Codex 默认", ready: true };
         if (s.editing === "new") list.push(Object.assign(m, { id: "m" + Date.now().toString(36) }));
         else Object.assign(list.find((x) => x.id === s.editing), m);
         s.editing = null; s.form = null;

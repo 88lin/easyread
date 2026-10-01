@@ -132,8 +132,8 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; line-height:
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* 浮层 */
-.menu, .popover {
-  position: fixed; z-index: 80; background: var(--surface); color: var(--ink);
+.menu, .popover {  /* 菜单要能盖住设置对话框（.dialog-backdrop 是 90） */
+  position: fixed; z-index: 100; background: var(--surface); color: var(--ink);
   box-shadow: 0 0 0 1px var(--rule), var(--shadow); border-radius: 10px;
   opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity .14s, transform .14s;
 }

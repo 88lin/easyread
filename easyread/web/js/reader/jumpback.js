@@ -4,14 +4,21 @@
   "use strict";
   const stack = [];
   let btn = null;
+  let hit = null;  // 刚才点的是哪一段（点了这段里的 [n]、“公式 (4)”），回来时高亮的就是它
+  document.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest && e.target.closest('#paper [id^="b-"]');
+    hit = b ? { el: b, t: Date.now() } : null;
+  }, true);
 
   /* 在跳转前调用：目标就在眼前（一屏以内）就不记 */
   PR.rememberSpot = function (target) {
     const r = target.getBoundingClientRect();
     if (r.top > -innerHeight * 0.5 && r.bottom < innerHeight * 1.5) return;
-    const id = PR.readingBlock();
+    const from = hit && Date.now() - hit.t < 3000 && hit.el.isConnected ? hit.el : null;  // 从目录、笔记卡片跳的就没有
+    hit = null;
+    const id = from ? from.id.slice(2) : PR.readingBlock();
     const el = document.getElementById("b-" + id) || document.getElementById("b-head");
-    stack.push({ id, off: el ? el.getBoundingClientRect().top : 0, y: scrollY });
+    stack.push({ id, off: el ? el.getBoundingClientRect().top : 0, y: scrollY, exact: !!from });
     if (stack.length > 30) stack.shift();
     try { history.pushState({ easyreadBack: stack.length }, "", location.href); } catch (e) { /* file:// 下可能不让改历史 */ }
     show();
@@ -35,9 +42,11 @@
     const s = stack.pop();
     if (!s) return;
     const el = document.getElementById("b-" + s.id);
-    if (el) el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.8 ? "start" : "center", behavior: "smooth" });  // 回来也放在屏幕中间
+    if (el && s.exact) {  // 知道是从哪段跳走的：把那段放回屏幕中间并高亮
+      el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.8 ? "start" : "center", behavior: "smooth" });
+      el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    } else if (el) window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - s.off, behavior: "smooth" });  // 不知道：回到原来的位置，不乱高亮
     else window.scrollTo({ top: s.y, behavior: "smooth" });
-    if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
     if (stack.length) show(); else btn.hidden = true;
   }
   window.addEventListener("popstate", () => { if (stack.length) goBack(); });

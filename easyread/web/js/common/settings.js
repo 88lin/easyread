@@ -1,10 +1,10 @@
 /* 设置对话框（文献库页和阅读页共用）：外壳、分页、保存。
    四页：翻译（本文件）、问 AI / 阅读 / 快捷键（settings-tabs.js）。
-   PR.openSettings("chat") 直接打开某一页。 */
+   PR.openSettings("chat") 直接打开某一页；不指定就从“翻译”页开始（不记上次停在哪页）。 */
 (function (PR) {
   "use strict";
   const dlg = () => PR.$("#settingsDlg");
-  const ALL_TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["keys", "快捷键"], ["library", "侧边栏"]];
+  const ALL_TABS = [["engine", "翻译"], ["chat", "问 AI"], ["reading", "阅读"], ["library", "侧边栏"], ["keys", "快捷键"]];
   const tabs = () => ALL_TABS.filter(([k]) => PR.settingsTabs[k]);  // “侧边栏”页只在文献库页面有
   PR.settingsTabs = PR.settingsTabs || {};
   const st = (PR.settingsState = { tab: "engine", cfg: null, presets: [], groups: [], found: null, chat: null, ui: null });
@@ -13,13 +13,15 @@
 
   PR.openSettings = async function (tab) {
     const [d, chat] = await Promise.all([PR.api("/api/config"), PR.api("/api/chat/models").catch(() => null)]);
-    Object.assign(st, { tab: typeof tab === "string" ? tab : st.tab, cfg: d.config, presets: d.presets, groups: d.groups || [], chat,
+    Object.assign(st, { tab: typeof tab === "string" ? tab : "engine", cfg: d.config, presets: d.presets, groups: d.groups || [], chat,
       apiKind: null, ui: { features: Object.assign({}, PR.features), keys_on: PR.keysOn, keys: Object.assign({}, PR.keymap) },
       theme: PR.ls.get("easyread-prefs", {}).theme || "auto", recording: null, editing: null, form: null, chatKeys: null });
     render();
     dlg().classList.add("open");
-    if (!st.found) {
-      st.found = (await PR.api("/api/engines").catch(() => ({ found: {} }))).found;
+    // 每次打开都问一次（后端有缓存，很快）：刚装好或更新了 Claude Code / Codex，版本号和模型名单马上跟上
+    const r = await PR.api("/api/engines").catch(() => null);
+    if (r && (JSON.stringify([r.found, r.models]) !== JSON.stringify([st.found, st.models]))) {
+      st.found = r.found; st.models = r.models;
       if (dlg().classList.contains("open")) { sync(); render(); }
     }
   };
@@ -82,8 +84,6 @@
   }, true);
 
   /* ---------- 翻译 ---------- */
-  // 用别名：Claude Code 会用它支持的最新版本；想用 Opus 5.5 这类新模型，先在终端运行 claude update
-  const CLAUDE_MODELS = [["", "跟随 Claude Code 默认"], ["opus", "Opus（最新版，最好）"], ["sonnet", "Sonnet（最新版，快、省，推荐）"], ["haiku", "Haiku（最省）"]];
   function badge(name) {
     if (!st.found) return '<span class="badge"><span class="spin"></span>检测中</span>';
     const f = st.found[name] || {};
@@ -91,12 +91,11 @@
   }
   function cliFields(name) {
     const c = st.cfg[name];
-    const model = name === "claude"
-      ? '<select class="input" data-k="claude.model">' + PR.opt(CLAUDE_MODELS.concat(CLAUDE_MODELS.some(([v]) => v === c.model) ? [] : [[c.model, c.model]]), c.model) + "</select>"
-      : '<input class="input" data-k="codex.model" value="' + PR.esc(c.model) + '" placeholder="留空用 Codex 默认模型">';
+    const model = PR.cliModelSelect(st, name, c.model, 'data-k="' + name + '.model"', true);  // 选项见 settings-models.js
     const how = name === "claude"
       ? '还没装？<a href="https://docs.claude.com/en/docs/claude-code/setup" target="_blank" rel="noopener">安装 Claude Code</a>，在终端里运行一次 <code>claude</code> 登录。翻译用的是你订阅里的额度。Opus / Sonnet 自动用 Claude Code 支持的最新版；要用刚出的新模型，先运行 <code>claude update</code>。'
-      : '还没装？<code>npm i -g @openai/codex</code>，再运行一次 <code>codex</code> 登录。';
+      : (PR.cliModelDesc(st, "codex", c.model) ? PR.esc(PR.cliModelDesc(st, "codex", c.model)) + "<br>" : "") +
+        '名单和 Codex 里 <code>/model</code> 看到的一样。还没装或要更新：<code>npm i -g @openai/codex@latest</code>，装好后运行一次 <code>codex</code> 登录。';
     return '<div class="grid2"><label class="field"><span>模型</span>' + model + "</label>" +
       '<label class="field"><span>命令</span><input class="input" data-k="' + name + '.command" value="' + PR.esc(c.command) + '"></label></div><p class="hint">' + how + "</p>";
   }
