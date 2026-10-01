@@ -53,7 +53,15 @@
 
 ## 安装
 
-需要 [Python 3.10+](https://www.python.org/downloads/)。
+**最省事：下载安装包**（不用装 Python）。在 [Releases](https://github.com/Edwardxlai/easyread/releases/latest) 下载：
+
+- **Windows**：`EasyRead Setup x.x.x.exe`，双击安装。没有代码签名，如果弹出“Windows 已保护你的电脑”，点“更多信息 → 仍要运行”。
+- **macOS**（Apple 芯片）：`EasyRead-x.x.x-arm64.dmg`，把 EasyRead 拖进“应用程序”。第一次打开会提示“无法验证开发者”：去“系统设置 → 隐私与安全性”，在下面点“仍要打开”，之后就正常了。
+- **Linux**：`EasyRead-x.x.x.AppImage`，`chmod +x` 后运行。
+
+安装版的论文和设置存在用户目录下的 `EasyRead` 文件夹（和 pip 安装版同一个位置），卸载重装不会丢。
+
+**或者从源码运行**：需要 [Python 3.10+](https://www.python.org/downloads/)。
 
 先从 [Releases](https://github.com/Edwardxlai/easyread/releases/latest) 下载最新版的 zip 解压（或者 `git clone` 本仓库）。
 

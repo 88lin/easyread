@@ -1,7 +1,12 @@
 const { app, BrowserWindow, dialog, Menu, shell } = require("electron");
 const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+
+// 窗口缓存等放 %APPDATA%\EasyRead（默认会用 package.json 的 name，叫 easyread-desktop）。
+// 论文和设置不放这里：打包后的后端默认用 ~/EasyRead，和 pip 安装版同一个位置，用户找得到、好备份。
+app.setPath("userData", path.join(app.getPath("appData"), "EasyRead"));
 
 let backend;
 let mainWindow;
@@ -21,7 +26,7 @@ function backendCommand() {
     if (!fs.existsSync(executable)) {
       throw new Error(`找不到打包后的 EasyRead 后端：${executable}`);
     }
-    return { command: executable, args: ["serve", "--port", "0"], cwd: app.getPath("userData") };
+    return { command: executable, args: ["serve", "--port", "0"], cwd: os.homedir() };
   }
 
   const root = projectRoot();
@@ -32,11 +37,26 @@ function backendCommand() {
   return { command, args: ["-m", "easyread", "serve", "--port", "0"], cwd: root };
 }
 
+// macOS / Linux 从启动台、桌面图标打开时，拿不到终端里配的 PATH（Homebrew、npm 全局目录），
+// 后端会找不到 claude / codex。向用户的登录 shell 要一份 PATH 补上。
+function loginShellPath() {
+  if (process.platform === "win32") return "";
+  try {
+    const out = execFileSync(process.env.SHELL || "/bin/zsh", ["-ilc", 'printf "__PATH__%s__PATH__" "$PATH"'],
+      { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] });
+    const m = out.match(/__PATH__(.*)__PATH__/);
+    return m ? m[1] : "";
+  } catch (_) {
+    return "";
+  }
+}
+
 function startBackend() {
   const launch = backendCommand();
   const env = { ...process.env, PYTHONUTF8: "1" };
-  if (app.isPackaged) {
-    env.EASYREAD_HOME = app.getPath("userData");
+  const shellPath = loginShellPath();
+  if (shellPath) {
+    env.PATH = [...new Set([...shellPath.split(":"), ...(env.PATH || "").split(":")].filter(Boolean))].join(":");
   }
 
   return new Promise((resolve, reject) => {
