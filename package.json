@@ -1,0 +1,77 @@
+{
+  "name": "easyread-desktop",
+  "version": "1.1.0",
+  "description": "EasyRead desktop application powered by Electron",
+  "author": "Edwardxlai",
+  "main": "electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "build:backend": "python scripts/build_backend.py",
+    "dist": "npm run build:backend && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.edwardxlai.easyread",
+    "productName": "EasyRead",
+    "asar": true,
+    "directories": {
+      "output": "dist/electron"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "icon": "electron/assets",
+    "extraResources": [
+      {
+        "from": "build/backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "electron/assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "mac": {
+      "icon": "electron/assets/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "publications",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
+  }
+}

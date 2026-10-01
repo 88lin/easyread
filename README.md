@@ -53,7 +53,15 @@
 
 ## 安装
 
-需要 [Python 3.10+](https://www.python.org/downloads/)。
+**最省事：下载安装包**（不用装 Python）。在 [Releases](https://github.com/Edwardxlai/easyread/releases/latest) 下载：
+
+- **Windows**：`EasyRead Setup x.x.x.exe`，双击安装。没有代码签名，如果弹出“Windows 已保护你的电脑”，点“更多信息 → 仍要运行”。
+- **macOS**（Apple 芯片）：`EasyRead-x.x.x-arm64.dmg`，把 EasyRead 拖进“应用程序”。第一次打开会提示“无法验证开发者”：去“系统设置 → 隐私与安全性”，在下面点“仍要打开”，之后就正常了。
+- **Linux**：`EasyRead-x.x.x.AppImage`，`chmod +x` 后运行。
+
+安装版的论文和设置存在用户目录下的 `EasyRead` 文件夹（和 pip 安装版同一个位置），卸载重装不会丢。
+
+**或者从源码运行**：需要 [Python 3.10+](https://www.python.org/downloads/)。
 
 先从 [Releases](https://github.com/Edwardxlai/easyread/releases/latest) 下载最新版的 zip 解压（或者 `git clone` 本仓库）。
 
@@ -75,6 +83,24 @@ easyread
 ```
 
 浏览器会打开 `http://127.0.0.1:8765`。服务只监听本机。
+
+## 桌面版（Electron）
+
+桌面版复用同一套本地 Python 服务和 Web 界面，由 Electron 负责启动服务并显示窗口。开发环境需要 Node.js 22+、Python 3.10+ 和 PyInstaller：
+
+```bash
+npm install
+python -m pip install pyinstaller
+npm run dev
+```
+
+生成可分发安装包：
+
+```bash
+npm run dist
+```
+
+输出在 `dist/electron/`：Windows 为 NSIS 安装程序，macOS 为 DMG，Linux 为 AppImage。推送 `v*` 标签后，GitHub Actions 会在三个系统上构建，并把这些安装包自动附加到 GitHub Release；源码 zip 仍会由 GitHub 保留。打包后的文献库和设置保存在系统的 EasyRead 用户数据目录中，不会写进安装目录。
 
 ## 怎么用
 
@@ -125,3 +151,7 @@ node tests/e2e.cjs library/<论文ID>       # 浏览器端到端测试（需要 
 MIT。公式渲染用 [KaTeX](https://katex.org)（MIT）。
 
 在线演示用的论文是 Rafailov 等人的 *Direct Preference Optimization: Your Language Model is Secretly a Reward Model*（[arXiv:2305.18290](https://arxiv.org/abs/2305.18290)，CC BY 4.0），中文译文由 EasyRead 调用 Claude 生成，演示里的划线和笔记是示例。
+
+## 贡献者
+
+- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron 桌面版打包与发布流程

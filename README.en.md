@@ -51,9 +51,15 @@ Settings auto-detect what's installed; "Test one sentence" tells you right away 
 
 ## Install
 
-Requires [Python 3.10+](https://www.python.org/downloads/).
+**Easiest: download the installer** (no Python needed). From [Releases](https://github.com/Edwardxlai/easyread/releases/latest):
 
-Download the latest zip from [Releases](https://github.com/Edwardxlai/easyread/releases/latest) and unzip it (or `git clone` this repo).
+- **Windows**: `EasyRead Setup x.x.x.exe`. It is not code-signed; if SmartScreen says "Windows protected your PC", click "More info → Run anyway".
+- **macOS** (Apple silicon): `EasyRead-x.x.x-arm64.dmg`, drag EasyRead into Applications. The first launch says the developer cannot be verified: open System Settings → Privacy & Security and click "Open Anyway"; after that it opens normally.
+- **Linux**: `EasyRead-x.x.x.AppImage`, `chmod +x` and run it.
+
+Papers and settings live in the `EasyRead` folder in your home directory (same place as the pip install), so reinstalling keeps them.
+
+**Or run from source** (needs Python 3.10+): download the latest zip from [Releases](https://github.com/Edwardxlai/easyread/releases/latest) and unzip it (or `git clone` this repo).
 
 **Windows**: double-click `start.cmd`. The first run sets up the environment (about a minute); after that it opens right away.
 
