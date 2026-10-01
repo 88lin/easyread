@@ -11,6 +11,7 @@ tests/shots/
 *.egg-info/
 build/
 dist/
+/outputs/
 /prefs.json
 .prefs.json
 .models-seen.json
