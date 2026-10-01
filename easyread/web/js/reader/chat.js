@@ -76,11 +76,12 @@
     if (b.type === "math" && !c.quote) return (PR.sectionOf ? PR.sectionOf(c.anchor) + " · " : "") + (b.tag ? "公式 (" + b.tag + ")" : "一个公式");
     const text = plainTex(c.quote || PR.textFor(PR.blockKeys(b)[0] || b.id) || b.caption_zh || b.tex || "").replace(/\*\*|`/g, "");  // 先去公式记号再去粗体，不然 $ 已被 PR.plain 去掉、TeX 原样露出来
     const sec = PR.sectionOf ? PR.sectionOf(c.anchor) : "";
-    return (sec ? sec + " · " : "") + "「" + text.slice(0, 36) + (text.length > 36 ? "…" : "") + "」";
+    return (sec ? sec + " · " : "") + "「" + text.slice(0, 18) + (text.length > 18 ? "…" : "") + "」";
   }
   function refChip(r, i, auto) {
     const label = ctxLabel(r);
-    return '<span class="chip-ctx' + (auto ? " auto" : "") + '" title="' + PR.esc(label) + '">' + PR.icon(auto ? "book" : "link", "sm") + "<span>" + (auto ? "正在读：" : r.quote ? "这句：" : "") + PR.esc(label) +
+    const tip = (auto ? "会带上你正在读的这段：" : "引用：") + label + "\n想一起问几段：把正文里选中的文字拖进来，或点段落上的“问 AI”";
+    return '<span class="chip-ctx' + (auto ? " auto" : "") + '" title="' + PR.esc(tip) + '">' + PR.icon(auto ? "book" : "link", "sm") + "<span>" + PR.esc(label) +
       '</span><button data-c="' + (auto ? "noauto" : "unref") + '" data-i="' + i + '" title="不带这段">×</button></span>';
   }
   function markCounts() {
@@ -120,7 +121,7 @@
     const colors = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     const sug = ["这段在说什么？用大白话讲一遍", "这个公式每一项是什么意思？怎么推出来的？", "这里的结论靠得住吗？有什么前提？"];
     if (colors.length) sug.unshift("我标" + colorName(colors[0]) + "的那些地方，彼此有什么联系？", "把我划过线的内容串成一条主线讲讲");
-    return '<div class="ch-empty">' + PR.logo("hero") + "<b>边读边问</b><p>默认带上你正在读的段落，也可以引用多段一起问。" + (colors.length ? "问到“标" + colorName(colors[0]) + "的”“划线”时，会自动找出你的 " + Object.values(counts).reduce((a, b) => a + b, 0) + " 处标记。" : "") + "</p>" +
+    return '<div class="ch-empty">' + PR.logo("hero") + "<b>边读边问</b><p>默认带上你正在读的段落；把正文里选中的文字拖到输入框，可以引用多段一起问。" + (colors.length ? "问到“标" + colorName(colors[0]) + "的”“划线”时，会自动找出你的 " + Object.values(counts).reduce((a, b) => a + b, 0) + " 处标记。" : "") + "</p>" +
       '<div class="chips">' + sug.map((q) => '<button data-c="suggest">' + PR.esc(q) + "</button>").join("") + "</div></div>";
   }
   function composerHtml() {
@@ -135,11 +136,10 @@
       "<b>" + PR.esc(x.label) + "</b><small>" + PR.esc(x.ready === false ? x.hint : [x.source, x.id === st.def ? "默认" : ""].filter(Boolean).join(" · ")) + "</small></button>").join("") +
       '<hr><button data-c="manage">' + PR.icon("gear", "sm") + "管理模型…</button></div>" : "";
     return '<div class="ch-compose">' + (chips ? '<div class="ch-chips">' + chips + "</div>" : "") +
-      (st.refs.length < 2 && !st.streaming ? '<div class="ch-tip">想一起问几段？把正文里选中的文字拖进来，或点段落上的“问 AI”</div>' : "") +
-      '<textarea id="chatInput" rows="1" placeholder="问点什么…（Enter 发送，Shift+Enter 换行）">' + PR.esc(st.draft) + "</textarea>" +
+      '<textarea id="chatInput" rows="1" placeholder="问点什么…">' + PR.esc(st.draft) + "</textarea>" +
       '<div class="ch-bar"><button class="ch-model" data-c="menu" title="换模型">' + PR.esc(m.label) + PR.icon("chevron", "sm") + "</button>" + menu +
       '<span class="grow"></span>' + (st.streaming ? '<button class="ch-send stop" data-c="stop" title="停止">' + PR.icon("stop", "sm") + "</button>"
-        : '<button class="ch-send" data-c="send" title="发送（Enter）">' + PR.icon("arrowUp", "sm") + "</button>") + "</div></div>";
+        : '<button class="ch-send" data-c="send" title="发送（Enter）；换行用 Shift+Enter">' + PR.icon("arrowUp", "sm") + "</button>") + "</div></div>";
   }
   function render() {
     const el = panel();
@@ -300,6 +300,6 @@
     autoContext();
     if ((st.auto && st.auto.anchor) === before || st.refs.length || st.noAuto) return;
     const el = PR.$(".chip-ctx.auto > span");
-    if (el && st.auto) { el.textContent = "正在读：" + ctxLabel(st.auto); el.parentElement.title = ctxLabel(st.auto); } else render();
+    if (el && st.auto) { el.textContent = ctxLabel(st.auto); el.parentElement.title = "会带上你正在读的这段：" + ctxLabel(st.auto); } else render();
   }, 400), { passive: true });
 })(window.PR);

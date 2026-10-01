@@ -5,7 +5,7 @@
   const body = document.body;
 
   /* ---------- 偏好 ---------- */
-  const DEF = { fs: 18, measure: 35, lh: 1.9, font: "serif", theme: "auto", mode: "zh", margin: true };
+  const DEF = Object.assign({ theme: "auto" }, PR.TYPE_DEFAULTS);
   PR.prefs = Object.assign({}, DEF, PR.ls.get("easyread-prefs", {}));
   PR.applyPrefs = function () {
     const p = PR.prefs, root = document.documentElement;
@@ -48,7 +48,8 @@
       '<div class="row"><span>字体</span>' + segHtml("font", [["serif", "宋体"], ["sans", "黑体"]]) + "</div>" +
       '<div class="row"><span>主题</span>' + segHtml("theme", [["auto", "跟随"], ["light", "浅"], ["dark", "深"]]) + "</div>" +
       '<div class="row"><span>边注</span>' + segHtml("margin", [[true, "显示"], [false, "收起"]]) + "</div>" +
-      '<div class="row hintrow">' + (PR.keysOn ? "<kbd>=</kbd> <kbd>-</kbd> 调字号　" : "") + (PR.store.mode === "server" ? '<button class="linkish" data-open-settings="reading">更多设置…</button>' : "") + "</div>";
+      '<div class="row hintrow"><button class="linkish" data-reset-type>恢复默认</button><span class="grow"></span>' +
+      (PR.store.mode === "server" ? '<button class="linkish" data-open-settings="reading">更多设置…</button>' : "") + "</div>";
   };
   function syncSettings() {
     PR.$$("#settings [data-r]").forEach((r) => { r.value = PR.prefs[r.dataset.r]; });
@@ -61,12 +62,19 @@
   PR.$("#settings").addEventListener("click", (e) => {
     const os = e.target.closest("[data-open-settings]");
     if (os) { PR.$("#settings").classList.remove("open"); return PR.openSettings(os.dataset.openSettings); }
+    if (e.target.closest("[data-reset-type]")) return PR.resetAllType();
     const b = e.target.closest("[data-p]");
     if (!b) return;
     let v = b.dataset.v;
     if (b.dataset.p === "margin") v = v === "true";
     PR.setPref(b.dataset.p, v);
   });
+  /* 排版全部回到默认（主题不动）；opts 传进来就用它（设置里改过的默认值） */
+  PR.resetAllType = function (vals) {
+    Object.assign(PR.prefs, vals || PR.TYPE_DEFAULTS);
+    PR.setPref("fs", PR.prefs.fs);
+    if (!vals) PR.toast("排版已恢复默认", null, 1200);
+  };
   PR.resetType = () => { ["fs", "measure", "lh"].forEach((k) => (PR.prefs[k] = DEF[k])); PR.setPref("fs", DEF.fs, true); PR.toast("已恢复默认字号和版心", null, 1200); };
 
   /* ---------- 顶栏 ---------- */
@@ -199,7 +207,7 @@
       "<h3>怎么用</h3><p>点一下段落，上方出现操作条：笔记、提问、问 AI、原文、改译文、原页。右键段落是完整菜单。选中文字可以用四种颜色划线、写笔记、提问；打开问 AI 时，选中的文字可以直接拖进输入框，一次引用多段。双击一段直接改译文。</p>" +
       "<h3>快捷键</h3>" + (PR.keysOn
         ? '<div class="keyrows">' + PR.KEY_ACTIONS.filter(([id, , , , need]) => PR.keymap[id] && (!need || PR.feature(need))).map(([id, label]) => "<kbd>" + PR.esc(PR.keyOf(id)) + "</kbd><span>" + label + "</span>").join("") +
-          "<kbd>1</kbd><span>选中文字后按 1–4：四色划线</span><kbd>Esc</kbd><span>关闭面板、取消选中</span></div>"
+          "<kbd>1–4</kbd><span>选中文字后：四色划线</span><kbd>Esc</kbd><span>关闭面板、取消选中</span></div>"
         : "<p>快捷键已关闭。</p>") +
       '<button class="btn sm line" data-x="keys">设置快捷键和功能</button></div>';
   }

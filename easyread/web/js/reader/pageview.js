@@ -35,7 +35,7 @@
   PR.togglePages = function (force) {
     const open = force != null ? force : PR.side !== "pages";
     PR.openSide(open ? "pages" : null);
-    if (open) PR.syncPage(true);
+    if (open) PR.syncPage(true); else pair(null);
   };
   PR.openPage = function (page, blockId) {
     pvBlock = blockId || null;
@@ -75,6 +75,7 @@
     if (url) pdf.href = url;
     const hl = PR.$(".pv-hl");
     const loc = blockId && S.layout[blockId];
+    pair(loc && loc.page === pvPage ? blockId : null);
     if (loc && loc.page === pvPage) {
       const [x0, y0, x1, y1] = loc.box;
       Object.assign(hl.style, { left: (x0 * 100 - 0.8) + "%", top: (y0 * 100 - 0.4) + "%", width: ((x1 - x0) * 100 + 1.6) + "%", height: ((y1 - y0) * 100 + 0.8) + "%" });
@@ -86,9 +87,48 @@
     } else hl.classList.remove("on");
   }
 
+  /* 译文里和原页框对应的那段也标出来（同一个颜色），一眼看出左右是哪两段 */
+  let paired = null, holdUntil = 0;
+  function pair(id) {
+    if (paired === id) return;
+    const old = paired && document.getElementById("b-" + paired);
+    if (old) old.classList.remove("pv-pair");
+    paired = id;
+    const node = id && document.getElementById("b-" + id);
+    if (node) node.classList.add("pv-pair");
+  }
+  PR.on("block-rendered", (id) => { if (id === paired) { paired = null; pair(id); } });  // 段落重画后补回标记
+  PR.on("rendered", () => { const id = paired; paired = null; pair(id); });
+
+  /* 点原页上的某一段 → 正文跳到那段译文（排版特殊、看不出语序时，从原文找回去） */
+  function blockAt(x, y) {
+    let best = null, area = Infinity;
+    for (const id in S.layout) {
+      const l = S.layout[id];
+      if (l.page !== pvPage || !PR.blockById[id]) continue;
+      const [x0, y0, x1, y1] = l.box;
+      const a = (x1 - x0) * (y1 - y0);
+      if (x >= x0 - 0.01 && x <= x1 + 0.01 && y >= y0 - 0.006 && y <= y1 + 0.006 && a < area) { best = id; area = a; }
+    }
+    return best;
+  }
+  PR.$(".pv-page").addEventListener("click", (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const id = blockAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    if (!id) return;
+    pvBlock = id;
+    holdUntil = Date.now() + 1500;  // 跳过去的滚动会触发“跟随阅读位置”，别让它把刚点的段换掉
+    showPage(pvPage, id);
+    PR.jumpTo("b-" + id);
+  });
+  PR.$(".pv-page").addEventListener("mousemove", (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.classList.toggle("pickable", !!blockAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height));
+  });
+
   PR.syncPage = function (force) {
     if (PR.side !== "pages") return;
-    if (!force && !PR.$(".pv-follow input").checked) return;
+    if (!force && (!PR.$(".pv-follow input").checked || Date.now() < holdUntil)) return;
     const id = (PR.currentBlock && PR.currentBlock()) || PR.readingBlock();
     const b = PR.blockById[id];
     if (!b) return;
@@ -102,7 +142,7 @@
     const b = e.target.closest("[data-pv]");
     if (!b) return;
     const act = b.dataset.pv;
-    if (act === "close") PR.togglePages(false);
+    if (act === "close") { PR.togglePages(false); pair(null); }
     if (act === "prev") showPage(pvPage - 1, pvBlock);
     if (act === "next") showPage(pvPage + 1, pvBlock);
     if (act === "zoom") { body.classList.toggle("pv-zoom"); b.textContent = body.classList.contains("pv-zoom") ? "适宽" : "放大"; showPage(pvPage, pvBlock); }

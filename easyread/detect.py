@@ -54,6 +54,9 @@ def _refresh(cfg: dict) -> dict:
         t.join(40)
     with _lock:
         _cache.update(at=time.time(), data=out, busy=False)
+    if out.get("claude", {}).get("found"):
+        from .cli_models import probe_claude
+        threading.Thread(target=probe_claude, args=(cfg["claude"], out["claude"]["version"]), daemon=True).start()
     return out
 
 

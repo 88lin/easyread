@@ -47,6 +47,10 @@ body.pv-zoom .pv-page { width: 165%; max-width: none; }
 :root[data-theme="dark"] .pv-page { background: #111; }
 .pv-hl { position: absolute; pointer-events: none; border-radius: 3px; background: rgba(236, 196, 92, .22); box-shadow: 0 0 0 2px rgba(214, 160, 40, .55); transition: all .25s ease; opacity: 0; }
 .pv-hl.on { opacity: 1; }
+.pv-page.pickable { cursor: pointer; }
+/* 正文里和原页框对应的段：同一个琥珀色，左边一道竖条 + 很淡的底色，不抢正文 */
+body.pv-open .blk.pv-pair { background: rgba(236, 196, 92, .09); box-shadow: 0 0 0 6px rgba(236, 196, 92, .09); }
+body.pv-open .blk.pv-pair::before { background: rgba(214, 160, 40, .8); opacity: 1; }
 
 /* 笔记面板 */
 /* 笔记、问 AI 和原页一样宽（约占右侧 44%）；窄屏时盖在正文上 */
@@ -68,6 +72,15 @@ body.pv-zoom .pv-page { width: 165%; max-width: none; }
 .np-tools .grow { flex: 1; }
 #paperNote { flex: 1; width: 100%; resize: none; border: 0; outline: 0; background: var(--bg); border-radius: 10px; padding: 14px 16px; font: 15px/1.9 var(--serif-zh); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
 #paperNote:focus { box-shadow: inset 0 0 0 1.5px var(--mine); }
+.np-ai { flex: none; max-height: 48%; display: flex; flex-direction: column; margin-top: 10px; border-radius: 10px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.np-ai-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.np-ai-head small { color: var(--ink-3); font-size: 11.5px; }
+.np-ai-head .grow { flex: 1; }
+.np-ai-body { overflow-y: auto; padding: 10px 14px; font: 14px/1.8 var(--serif-zh); color: var(--ink); }
+.np-ai-body p { margin: 0 0 .7em; }
+.np-ai-body .err { color: var(--danger, #c0392b); font: 13px var(--ui); }
+.np-ai-acts { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 10px; border-top: 1px solid var(--rule); }
+.np-tools .nh-btns { display: inline-flex; gap: 6px; }
 .np-preview { flex: 1; overflow-y: auto; font: 15px/1.9 var(--serif-zh); color: var(--ink); padding: 4px 4px 30px; }
 .np-preview p { margin: 0 0 .9em; }
 
@@ -78,6 +91,7 @@ body.pv-zoom .pv-page { width: 165%; max-width: none; }
 #settings .row > span { color: var(--ink-3); font-size: 12.5px; flex: none; width: 34px; }
 #settings .slider input { flex: 1; min-width: 0; }
 #settings .slider b { font-weight: 500; min-width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12.5px; }
+#settings .hintrow .grow { flex: 1; }
 #settings .hintrow { justify-content: flex-start; gap: 4px; color: var(--ink-3); font-size: 12px; border-top: 1px solid var(--rule); padding-top: 10px; }
 
 /* 段落操作条、选区条 */

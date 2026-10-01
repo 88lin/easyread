@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, paperdata, pdfwork, prefs
+from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs
 from .log import log, setup as setup_log, tail
 from .jobs import Jobs
 from .library import Library
@@ -288,6 +288,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"threads": chat_store.threads(ws)})
             if action == "chat":
                 return self._chat(ws, body)
+            if action == "notehelp":
+                return notehelp.handle(self, ws, body)
+            if action == "discussion_del":
+                return self._json(200, {"deleted": paperdata.delete_discussion(ws, str(body.get("id", "")))})
             if action == "ops":
                 ops = body.get("ops") or []
                 if not isinstance(ops, list):
@@ -357,6 +361,11 @@ def _reveal(path: Path):
         subprocess.Popen(["xdg-open", str(path)])
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows 上 SO_REUSEADDR 会让两个进程同时占住 8765，浏览器随机连到其中一个（比如旧版本）
+    allow_reuse_address = os.name != "nt"
+
+
 def serve(port: int | None = None, open_browser: bool = False, path: str = "/"):
     setup_log(config.LOG_PATH)
     cfg = config.load()
@@ -365,9 +374,9 @@ def serve(port: int | None = None, open_browser: bool = False, path: str = "/"):
     detect.warm(cfg)
     port = cfg["port"] if port is None else port
     try:
-        httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        httpd = _Server(("127.0.0.1", port), Handler)
     except OSError:
-        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        httpd = _Server(("127.0.0.1", 0), Handler)
     url = f"http://127.0.0.1:{httpd.server_address[1]}"
     if not config.temp_library():
         write_json_atomic(config.SERVER_INFO, {"url": url, "pid": os.getpid(), "started": now_iso()})

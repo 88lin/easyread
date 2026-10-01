@@ -49,9 +49,10 @@
       '<span class="grow"></span><button class="btn sm" data-np-act="md" title="导出 Markdown">导出</button><button class="btn icon" data-np-act="close" title="关闭（M）">×</button></div>';
     if (tab === "paper") {
       const body = (S.reader.paper_note || {}).body || "";
-      h += '<div class="np-paper"><div class="np-tools"><span class="hint">整篇的感悟、总结、待办。自动保存。</span><span class="grow"></span><button class="btn sm' + (preview ? " on" : "") + '" data-np-act="preview">' + (preview ? "编辑" : "预览") + "</button></div>" +
+      h += '<div class="np-paper"><div class="np-tools"><span class="hint">整篇的感悟、总结、待办。自动保存。</span><span class="grow"></span>' + PR.noteHelpButtons() +
+        '<button class="btn sm' + (preview ? " on" : "") + '" data-np-act="preview">' + (preview ? "编辑" : "预览") + "</button></div>" +
         (preview ? '<div class="np-preview">' + (body ? PR.mdBlocks(body) : '<p class="hint">还没有写。</p>') + "</div>"
-          : '<textarea id="paperNote" placeholder="读完这篇，你怎么看？&#10;&#10;可以写：核心论点、我同意/不同意的地方、能用到哪里、还没搞懂的问题……&#10;支持 $公式$、**粗体**，空行分段。">' + PR.esc(body) + "</textarea>") + "</div>";
+          : '<textarea id="paperNote" placeholder="读完这篇，你怎么看？&#10;&#10;可以写：核心论点、我同意/不同意的地方、能用到哪里、还没搞懂的问题……&#10;支持 $公式$、**粗体**，空行分段。">' + PR.esc(body) + "</textarea>") + PR.noteHelpBox() + "</div>";
     } else {
       const chips = [["all", "全部"], ["mine", "我的笔记"], ["hl", "划线"], ["agent", "AI"], ["open", "待回答"]]
         .map(([k, l]) => '<button data-nf="' + k + '" class="' + (filter === k ? "on" : "") + '">' + l + "</button>").join("");
@@ -89,7 +90,11 @@
 
   panel().addEventListener("input", (e) => {
     PR.autosize(e.target);
-    if (e.target.id === "paperNote") savePaperNote();
+    if (e.target.id === "paperNote") {
+      savePaperNote();
+      const btns = PR.$("#notespanel .nh-btns");  // 笔记从空变成有内容（或反过来）：“起草稿”换成“点评 / 帮我改”
+      if (btns && (btns.querySelector('[data-nh="draft"]') ? 1 : 0) !== (e.target.value.trim() ? 0 : 1)) btns.outerHTML = PR.noteHelpButtons();
+    }
     else if (e.target.matches(".card textarea")) saveEditing();
   });
   panel().addEventListener("keydown", (e) => {
