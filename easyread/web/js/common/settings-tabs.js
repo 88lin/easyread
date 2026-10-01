@@ -4,15 +4,32 @@
   const T = PR.settingsTabs;
 
   /* ---------- 阅读 ---------- */
+  /* 排版：和阅读页 Aa 面板是同一份设置，这里多一个“恢复默认” */
+  function typeHtml(s) {
+    if (!s.type) s.type = Object.assign({}, PR.TYPE_DEFAULTS, PR.ls.get("easyread-prefs", {}));
+    const t = s.type, range = (a, b, step) => { const out = []; for (let v = a; v <= b + 1e-9; v += step) out.push([+v.toFixed(2), +v.toFixed(2)]); return out; };
+    const sel = (key, label, list) => '<label class="field"><span>' + label + '</span><select class="input" data-type="' + key + '">' + PR.opt(list, t[key]) + "</select></label>";
+    return '<h4 class="set-h">排版</h4><div class="settings-sec grid3">' +
+      sel("fs", "字号", range(13, 28, 1).map(([v]) => [v, v + " px"])) + sel("measure", "版心（每行字数）", range(26, 50, 1).map(([v]) => [v, v + " 字"])) +
+      sel("lh", "行距", range(1.5, 2.4, 0.05)) + sel("font", "字体", [["serif", "宋体"], ["sans", "黑体"]]) +
+      sel("mode", "打开时显示", [["zh", "译文"], ["bi", "对照"]]) + sel("margin", "边注", [["true", "显示"], ["false", "收起"]]) +
+      '</div><div class="keys-foot" style="margin-top:4px"><span class="hint">阅读时也能在右上角 Aa 里随手调。</span><button class="btn sm" data-type-reset>恢复默认排版</button></div>';
+  }
   T.reading = {
     render(s) {
-      return '<p class="set-lead">阅读页上显示哪些功能。关掉的功能，按钮和快捷键都会一起消失。</p><div class="switch-list">' +
+      return typeHtml(s) + '<h4 class="set-h">功能</h4><p class="set-lead">阅读页上显示哪些功能。关掉的功能，按钮和快捷键都会一起消失。</p><div class="switch-list">' +
         PR.FEATURES.map(([id, name, , desc]) => '<label class="switch-row"><span><b>' + name + "</b><small>" + desc + '</small></span><input type="checkbox" class="switch" data-feat="' + id + '"' + (s.ui.features[id] !== false ? " checked" : "") + "></label>").join("") +
         "</div>" + '<div class="settings-sec grid2"><label class="field"><span>界面主题</span><select class="input" id="themeSel">' +
-        PR.opt([["auto", "跟随系统"], ["light", "浅色"], ["dark", "深色"]], s.theme) + "</select></label></div>" +
-        '<p class="hint">字号、版心、行距在阅读页右上角的 Aa 里调。</p>';
+        PR.opt([["auto", "跟随系统"], ["light", "浅色"], ["dark", "深色"]], s.theme) + "</select></label></div>";
+    },
+    click(e, s) {
+      if (!e.target.closest("[data-type-reset]")) return false;
+      s.type = Object.assign({}, PR.TYPE_DEFAULTS);
+      return true;
     },
     change(e, s) {
+      const t = e.target.dataset.type;
+      if (t) s.type[t] = t === "margin" ? e.target.value === "true" : ["fs", "measure", "lh"].includes(t) ? +e.target.value : e.target.value;
       if (e.target.dataset.feat) s.ui.features[e.target.dataset.feat] = e.target.checked;
       if (e.target.id === "themeSel") { s.theme = e.target.value; PR.applyTheme(s.theme); }
       return false;

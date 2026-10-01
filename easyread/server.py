@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, paperdata, pdfwork, prefs
+from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs
 from .log import log, setup as setup_log, tail
 from .jobs import Jobs
 from .library import Library
@@ -288,6 +288,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"threads": chat_store.threads(ws)})
             if action == "chat":
                 return self._chat(ws, body)
+            if action == "notehelp":
+                return notehelp.handle(self, ws, body)
+            if action == "discussion_del":
+                return self._json(200, {"deleted": paperdata.delete_discussion(ws, str(body.get("id", "")))})
             if action == "ops":
                 ops = body.get("ops") or []
                 if not isinstance(ops, list):

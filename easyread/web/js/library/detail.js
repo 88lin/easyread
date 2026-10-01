@@ -82,7 +82,8 @@
       '<button class="btn icon line" data-d="more" title="更多：导出、打开文件夹、回收站">' + PR.icon("more", "sm") + "</button></div></div></div>" +
       '<div class="title-zh" contenteditable="plaintext-only" data-meta="title_zh" spellcheck="false">' + PR.esc(i.title_zh || "") + "</div>" +
       '<div class="title-en" contenteditable="plaintext-only" data-meta="title_en" lang="en" spellcheck="false">' + PR.esc(i.title_en || "") + "</div>" +
-      '<div class="cats">' + cats + '<input id="catInput" placeholder="＋ 新分类" maxlength="30"></div>' +
+      '<div class="cats">' + cats + '<button class="catchip add" data-d="newcat">' + PR.icon("plus", "sm") + "新分类</button>" +
+      '<input id="catInput" class="catchip" placeholder="分类名，回车确定" maxlength="30" hidden></div>' +
       '<div class="seg">' + status + "</div>" +
       '<div class="kv"><span>作者</span><span contenteditable="plaintext-only" data-meta="authors">' + PR.esc(i.authors) + "</span>" +
       '<span>年份</span><span contenteditable="plaintext-only" data-meta="year">' + PR.esc(i.year) + "</span>" +
@@ -107,7 +108,15 @@
   box.addEventListener("focusout", (e) => { if (e.target.matches("[data-meta]")) saveMeta(e.target); });
   box.addEventListener("keydown", (e) => {
     if (e.target.matches("[data-meta]") && e.key === "Enter") { e.preventDefault(); e.target.blur(); }
-    if (e.target.id === "catInput" && e.key === "Enter") { L.addCat(e.target.value, L.selected); e.target.value = ""; }
+    if (e.target.id === "catInput" && e.key === "Enter" && e.target.value.trim()) { L.addCat(e.target.value, L.selected); e.target.value = ""; }
+    if (e.target.id === "catInput" && e.key === "Escape") { e.stopPropagation(); e.target.value = ""; e.target.blur(); }
+  });
+  /* 新分类：平时是个按钮，点了才变成输入框；没输入就离开，变回按钮 */
+  box.addEventListener("focusout", (e) => {
+    if (e.target.id !== "catInput" || e.target.value.trim()) return;
+    e.target.hidden = true;
+    const btn = box.querySelector('[data-d="newcat"]');
+    if (btn) btn.hidden = false;
   });
   box.addEventListener("click", async (e) => {
     const i = L.byId(L.selected);
@@ -119,6 +128,7 @@
     const d = e.target.closest("[data-d]");
     if (!d) return;
     const act = d.dataset.d;
+    if (act === "newcat") { d.hidden = true; const inp = PR.$("#catInput"); inp.hidden = false; inp.focus(); return; }
     if (act === "close") L.select(null);
     else if (act === "star") L.patch(i.id, { starred: !i.starred });
     else if (act === "read") L.openReader(i.id);

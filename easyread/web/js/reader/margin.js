@@ -40,7 +40,9 @@
         (d.quote ? '<div class="quote">「' + PR.md(d.quote, { cite: false, xref: false }) + "」</div>" : "") +
         (d.title ? '<div class="ttl">' + PR.md(d.title, { xref: false }) + "</div>" : "") +
         (d.q ? '<div class="q">' + PR.md(d.q) + "</div>" : "") +
-        '<div class="body">' + PR.mdBlocks(d.body) + "</div></div>";
+        '<div class="body">' + PR.mdBlocks(d.body) + "</div>" +
+        (PR.store.mode !== "server" ? "" : '<div class="acts">' + (d.reply_to && (S.reader.notes || {})[d.reply_to] && PR.canChat && PR.canChat() ? '<button data-a="regen">重新回答</button>' : "") +
+        '<button data-a="adel">删除</button></div>') + "</div>";
     }
     const answered = PR.repliesTo(d.id).length > 0;
     const asking = PR.asking.has(d.id);
@@ -227,6 +229,7 @@
     const nid = card.dataset.note;
     const rerender = () => (inPanel ? PR.renderNotesPanel(nid) : PR.openNoteEditor(nid));
     if (a && a.dataset.a === "more") { expanded.add(card.dataset.card || nid); card.classList.remove("clamp"); a.remove(); PR.layoutMargin(); return true; }
+    if (card.dataset.card && a && (a.dataset.a === "adel" || a.dataset.a === "regen")) { delAgent(card.dataset.card, a.dataset.a === "regen", a); return true; }
     if (nid && a) {
       const n = noteById(nid);
       if (a.dataset.a === "edit") inPanel ? PR.renderNotesPanel(nid) : PR.openNoteEditor(nid);
@@ -253,6 +256,20 @@
     return false;
   };
   document.addEventListener("click", (e) => { if (e.target.closest("#margin, .inline-notes")) PR.cardClick(e, false); });
+
+  /* AI 写的卡片：删除；回答类的还能重新回答（删掉旧的，再问一次） */
+  async function delAgent(id, regen, btn) {
+    const e = (S.discussion.entries || []).find((x) => x.id === id);
+    if (!e) return;
+    if (!regen && !(await PR.confirm({ title: "删除这条 AI 内容？", body: "删了不能撤销。", ok: "删除", danger: true, at: btn }))) return;
+    try {
+      await PR.api("/api/p/" + PR.pid + "/discussion_del", { method: "POST", body: { id } });
+    } catch (err) { return PR.toast("删除失败：" + PR.esc(err.message)); }
+    S.discussion.entries = S.discussion.entries.filter((x) => x.id !== id);
+    PR.renderMargin(); PR.applyMarks();
+    if (PR.notesPanelOpen && PR.notesPanelOpen()) PR.renderNotesPanel();
+    if (regen) PR.askModel(e.reply_to);
+  }
 
   /* 卡片和段落互相高亮 */
   function link(card, on) {

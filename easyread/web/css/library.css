@@ -234,7 +234,10 @@
 .detail .catchip svg { width: 12px; height: 12px; }
 .detail .catchip:hover { color: var(--ink); }
 .detail .catchip.on { color: var(--accent); background: var(--accent-soft-2); box-shadow: inset 0 0 0 1px var(--accent); }
-.detail #catInput { border: 0; outline: 0; background: none; font-size: 12.5px; width: 90px; height: 24px; color: var(--ink); }
+.detail .catchip.add { border: 0; background: none; cursor: pointer; box-shadow: none; outline: 1px dashed var(--rule-2); outline-offset: -1px; }
+.detail .catchip.add:hover { color: var(--accent); outline-color: var(--accent); }
+.detail #catInput { border: 0; outline: 0; background: var(--surface); font-size: 12.5px; width: 150px; color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.detail #catInput[hidden], .detail .catchip[hidden] { display: none; }
 .lib { position: relative; transition: none; }
 .side-grip { position: absolute; top: var(--bar-h); bottom: 0; left: calc(var(--side-w, 248px) - 3px); width: 6px; cursor: col-resize; z-index: 5; }
 .side-grip:hover, body.resizing .side-grip { background: linear-gradient(90deg, transparent 2px, var(--accent) 2px, var(--accent) 4px, transparent 4px); }
