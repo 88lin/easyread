@@ -1,5 +1,5 @@
 const { app, BrowserWindow, dialog, Menu, shell } = require("electron");
-const { spawn } = require("child_process");
+const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -75,7 +75,20 @@ function startBackend() {
 
 function stopBackend() {
   if (backend && !backend.killed) {
-    backend.kill();
+    if (process.platform === "win32") {
+      // PyInstaller's one-file launcher creates a child process. Killing only
+      // the launcher would leave the local HTTP service running after exit.
+      try {
+        execFileSync("taskkill", ["/pid", String(backend.pid), "/t", "/f"], {
+          windowsHide: true,
+          stdio: "ignore",
+        });
+      } catch (_) {
+        // The process may already have exited while the window was closing.
+      }
+    } else {
+      backend.kill();
+    }
     backend = undefined;
   }
 }
