@@ -6,7 +6,14 @@
 导入 PDF，后台逐页翻译；公式、表格照原文排好，随时对照原文，边读边划线、记笔记、提问。<br>
 本地运行，论文和笔记只存在你自己的电脑上。</p>
 
-<p align="center"><a href="https://edwardxlai.github.io/easyread/demo/"><b>▶ 在线试读一篇</b></a> · <a href="https://edwardxlai.github.io/easyread/">项目主页</a></p>
+<p align="center"><a href="https://edwardxlai.github.io/easyread/demo/"><b>▶ 在线试读一篇</b></a> · <a href="https://edwardxlai.github.io/easyread/">项目主页</a> · <a href="https://github.com/Edwardxlai/easyread/releases/latest">下载</a></p>
+
+<p align="center">
+  <a href="https://github.com/Edwardxlai/easyread/releases/latest"><img src="https://img.shields.io/github/v/release/Edwardxlai/easyread?label=版本" alt="版本"></a>
+  <a href="https://github.com/Edwardxlai/easyread/actions/workflows/test.yml"><img src="https://github.com/Edwardxlai/easyread/actions/workflows/test.yml/badge.svg" alt="测试"></a>
+  <img src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-本地运行-2f6070" alt="平台">
+  <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT">
+</p>
 
 <p align="center"><img src="docs/images/pages.jpg" width="860" alt="译文和原页对照"></p>
 
@@ -46,13 +53,17 @@
 
 需要 [Python 3.10+](https://www.python.org/downloads/)。
 
-**Windows**：下载本仓库，双击 `start.cmd`。第一次会自动装好环境（一分钟左右），之后双击直接打开。
+先从 [Releases](https://github.com/Edwardxlai/easyread/releases/latest) 下载最新版的 zip 解压（或者 `git clone` 本仓库）。
 
-**macOS / Linux**：
+**Windows**：双击 `start.cmd`。第一次会自动装好环境（一分钟左右），之后双击直接打开。
+
+**macOS / Linux**：在解压出来的目录里运行
 
 ```bash
 ./start.sh
 ```
+
+每次推送都会在 Windows、macOS、Linux 上自动装一遍、跑测试、启动一次（见上面的“测试”徽章）。
 
 **或者用 pip**（数据放在 `~/EasyRead`）：
 
@@ -102,10 +113,10 @@ easyread export ID                     # 导出单文件离线 HTML
 
 ```bash
 python -m unittest discover tests         # 翻译调度等单元测试
-node tests/e2e.cjs                        # 浏览器端到端测试（需要 Playwright）
+node tests/e2e.cjs library/<论文ID>       # 浏览器端到端测试（需要 Playwright 和一篇已译好的论文）
 ```
 
-设计取舍见 [docs/design.md](docs/design.md)。
+设计取舍见 [docs/design.md](docs/design.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可
 
