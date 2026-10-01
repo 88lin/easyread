@@ -357,6 +357,11 @@ def _reveal(path: Path):
         subprocess.Popen(["xdg-open", str(path)])
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows 上 SO_REUSEADDR 会让两个进程同时占住 8765，浏览器随机连到其中一个（比如旧版本）
+    allow_reuse_address = os.name != "nt"
+
+
 def serve(port: int | None = None, open_browser: bool = False, path: str = "/"):
     setup_log(config.LOG_PATH)
     cfg = config.load()
@@ -365,9 +370,9 @@ def serve(port: int | None = None, open_browser: bool = False, path: str = "/"):
     detect.warm(cfg)
     port = cfg["port"] if port is None else port
     try:
-        httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        httpd = _Server(("127.0.0.1", port), Handler)
     except OSError:
-        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        httpd = _Server(("127.0.0.1", 0), Handler)
     url = f"http://127.0.0.1:{httpd.server_address[1]}"
     if not config.temp_library():
         write_json_atomic(config.SERVER_INFO, {"url": url, "pid": os.getpid(), "started": now_iso()})

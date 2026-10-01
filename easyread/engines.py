@@ -19,6 +19,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import netcheck
+
 
 class EngineError(RuntimeError):
     pass
@@ -32,6 +34,16 @@ ENGINE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI", "openai": "API", 
 
 
 def run(cfg: dict, prompt: str, cwd: Path, images: list[Path] | None = None, cancel: threading.Event | None = None) -> str:
+    bad = netcheck.problem(cfg)
+    if bad:
+        raise EngineError(bad)
+    try:
+        return _run(cfg, prompt, cwd, images, cancel)
+    except EngineError as e:
+        raise EngineError(netcheck.explain(cfg, str(e))) from None
+
+
+def _run(cfg: dict, prompt: str, cwd: Path, images: list[Path] | None, cancel: threading.Event | None) -> str:
     engine = cfg.get("engine")
     if engine == "claude":
         return run_claude(cfg["claude"], prompt, cwd, cancel)
@@ -75,7 +87,8 @@ def codex_path(c: dict) -> str | None:
 
 def _popen(args: list[str], cwd: Path):
     return subprocess.Popen(args, cwd=str(cwd), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True, encoding="utf-8", errors="replace", creationflags=_NO_WINDOW)
+                            text=True, encoding="utf-8", errors="replace", creationflags=_NO_WINDOW,
+                            env=netcheck.proxy_env())
 
 
 def run_claude(c: dict, prompt: str, cwd: Path, cancel=None) -> str:

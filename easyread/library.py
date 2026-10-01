@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import sources
+from .log import log
 from .store import SCHEMA, Workspace, empty_discussion, empty_reader, now_iso, read_json, write_json_atomic
 
 
@@ -96,7 +97,11 @@ class Library:
 
     def fetch(self, ref: str) -> tuple[bytes, str, dict]:
         """链接、arXiv 编号、DOI、标题 → (PDF, 文件名, 元数据)。见 sources.py。"""
-        return sources.fetch(ref)
+        try:
+            return sources.fetch(ref)
+        except sources.SourceError as e:
+            log.warning("导入失败 %s：%s", ref[:200], e)  # 用户说“某个链接导不进来”时能查到原因
+            raise
 
     def trash(self, pid: str) -> Path:
         ws = self.ws(pid)

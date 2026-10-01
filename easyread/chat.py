@@ -17,7 +17,7 @@ import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
-from . import engines
+from . import engines, netcheck
 from .prompts import _block_text
 from .store import Workspace
 
@@ -143,12 +143,18 @@ def prompt(ws: Workspace, messages: list[dict], anchor: str | None, quote: str, 
 def stream(ecfg: dict, text: str, cwd: Path, cancel: threading.Event, on_model=None) -> Iterator[str]:
     """on_model(实际模型名)：Claude Code 开头会报它实际用的模型。"""
     e = ecfg.get("engine")
-    if e == "claude":
-        yield from _stream_claude(ecfg["claude"], text, cwd, cancel, on_model)
-    elif e == "openai":
-        yield from _stream_openai(ecfg["openai"], text, cancel)
-    else:  # codex 没有逐字输出，整段给
-        yield engines.run(ecfg, text, cwd, None, cancel)
+    bad = netcheck.problem(ecfg)
+    if bad:
+        raise engines.EngineError(bad)
+    try:
+        if e == "claude":
+            yield from _stream_claude(ecfg["claude"], text, cwd, cancel, on_model)
+        elif e == "openai":
+            yield from _stream_openai(ecfg["openai"], text, cancel)
+        else:  # codex 没有逐字输出，整段给
+            yield engines.run(ecfg, text, cwd, None, cancel)
+    except engines.EngineError as err:
+        raise engines.EngineError(netcheck.explain(ecfg, str(err))) from None
 
 
 def _stream_claude(c: dict, text: str, cwd: Path, cancel, on_model=None) -> Iterator[str]:

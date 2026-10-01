@@ -47,6 +47,10 @@ body.pv-zoom .pv-page { width: 165%; max-width: none; }
 :root[data-theme="dark"] .pv-page { background: #111; }
 .pv-hl { position: absolute; pointer-events: none; border-radius: 3px; background: rgba(236, 196, 92, .22); box-shadow: 0 0 0 2px rgba(214, 160, 40, .55); transition: all .25s ease; opacity: 0; }
 .pv-hl.on { opacity: 1; }
+.pv-page.pickable { cursor: pointer; }
+/* 正文里和原页框对应的段：同一个琥珀色，左边一道竖条 + 很淡的底色，不抢正文 */
+body.pv-open .blk.pv-pair { background: rgba(236, 196, 92, .09); box-shadow: 0 0 0 6px rgba(236, 196, 92, .09); }
+body.pv-open .blk.pv-pair::before { background: rgba(214, 160, 40, .8); opacity: 1; }
 
 /* 笔记面板 */
 /* 笔记、问 AI 和原页一样宽（约占右侧 44%）；窄屏时盖在正文上 */

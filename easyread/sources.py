@@ -1,7 +1,7 @@
 """从各种来源拿到论文 PDF 和元数据。
 
 能认的输入：
-- arXiv 编号或链接（2411.00640、arxiv.org/abs/…）
+- arXiv 编号或链接（2411.00640、arxiv.org/abs/…），以及 alphaXiv、Hugging Face Papers 等带 arXiv 编号的论文站链接
 - DOI（10.xxxx/…、doi.org 链接）——查 Semantic Scholar 的开放获取 PDF，没有就退到 arXiv 版本
 - OpenReview、ACL Anthology、bioRxiv / medRxiv、PubMed Central 链接
 - 期刊 / 会议的论文页面——读页面里的 citation_pdf_url 等元数据（Google Scholar 和 Zotero 都认这套标签）
@@ -26,6 +26,11 @@ S2_FIELDS = "title,authors,year,venue,publicationDate,externalIds,openAccessPdf,
 
 ARXIV_RE = re.compile(r"(?<![\d.])(\d{4}\.\d{4,5}(?:v\d+)?|[a-z\-]+(?:\.[A-Z]{2})?/\d{7}(?:v\d+)?)(?![\d])", re.I)
 DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s\"<>]+[^\s\"<>.,;)\]])", re.I)
+
+
+# 链接里带 arXiv 编号的论文站：alphaXiv、Hugging Face Papers、Papers.cool……直接去 arXiv 拿 PDF
+ARXIV_MIRRORS = ("alphaxiv.org", "huggingface.co/papers", "hf.co/papers", "papers.cool/arxiv", "paperswithcode.com",
+                 "arxiv-sanity", "semanticscholar.org/arxiv", "scholar.archive.org", "hjfy.top", "chatpaper", "papers.labml.ai")
 
 
 class SourceError(ValueError):
@@ -57,6 +62,16 @@ def _pdf(url: str) -> bytes:
     if not data.startswith(b"%PDF"):
         raise SourceError(f"{url} 打开的不是 PDF")
     return data
+
+
+def _arxiv_pdf(aid: str) -> bytes:
+    try:
+        return _pdf(f"https://arxiv.org/pdf/{aid}")
+    except SourceError:
+        base = re.sub(r"v\d+$", "", aid)
+        if base == aid:
+            raise
+        return _pdf(f"https://arxiv.org/pdf/{base}")  # 链接里的版本号 arXiv 上还没有（或写错了），退到最新版
 
 
 def _name(url: str, fallback: str = "paper") -> str:
@@ -135,7 +150,7 @@ def _from_s2(p: dict | None, what: str) -> tuple[bytes, str, dict]:
     ext = p.get("externalIds") or {}
     if ext.get("ArXiv"):  # arXiv 版最稳
         aid = ext["ArXiv"]
-        return _pdf(f"https://arxiv.org/pdf/{aid}"), f"{aid}.pdf", {**arxiv_meta(aid), **{k: v for k, v in meta.items() if k in ("doi", "venue")}}
+        return _arxiv_pdf(aid), f"{aid}.pdf", {**arxiv_meta(aid), **{k: v for k, v in meta.items() if k in ("doi", "venue")}}
     oa = (p.get("openAccessPdf") or {}).get("url")
     if oa:
         try:
@@ -205,9 +220,9 @@ def fetch(ref: str) -> tuple[bytes, str, dict]:
     is_url = bool(re.match(r"https?://", ref, re.I))
 
     m = ARXIV_RE.search(ref)
-    if m and (not is_url or "arxiv.org" in low) and (is_url or re.fullmatch(r"(arxiv:)?\s*" + re.escape(m.group(1)), ref, re.I)):
+    if m and (not is_url or "arxiv.org" in low or any(h in low for h in ARXIV_MIRRORS)) and (is_url or re.fullmatch(r"(arxiv:)?\s*" + re.escape(m.group(1)), ref, re.I)):
         aid = m.group(1)
-        return _pdf(f"https://arxiv.org/pdf/{aid}"), f"{aid}.pdf", arxiv_meta(aid)
+        return _arxiv_pdf(aid), f"{aid}.pdf", arxiv_meta(aid)
 
     doi = DOI_RE.search(ref)
     if doi and (not is_url or "doi.org" in low):
@@ -234,7 +249,13 @@ def fetch(ref: str) -> tuple[bytes, str, dict]:
         m = re.search(r"(PMC\d+)", ref)
         if m and "ncbi.nlm.nih.gov" in low:
             return _from_s2(s2_lookup("PMCID:" + m.group(1)), m.group(1))
-        return _from_page(ref)
+        try:
+            return _from_page(ref)
+        except SourceError:
+            m = re.search(r"(?<![\d.])(\d{4}\.\d{4,5})(?:v\d+)?(?![\d])", urllib.parse.urlparse(ref).path)
+            if not m:  # 别的论文站：网页里找不到 PDF，但链接里有 arXiv 编号，就当 arXiv 论文
+                raise
+            return _arxiv_pdf(m.group(1)), f"{m.group(1)}.pdf", arxiv_meta(m.group(1))
 
     # 其余当作标题
     if len(ref) < 8:

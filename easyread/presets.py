@@ -47,4 +47,6 @@ PRESETS = [
      "models": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"], "key_url": "https://console.anthropic.com/settings/keys",
      "note": "Anthropic 的 OpenAI 兼容接口；能看图。"},
 ]
+# 这些服务在国内要开梯子才连得上（连不上时提示用户）
+NEEDS_VPN = {"groq", "cerebras", "github", "gemini", "openrouter", "openai", "anthropic"}
 PRESET_GROUPS = [("local", "本机运行（开源、免费、离线）"), ("free", "有免费模型或免费额度"), ("paid", "付费（便宜、译得好）")]

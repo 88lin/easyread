@@ -8,7 +8,7 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from . import engines, pdfwork, prompts, sources
+from . import engines, netcheck, pdfwork, prompts, sources
 from .checks import block_problems, tex_problems
 from .log import log
 from .paperdata import add_discussion, merge_blocks, set_block_text
@@ -169,6 +169,9 @@ def translate_pages(ws: Workspace, cfg: dict, pages: list[int], cancel, report) 
     state = {"done": 0, "active": set(), "quota": ""}
     failed: dict[int, str] = {}
     lock = threading.Lock()
+    bad = netcheck.problem(cfg)
+    if bad:
+        raise engines.EngineError(bad)
     journal(ws, f"开始：{len(pages)} 页，{len(batches)} 批，引擎 {engines.ENGINE_NAMES.get(cfg.get('engine'), cfg.get('engine'))}，并发 {workers}")
 
     def label(batch):
@@ -207,9 +210,9 @@ def translate_pages(ws: Workspace, cfg: dict, pages: list[int], cancel, report) 
                 log.warning("翻译失败 %s %s: %s", ws.id, batch, err[:300])
                 if cancel.is_set():
                     raise engines.Cancelled()
-                if _QUOTA.search(err):
+                if _QUOTA.search(err) or netcheck.offline(err):
                     state["quota"] = err[:300]
-                    journal(ws, "额度用完，停止翻译剩下的页")
+                    journal(ws, "额度用完或连不上，停止翻译剩下的页")
                     break
         with lock:
             state["active"].discard(tuple(batch))
