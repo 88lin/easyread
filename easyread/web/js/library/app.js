@@ -172,6 +172,8 @@
   });
 
   PR.onSettingsSaved = () => L.load();
+  // 从阅读页按“返回”回来时浏览器可能直接用缓存的旧页面：重新取一次，在读状态、进度马上更新
+  window.addEventListener("pageshow", (e) => { if (e.persisted) L.load().catch(() => {}); });
   // 等侧栏、详情这些脚本都加载完再取数据：数据先到、脚本还没到时会出错
   document.addEventListener("DOMContentLoaded", () => {
     PR.loadPrefs().then((p) => { if (p.reader && p.reader.theme) PR.applyTheme(p.reader.theme); PR.useServerUi(p); L.useServerSide(p); });

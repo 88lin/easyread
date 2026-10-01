@@ -1,14 +1,13 @@
 /* 设置 → 问 AI：阅读页右侧能选的模型。和“翻译”页同一套样子：
    上面一排卡片是名单里的模型（点一下设为新对话默认，右上角 ⋯ 改名、换模型、删除），最后一张是“添加”；
-   添加或修改时，下面出现和“翻译”页一样的来源卡片（Claude Code / Codex / 免费模型 / 付费 API）和模型选择。
+   添加或修改时，下面出现和“翻译”页一样的来源卡片（Claude Code / Codex / API 接口）和模型选择；API 的表单见 settings-api.js。
    API 的 Key 和翻译共用。 */
 (function (PR) {
   "use strict";
   const T = PR.settingsTabs;
-  const KIND_OF = { local: "free", free: "free", paid: "paid" };
-  const kindOf = (s, m) => (m.engine === "openai" ? KIND_OF[((s.presets.find((p) => p.id === m.preset) || {}).group) || "local"] || "free" : m.engine);
-  const hasKey = (s, preset) => (s.cfg.openai.saved_keys || []).includes(preset) || !!(s.chatKeys || {})[preset];
-  const isApi = (k) => k === "free" || k === "paid";
+  const kindOf = (m) => (m.engine === "openai" ? "api" : m.engine);
+  const isApi = (k) => k === "api";
+  const root = () => PR.$("#settingsDlg");
 
   function cardsHtml(s) {
     const list = s.chat.models;
@@ -20,7 +19,7 @@
         '<button class="mc-more" data-cm="more" data-i="' + i + '" title="改、删">' + PR.icon("more", "sm") + "</button>" +
         "<b>" + PR.esc(m.label || m.name) + "</b>" + PR.esc([m.source, m.detail].filter(Boolean).join(" · ")) + badge + "</div>";
     }).join("") +
-      '<div class="mc add' + (s.editing === "new" ? " editing" : "") + '" data-cm="add" role="button" tabindex="0">' + PR.icon("plus") + "<b>添加模型</b>Claude、GPT、免费或付费 API</div></div>";
+      '<div class="mc add' + (s.editing === "new" ? " editing" : "") + '" data-cm="add" role="button" tabindex="0">' + PR.icon("plus") + "<b>添加模型</b>Claude、GPT，或各家 API</div></div>";
   }
 
   function formHtml(s) {
@@ -29,23 +28,13 @@
     let h = '<div class="mc-form"><h4 class="set-h">' + (s.editing === "new" ? "添加一个模型" : "修改“" + PR.esc(f.name || autoName(s, f)) + "”") + "</h4>" +
       '<div class="engine-cards small">' +
       card("claude", "Claude Code", "本机已登录的 Claude") + card("codex", "Codex CLI", "本机已登录的 ChatGPT") +
-      card("free", "免费模型", "本机 Ollama、智谱等") + card("paid", "付费 API", "DeepSeek、通义等") + "</div>";
+      card("api", "API 接口", "DeepSeek、智谱、Ollama、自定义地址等") + "</div>";
     if (f.kind === "claude" || f.kind === "codex") {
       h += '<label class="field"><span>模型</span>' + PR.cliModelSelect(s, f.kind, f.model, 'id="cmModel"', f.kind === "codex") + "</label>" +
         '<p class="hint">' + (f.kind === "claude" ? "Opus / Sonnet 自动用 Claude Code 支持的最新版；新模型出来后运行 <code>claude update</code>。"
           : (PR.cliModelDesc(s, "codex", f.model) ? PR.esc(PR.cliModelDesc(s, "codex", f.model)) + "<br>" : "") + "名单和 Codex 里 <code>/model</code> 看到的一样。") + "</p>";
     } else {
-      const groups = s.groups.filter(([g]) => (KIND_OF[g] || "free") === f.kind);
-      h += '<div class="preset-tiles grouped">' + groups.map(([g, label]) => '<div class="preset-group"><span>' + PR.esc(label) + "</span>" +
-        s.presets.filter((p) => p.group === g).map((p) => '<button data-cmp="' + p.id + '" class="' + (f.preset === p.id ? "on" : "") + '">' + PR.esc(p.name) +
-          (hasKey(s, p.id) ? ' <span class="ok-dot" title="已存 Key"></span>' : "") + "</button>").join("") + "</div>").join("") + "</div>";
-      const p = s.presets.find((x) => x.id === f.preset);
-      if (p) {
-        h += (p.note ? '<p class="hint preset-note">' + PR.esc(p.note) + (p.key_url ? ' <a href="' + p.key_url + '" target="_blank" rel="noopener">' + (p.key ? "获取 Key ↗" : "下载 ↗") + "</a>" : "") + "</p>" : "") +
-          '<div class="grid2"><label class="field"><span>模型</span><input class="input" id="cmModel" list="cmSugg" value="' + PR.esc(f.model) + '"><datalist id="cmSugg">' +
-          (p.models || []).map((x) => '<option value="' + PR.esc(x) + '">').join("") + "</datalist></label>" +
-          (p.key ? '<label class="field"><span>API Key' + (hasKey(s, p.id) ? "（已保存，留空不改）" : "") + '</span><input class="input" type="password" id="cmKey" value="' + PR.esc(f.key || "") + '" placeholder="sk-…" autocomplete="off"></label>' : "<span></span>") + "</div>";
-      }
+      h += PR.apiForm.html(s, f, { keyProp: "key", vision: false });
     }
     return h + '<label class="field"><span>显示的名字（可不填）</span><input class="input" id="cmName" value="' + PR.esc(f.name) + '" placeholder="' + PR.esc(autoName(s, f)) + '"></label>' +
       '<div class="cm-form-acts"><span class="hint">' + (isApi(f.kind) ? "Key 和“翻译”页共用，每家只填一次。" : "") + '</span><span class="grow"></span>' +
@@ -59,19 +48,22 @@
       return inner ? inner[1] : o[1].replace(/（.*$/, "");
     }
     const p = s.presets.find((x) => x.id === f.preset);
-    return f.model || (p ? p.name : "模型");
+    return f.model ? PR.apiModelName(s, f.preset, f.model) : p ? p.name : "模型";
   }
   function readForm(s) {
     const f = s.form;
     if (!f) return;
     const v = (id) => { const el = PR.$("#" + id); return el ? el.value.trim() : null; };
-    if (v("cmModel") !== null) f.model = v("cmModel");
+    if (isApi(f.kind)) PR.apiForm.read(root(), f, "key");
+    else if (v("cmModel") !== null) f.model = v("cmModel");
     if (v("cmName") !== null) f.name = v("cmName");
-    if (v("cmKey") !== null) f.key = v("cmKey");
   }
   function startForm(s, m) {
-    s.form = m ? { kind: kindOf(s, m), model: m.model || "", preset: m.preset || "", name: m.name === m.label || m.name === "GPT" ? "" : m.name || "", key: "" }
-      : { kind: "claude", model: "opus", preset: "", name: "", key: "" };
+    const p = m && s.presets.find((x) => x.id === m.preset);
+    s.form = m ? { kind: kindOf(m), model: m.model || "", preset: m.preset || "", base_url: m.base_url || (p ? p.base_url : ""), api: m.api || (p && p.api) || "chat", vision: false,
+      name: m.name === m.label || m.name === "GPT" ? "" : m.name || "", key: "" }
+      : { kind: "claude", model: "opus", preset: "", base_url: "", api: "", name: "", key: "" };
+    s.fetchMsg = null; s.apiTyping = false;
   }
 
   T.chat = {
@@ -83,6 +75,7 @@
     },
     sync(s) { readForm(s); },
     change(e, s) {
+      if (s.form && isApi(s.form.kind)) return PR.apiForm.change(e, s, s.form, "key", root());
       if (e.target.id === "cmModel" && e.target.tagName === "SELECT") { readForm(s); return true; }  // 换了模型，说明和默认名字跟着变
       return false;
     },
@@ -92,16 +85,18 @@
         readForm(s);
         const f = s.form, kind = k.dataset.cmk;
         if (kind === f.kind) return false;
-        Object.assign(f, { kind, model: kind === "claude" ? "opus" : "", name: "", key: "" });
-        if (isApi(kind)) {
-          const ol = s.found && s.found.ollama && s.found.ollama.running;
-          f.preset = kind === "paid" ? "deepseek" : ol ? "ollama" : "zhipu";
-          f.model = (s.presets.find((p) => p.id === f.preset) || {}).model || "";
+        Object.assign(f, { kind, model: kind === "claude" ? "opus" : "", name: "", key: "", base_url: "", api: "" });
+        s.fetchMsg = null; s.apiTyping = false;
+        if (isApi(kind)) {  // 先给一家：翻译那边用的 API，没有就 DeepSeek
+          const o = s.cfg.openai;
+          PR.apiForm.pick(s, f, s.cfg.engine === "openai" && o.preset ? o.preset : "deepseek", "key");
         }
         return true;
       }
-      const pb = e.target.closest("[data-cmp]");
-      if (pb && s.form) { readForm(s); Object.assign(s.form, { preset: pb.dataset.cmp, model: (s.presets.find((p) => p.id === pb.dataset.cmp) || {}).model || "", key: "", name: "" }); return true; }
+      if (s.form && isApi(s.form.kind) && e.target.closest("[data-af-preset], [data-fetch-models]")) {
+        readForm(s);
+        return PR.apiForm.click(e, s, s.form, "key", root());
+      }
       const b = e.target.closest("[data-cm]");
       if (!b) return false;
       const i = +b.dataset.i, list = s.chat.models, act = b.dataset.cm;
@@ -129,12 +124,15 @@
         readForm(s);
         const f = s.form, api = isApi(f.kind);
         const p = s.presets.find((x) => x.id === f.preset);
+        if (api && !p && !f.base_url) { PR.toast("填接口地址"); return false; }
         if (api && !f.model) { PR.toast("填一个模型名"); return false; }
-        if (api && p && p.key && !hasKey(s, f.preset) && !f.key) { PR.toast("这家要填 API Key"); return false; }
-        if (api && f.key) (s.chatKeys = s.chatKeys || {})[f.preset] = f.key;
+        const typed = f.key && !f.key.startsWith("••••") ? f.key : "";
+        if (api && p && p.key && !PR.apiHasKey(s, f.preset) && !typed) { PR.toast("这家要填 API Key"); return false; }
+        if (api && typed) (s.chatKeys = s.chatKeys || {})[f.preset] = typed;
         const name = f.name || autoName(s, f);
-        const m = { engine: api ? "openai" : f.kind, preset: api ? f.preset : "", model: f.model, name, label: name,
-          source: api ? (p ? p.name : "API") : f.kind === "claude" ? "Claude Code" : "Codex CLI", detail: f.model || "跟随 Codex 默认", ready: true };
+        const m = { engine: api ? "openai" : f.kind, preset: api ? f.preset : "",
+          base_url: api && (!p || f.base_url !== p.base_url) ? f.base_url : "", api: api && (!p || f.api !== (p.api || "chat")) ? f.api : "", model: f.model, name, label: name,
+          source: api ? (p ? p.name : "自定义地址") : f.kind === "claude" ? "Claude Code" : "Codex CLI", detail: f.model || "跟随 Codex 默认", ready: true };
         if (s.editing === "new") list.push(Object.assign(m, { id: "m" + Date.now().toString(36) }));
         else Object.assign(list.find((x) => x.id === s.editing), m);
         s.editing = null; s.form = null;

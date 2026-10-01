@@ -5,6 +5,7 @@
 - Claude：opus / sonnet / haiku 是 Claude Code 的别名，会用它支持的最新版；
   实际是哪个版本记在 .models-seen.json（见 chat_models.remember）：每次回答时记一次；
   另外 probe_claude() 在服务启动时把还没记过的别名查一遍（Claude Code 升级后重查），名单里一开始就有版本号。
+  不指定模型时 Claude Code 用哪个（“跟随默认”）：~/.claude/settings.json 里写了 model 就是它，没写就看探测时记下的 _default。
 """
 from __future__ import annotations
 
@@ -33,9 +34,19 @@ def codex() -> dict:
     return {"default": chat_models.codex_default_model(), "models": out}
 
 
+def claude_default() -> str:
+    """Claude Code 不指定模型时用的那个，显示名（Claude Opus 5.5）；不知道就空。"""
+    try:
+        model = json.loads((Path.home() / ".claude" / "settings.json").read_text(encoding="utf-8")).get("model") or ""
+    except (OSError, ValueError, AttributeError):
+        model = ""
+    actual = (chat_models.actual_of(model) or model) if model else chat_models.actual_of("_default")
+    return chat_models.pretty(actual) if actual else ""
+
+
 def claude() -> dict:
-    """{"models": [{"id": "opus", "name": "Opus", "desc": "最强", "actual": "Claude Opus 5.5"}]}"""
-    return {"models": [{"id": a, "name": n, "desc": d, "actual": chat_models.pretty(chat_models.actual_of(a)) if chat_models.actual_of(a) else ""}
+    """{"default": "Claude Opus 5.5", "models": [{"id": "opus", "name": "Opus", "desc": "最强", "actual": "Claude Opus 5.5"}]}"""
+    return {"default": claude_default(), "models": [{"id": a, "name": n, "desc": d, "actual": chat_models.pretty(chat_models.actual_of(a)) if chat_models.actual_of(a) else ""}
                        for a, n, d in CLAUDE_ALIASES]}
 
 
@@ -44,7 +55,7 @@ def probe_claude(c: dict, version: str) -> None:
     它启动时第一行（init 事件）就带着实际模型名，这时还没发请求；读到就结束进程，不花 token。"""
     exe = engines.claude_path(c)
     if not exe or (chat_models.actual_of("_claude_version") == version
-                   and all(chat_models.actual_of(a) for a, _, _ in CLAUDE_ALIASES)):
+                   and all(chat_models.actual_of(a) for a in [x for x, _, _ in CLAUDE_ALIASES] + ["_default"])):
         return
     if not _probing.acquire(blocking=False):  # 上一轮还没查完
         return
@@ -55,8 +66,8 @@ def probe_claude(c: dict, version: str) -> None:
 
 
 def _probe(exe: str, version: str) -> None:
-    for alias, _, _ in CLAUDE_ALIASES:
-        proc = engines._popen([exe, "-p", "--model", alias, "--output-format", "stream-json", "--verbose",
+    for alias in [a for a, _, _ in CLAUDE_ALIASES] + ["_default"]:  # _default：不带 --model，看它默认用哪个
+        proc = engines._popen([exe, "-p", *([] if alias == "_default" else ["--model", alias]), "--output-format", "stream-json", "--verbose",
                                "--strict-mcp-config", "--disable-slash-commands", "--no-session-persistence"],
                               Path(tempfile.gettempdir()))
         try:

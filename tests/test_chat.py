@@ -40,7 +40,7 @@ class ChatStreamTest(unittest.TestCase):
                "chat": {"default": "ds", "models": [{"id": "ds", "name": "DeepSeek", "engine": "openai", "preset": "deepseek", "model": ""}]},
                "openai": {"preset": "zhipu", "base_url": "x", "model": "glm", "api_key": "zk", "keys": {"zhipu": "zk", "deepseek": "dk"}}}
         e, m = chat_models.engine_cfg(cfg, None)
-        self.assertEqual((e["engine"], e["openai"]["api_key"], e["openai"]["model"], m["id"]), ("openai", "dk", "deepseek-chat", "ds"))
+        self.assertEqual((e["engine"], e["openai"]["api_key"], e["openai"]["model"], m["id"]), ("openai", "dk", "deepseek-flash", "ds"))
 
     def test_threads_and_legacy(self):
         import shutil, tempfile

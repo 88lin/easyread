@@ -1,6 +1,7 @@
 """“问 AI”用哪些模型：设置里一张短名单（默认 Claude Opus 5.5、Claude Sonnet 5.5、GPT），可以增删改。
 
-每一项：{"id", "name", "engine": "claude" | "codex" | "openai", "model", "preset"（API 服务商）, "base_url"（自定义地址时）}
+每一项：{"id", "name", "engine": "claude" | "codex" | "openai", "model", "preset"（API 服务商）, "base_url"（自定义地址时）,
+         "api"（chat | responses，不填跟服务商默认）}
 API 的 Key 用翻译引擎那边按服务商存的同一份（openai.keys），不用填两次。
 """
 from __future__ import annotations
@@ -91,7 +92,8 @@ def engine_cfg(cfg: dict, mid: str | None) -> tuple[dict, dict]:
         p = next((x for x in PRESETS if x["id"] == m.get("preset")), None)
         out["openai"] = {**out["openai"], "preset": m.get("preset") or "", "vision": False,
                          "base_url": m.get("base_url") or (p["base_url"] if p else out["openai"].get("base_url", "")),
-                         "model": m.get("model") or (p["model"] if p else ""), "api_key": _key(cfg, m.get("preset") or "")}
+                         "model": m.get("model") or (p["model"] if p else ""), "api_key": _key(cfg, m.get("preset") or ""),
+                         "api": m.get("api") or (p or {}).get("api") or "chat"}
     else:
         raise engines.EngineError(f"不认识的模型来源：{m.get('engine')}")
     return out, m
@@ -122,13 +124,13 @@ def listing(cfg: dict) -> dict:
         else:
             p = next((x for x in PRESETS if x["id"] == m.get("preset")), None)
             ready = bool(_key(cfg, m.get("preset") or "")) or not needs_key({"preset": m.get("preset"), "base_url": m.get("base_url", "")})
-            source = p["name"] if p else "自定义接口"
+            source = p["name"] if p else "自定义地址"
             hint = "" if ready else f"还没填 {source} 的 Key（设置 → 问 AI → 改）"
         out.append({**m, "label": label(m), "source": source, "ready": ready, "hint": hint,
                     "detail": (actual_of(m.get("model", "")) or m.get("model")) if e == "claude"
                     else m.get("model") or ((codex_default_model() + "（跟随 Codex 默认）") if e == "codex" and codex_default_model() else "")})
     default = (cfg.get("chat") or {}).get("default") or (out[0]["id"] if out else "")
-    return {"models": out, "default": default, "presets": [{"id": p["id"], "name": p["name"], "models": p.get("models", [])} for p in PRESETS]}
+    return {"models": out, "default": default, "presets": [{"id": p["id"], "name": p["name"], "models": p.get("models", []), "api": p.get("api", "chat")} for p in PRESETS]}
 
 
 def sanitize(items: list[dict]) -> list[dict]:
@@ -143,5 +145,6 @@ def sanitize(items: list[dict]) -> list[dict]:
             mid += "-2"
         seen.add(mid)
         out.append({"id": mid, "name": str(m.get("name") or m.get("model") or "模型")[:40], "engine": e,
-                    "model": str(m.get("model") or "")[:120], "preset": str(m.get("preset") or ""), "base_url": str(m.get("base_url") or "")[:300]})
+                    "model": str(m.get("model") or "")[:120], "preset": str(m.get("preset") or ""), "base_url": str(m.get("base_url") or "")[:300],
+                    "api": m.get("api") if m.get("api") in ("chat", "responses") else ""})
     return out or copy.deepcopy(DEFAULT_MODELS)

@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs, trash
+from . import __version__, chat, chat_models, chat_store, cli_models, config, detect, engines, notehelp, paperdata, pdfwork, prefs, settings_api, trash
 from .log import log, setup as setup_log, tail
 from .jobs import Jobs
 from .library import Library
@@ -184,7 +184,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(404, {"error": "没有这篇论文"})
             action = parts[4]
             if action == "state":
-                ws.patch_item({"last_opened": now_iso()})
+                opened = {"last_opened": now_iso()}
+                if (ws.load("item") or {}).get("status", "unread") == "unread":  # 打开过就算在读
+                    opened["status"] = "reading"
+                ws.patch_item(opened)
                 _warm(ws.root)
                 return self._json(200, {
                     **{n: ws.load(n) for n in ("paper", "discussion", "reader", "layout", "item", "job")},
@@ -242,13 +245,8 @@ class Handler(BaseHTTPRequestHandler):
             if fresh:
                 app.jobs.enqueue(ws, translate_after=bool(body.get("translate", True)), scope=body.get("scope"))
             return self._json(200, {"id": ws.id, "new": fresh})
-        if path == "/api/config":
-            patch = json.loads(self._body() or b"{}")
-            patch.pop("library_dir", None)
-            if isinstance(patch.get("openai"), dict):
-                patch["openai"] = config.with_key(patch["openai"])
-            cfg = config.save(patch)
-            return self._json(200, {"config": config.public(cfg)})
+        if path in settings_api.POST:  # 设置页：保存配置、模型名单、试一下、取模型列表
+            return self._json(200, settings_api.POST[path](json.loads(self._body() or b"{}")))
         if path == "/api/prefs":
             return self._json(200, prefs.save(json.loads(self._body() or b"{}")))
         if path == "/api/trash":  # 回收站：restore 恢复一篇 / purge 彻底删一篇 / empty 清空
@@ -259,26 +257,6 @@ class Handler(BaseHTTPRequestHandler):
             if act == "restore":
                 return self._json(200, {"id": trash.restore(lib.root, name)})
             return self._json(200, {"deleted": trash.purge(lib.root, name) if act == "purge" else trash.empty(lib.root)})
-        if path == "/api/chat/models":  # 设置页保存名单和默认模型；或面板里只改默认
-            body = json.loads(self._body() or b"{}")
-            patch = {}
-            if "models" in body:
-                patch["models"] = chat_models.sanitize(body["models"])
-            if body.get("default"):
-                patch["default"] = str(body["default"])
-            full = {"chat": patch}
-            if isinstance(body.get("keys"), dict):  # 设置里给某家 API 填的 Key，和翻译那边共用
-                keys = dict(config.load()["openai"].get("keys") or {})
-                keys.update({str(k): str(v).strip() for k, v in body["keys"].items() if v and not str(v).startswith("••••")})
-                full["openai"] = {"keys": keys}
-            config.save(full)
-            return self._json(200, chat_models.listing(config.load()))
-        if path == "/api/config/test":
-            cfg = config.load()
-            patch = json.loads(self._body() or b"{}")
-            if patch.get("engine"):
-                cfg["engine"] = patch["engine"]
-            return self._json(200, engines.test(cfg))
 
         if path.startswith("/api/p/"):
             parts = path.split("/")
@@ -358,7 +336,15 @@ def _engine_label(cfg: dict) -> str:
     if e == "openai":
         preset = next((p["name"] for p in config.PRESETS if p["id"] == cfg["openai"].get("preset")), "API")
         return f"{preset.split('（')[0]} · {cfg['openai'].get('model') or '未填模型'}"
-    return engines.ENGINE_NAMES.get(e, e or "")
+    name = engines.ENGINE_NAMES.get(e, e or "")
+    if e == "claude":  # 带上实际用的模型：Claude Code · Claude Opus 5.5
+        m = cfg["claude"].get("model") or ""
+        model = chat_models.pretty(chat_models.actual_of(m) or m) if m else cli_models.claude_default()
+    elif e == "codex":
+        model = chat_models.label({"engine": "codex", "model": cfg["codex"].get("model") or ""})
+    else:
+        model = ""
+    return f"{name} · {model}" if model and model != "GPT" else name
 
 
 def _reveal(path: Path):

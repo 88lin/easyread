@@ -1,5 +1,24 @@
 # 更新记录
 
+## v1.2.1（2026-10-01）
+
+**API 设置重新整理**（[#2](https://github.com/Edwardxlai/easyread/issues/2)）
+- 翻译和问 AI 的来源卡片从四张（Claude Code / Codex / 免费模型 / 付费 API）改成三张：Claude Code / Codex CLI / API 接口。
+- 服务商按“国内直连 / 海外（要梯子）/ 本机”分组，有免费模型的标“免费”；“自定义地址”单独一行，填任意 OpenAI 兼容接口或中转站。
+- 填写顺序改成 Key → 模型 → 高级（接口地址、接口格式）。模型下拉框显示“DeepSeek V4.1 Flash · 便宜、能看图”这样的名字；选了能看图的模型自动勾上“模型能看图”。翻译和问 AI 用同一套表单。
+- 支持 Responses 接口：“接口格式”可选 Chat Completions（通用）或 Responses（OpenAI 新接口）；OpenAI 官方默认走 Responses。
+- “获取模型列表”：从接口的 /models 拉全部模型名放进下拉框，中转站、LM Studio 不用手抄模型名。
+- 模型不让改 temperature（推理模型、Kimi K2 系列）时自动去掉再发一次。
+- 推荐模型按各家官网更新到 2026-10：DeepSeek V4.1 Flash / V4 Pro、智谱 GLM-4.7-Flash（免费）、Qwen3.8、Kimi K3、GPT-6、Gemini 3.8 Flash、Ollama qwen3.5 等；去掉已停服的 GitHub Models。
+
+**显示实际用的模型**
+- Claude Code 选“跟随默认”时，括号里写出默认的是哪个（比如“跟随 Claude Code 默认（Claude Opus 5.5）”），和 Codex 一样。
+- 文献库右上角的引擎标签带上模型：“Claude Code · Claude Opus 5.5”“Codex CLI · GPT-6.1-Sol”。
+
+**文献库**
+- 打开过的论文自动从“未读”变成“在读”；从阅读页按“返回”回到文献库时，状态和进度马上刷新。
+- 侧栏“最近阅读”的“展开更多”和上面的论文标题左对齐（以前往里缩了一截）。
+
 ## v1.2.0（2026-10-01）
 
 **桌面版安装包**（感谢 [@Wang-auspicious](https://github.com/Wang-auspicious)）

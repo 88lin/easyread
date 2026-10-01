@@ -2,11 +2,11 @@
 
 - claude：本机的 Claude Code 无头模式（claude -p），用你已有的登录，不需要 Key；能自己读原页图核对公式和表格。
 - codex：本机的 Codex CLI（codex exec），同样用已有登录，原页图作为附件发过去。
-- openai：任何 OpenAI 兼容接口（Ollama、智谱、硅基流动、DeepSeek、Gemini……），在设置里填地址、模型和 Key。
+- openai：任何 OpenAI 兼容接口（Ollama、智谱、硅基流动、DeepSeek、Gemini……），在设置里填地址、模型和 Key；
+  Chat Completions 和 Responses 两种格式都行（见 openai_api.py）。
 """
 from __future__ import annotations
 
-import base64
 import json
 import os
 import re
@@ -14,9 +14,6 @@ import shutil
 import subprocess
 import tempfile
 import threading
-import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 from . import netcheck
@@ -159,56 +156,8 @@ def _communicate(proc, stdin_text: str, timeout: int, cancel) -> str:
 
 # ---------- OpenAI 兼容接口 ----------
 def run_openai(c: dict, prompt: str, images: list[Path], cancel=None) -> str:
-    base = (c.get("base_url") or "").rstrip("/")
-    if not base or not c.get("model"):
-        raise EngineError("API 没填地址或模型（设置 → 翻译引擎）")
-    content = prompt
-    if c.get("vision") and images:
-        content = [{"type": "text", "text": prompt}] + [
-            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(p.read_bytes()).decode()}}
-            for p in images]
-    body = {"model": c["model"], "temperature": 0.2, "messages": [{"role": "user", "content": content}]}
-    headers = {"Content-Type": "application/json"}
-    if c.get("api_key"):
-        headers["Authorization"] = "Bearer " + c["api_key"]
-    req = urllib.request.Request(base + "/chat/completions", data=json.dumps(body).encode(), headers=headers)
-    res = None
-    for attempt in range(4):  # 限流、服务端错误、网络抖动：等一会儿再试
-        if cancel is not None and cancel.is_set():
-            raise Cancelled()
-        try:
-            with urllib.request.urlopen(req, timeout=int(c.get("timeout") or 600)) as r:
-                res = json.loads(r.read())
-            break
-        except urllib.error.HTTPError as e:
-            detail = e.read()[:300].decode("utf-8", "replace")
-            if e.code in (429, 500, 502, 503, 504) and attempt < 3:
-                _sleep(float(e.headers.get("Retry-After") or 0) or 5 * 2 ** attempt, cancel)
-                continue
-            hint = {401: "（Key 不对或过期了）", 402: "（余额不足）", 403: "（没有权限用这个模型）",
-                    404: "（地址或模型名不对）", 429: "（被限流了，稍后重试或换个模型）"}.get(e.code, "")
-            raise EngineError(f"接口返回 {e.code}{hint}：{detail}")
-        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
-            if attempt < 2:
-                _sleep(5, cancel)
-                continue
-            raise EngineError(f"连不上接口：{e}")
-    try:
-        choice = res["choices"][0]
-        text = choice["message"]["content"] or ""
-    except (KeyError, IndexError, TypeError):
-        raise EngineError(f"接口返回格式不对：{str(res)[:300]}")
-    if choice.get("finish_reason") == "length":
-        raise EngineError("模型输出被截断了（超过它的输出长度上限）。在设置里把“每次交给模型的页数”调成 1 页再试。")
-    return text
-
-
-def _sleep(seconds: float, cancel) -> None:
-    end = time.time() + min(seconds, 90)
-    while time.time() < end:
-        if cancel is not None and cancel.is_set():
-            raise Cancelled()
-        time.sleep(0.5)
+    from . import openai_api  # 它要用本文件的 EngineError，放这里免得循环导入
+    return openai_api.complete(c, prompt, images, cancel)
 
 
 def parse_json(text: str):

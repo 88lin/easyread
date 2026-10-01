@@ -1,4 +1,4 @@
-/* Claude Code / Codex 的模型下拉框，“翻译”和“问 AI”两页共用。
+/* Claude Code / Codex 的模型下拉框，“翻译”和“问 AI”两页共用（API 的表单在 settings-api.js）。
    名单来自 /api/engines 的 models（后端 cli_models.py）：Codex 就是它 /model 里列的那些；Claude 的别名带上实际版本。 */
 (function (PR) {
   "use strict";
@@ -12,7 +12,7 @@
     let opts;
     if (engine === "claude") {
       opts = L.models.map((m) => [m.id, (m.actual || "Claude " + m.name) + "（" + m.desc + (m.actual ? "" : "，自动用最新版") + "）"]);
-      if (withDefault) opts.unshift(["", "跟随 Claude Code 默认"]);
+      if (withDefault) opts.unshift(["", "跟随 Claude Code 默认" + (L.default ? "（" + L.default + "）" : "")]);
     } else {
       opts = L.models.map((m) => [m.id, m.name]);
       const dn = (L.models.find((m) => m.id === L.default) || {}).name || L.default;
@@ -30,4 +30,5 @@
     const m = L.models.find((x) => x.id === (value || L.default));
     return m ? m.name + "：" + m.desc : "";
   };
+
 })(window.PR);

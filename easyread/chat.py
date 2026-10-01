@@ -12,12 +12,10 @@ from __future__ import annotations
 import json
 import re
 import threading
-import urllib.error
-import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
-from . import engines, netcheck
+from . import engines, netcheck, openai_api
 from .prompts import _block_text
 from .store import Workspace
 
@@ -150,7 +148,7 @@ def stream(ecfg: dict, text: str, cwd: Path, cancel: threading.Event, on_model=N
         if e == "claude":
             yield from _stream_claude(ecfg["claude"], text, cwd, cancel, on_model)
         elif e == "openai":
-            yield from _stream_openai(ecfg["openai"], text, cancel)
+            yield from openai_api.stream(ecfg["openai"], text, cancel)
         else:  # codex 没有逐字输出，整段给
             yield engines.run(ecfg, text, cwd, None, cancel)
     except engines.EngineError as err:
@@ -199,45 +197,3 @@ def _stream_claude(c: dict, text: str, cwd: Path, cancel, on_model=None) -> Iter
         if proc.poll() is None:
             proc.kill()
         cancel.set()  # 让 killer 线程退出
-
-
-def _stream_openai(o: dict, text: str, cancel) -> Iterator[str]:
-    base = (o.get("base_url") or "").rstrip("/")
-    if not base or not o.get("model"):
-        raise engines.EngineError("API 没填地址或模型")
-    body = {"model": o["model"], "temperature": 0.4, "stream": True, "messages": [{"role": "user", "content": text}]}
-    headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
-    if o.get("api_key"):
-        headers["Authorization"] = "Bearer " + o["api_key"]
-    req = urllib.request.Request(base + "/chat/completions", data=json.dumps(body).encode(), headers=headers)
-    try:
-        r = urllib.request.urlopen(req, timeout=int(o.get("timeout") or 600))
-    except urllib.error.HTTPError as e:
-        raise engines.EngineError(f"接口返回 {e.code}：{e.read()[:300].decode('utf-8', 'replace')}")
-    except Exception as e:  # noqa: BLE001
-        raise engines.EngineError(f"连不上接口：{e}")
-    thinking = False
-    with r:
-        for raw in r:
-            if cancel.is_set():
-                raise engines.Cancelled()
-            line = raw.decode("utf-8", "replace").strip()
-            if not line.startswith("data:"):
-                continue
-            data = line[5:].strip()
-            if data == "[DONE]":
-                return
-            try:
-                delta = (json.loads(data).get("choices") or [{}])[0].get("delta") or {}
-            except json.JSONDecodeError:
-                continue
-            piece = delta.get("content") or ""
-            # 推理模型把思考过程包在 <think> 里，读者不需要看
-            if "<think>" in piece:
-                thinking, piece = True, piece.split("<think>")[0]
-            if thinking:
-                if "</think>" not in piece:
-                    continue
-                thinking, piece = False, piece.split("</think>", 1)[1]
-            if piece:
-                yield piece

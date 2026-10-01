@@ -41,9 +41,10 @@
 |---|---|---|
 | **Claude Code**（推荐） | 装好并登录 [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) | 不用 Key，用你订阅的额度；会自己看原页图核对公式，译文最好 |
 | **Codex CLI** | 装好并登录 [Codex](https://github.com/openai/codex) | 不用 Key，用 ChatGPT 账号 |
-| **免费模型**：Ollama / LM Studio | 本机装 [Ollama](https://ollama.com) 或 [LM Studio](https://lmstudio.ai) | 完全离线、免费，推荐 qwen3:8b / 14b |
-| **免费模型**：智谱 GLM-4.5-Flash / 硅基流动 / 魔搭 / Groq / Cerebras / GitHub Models / Gemini / OpenRouter | API Key（免费注册） | 开源模型（Qwen3、GLM、Llama、DeepSeek）免费调用或有免费额度 |
-| **付费 API**：DeepSeek / 通义千问 / Kimi / OpenAI / Anthropic | API Key | 一篇 20 页论文通常几毛钱到几块钱 |
+| **API 接口 · 国内直连**：DeepSeek / 智谱 / 阿里云百炼 / Kimi / 硅基流动 / 魔搭 | API Key | 智谱 GLM-4.7-Flash、硅基流动小模型免费；DeepSeek 一篇 20 页论文几毛钱 |
+| **API 接口 · 海外（要梯子）**：OpenAI / Anthropic / Gemini / OpenRouter / Groq / Cerebras | API Key | Gemini、OpenRouter、Groq、Cerebras 有免费额度 |
+| **API 接口 · 本机**：Ollama / LM Studio | 本机装 [Ollama](https://ollama.com) 或 [LM Studio](https://lmstudio.ai) | 完全离线、免费，推荐 qwen3.5:9b（显卡小用 4b） |
+| **API 接口 · 自定义地址**：任意 OpenAI 兼容接口、中转站 | 地址 + Key | Chat Completions 和 Responses 两种格式都支持；点“获取模型列表”从接口拉模型名 |
 
 不想让它导入后马上翻译，在设置里关掉“导入后自动开始翻译”就行，之后可以让对话里的 agent 来译。
 

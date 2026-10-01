@@ -43,9 +43,10 @@ Runs locally. Your papers and notes never leave your computer.</p>
 |---|---|---|
 | **Claude Code** (recommended) | [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and logged in | No API key, uses your subscription. Looks at the page image to check equations. Best quality |
 | **Codex CLI** | [Codex](https://github.com/openai/codex) installed and logged in | No API key, uses your ChatGPT account |
-| **Free, local**: Ollama / LM Studio | [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) | Fully offline. qwen3:8b / 14b recommended |
-| **Free APIs**: Zhipu GLM-4.5-Flash / SiliconFlow / ModelScope / Groq / Cerebras / GitHub Models / Gemini / OpenRouter | API key (free sign-up) | Open models (Qwen3, GLM, Llama, DeepSeek) with free tiers |
-| **Paid APIs**: DeepSeek / Qwen / Kimi / OpenAI / Anthropic | API key | A 20-page paper usually costs a few cents to under a dollar |
+| **API · China**: DeepSeek / Zhipu / Alibaba Bailian (Qwen) / Kimi / SiliconFlow / ModelScope | API key | Zhipu GLM-4.7-Flash and SiliconFlow small models are free; DeepSeek costs cents per paper |
+| **API · International**: OpenAI / Anthropic / Gemini / OpenRouter / Groq / Cerebras | API key | Gemini, OpenRouter, Groq, Cerebras have free tiers |
+| **API · Local**: Ollama / LM Studio | [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) | Fully offline. qwen3.5:9b recommended (4b for small GPUs) |
+| **API · Custom endpoint**: any OpenAI-compatible API or relay | URL + key | Both Chat Completions and Responses formats; "Fetch model list" pulls model names from the endpoint |
 
 Settings auto-detect what's installed; "Test one sentence" tells you right away whether an engine works. A failed page (rate limit, network, quota) is retried automatically, then skipped so the rest keeps going, and you can retry all failed pages in one click at the end.
 

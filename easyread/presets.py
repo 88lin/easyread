@@ -1,52 +1,71 @@
 """翻译 / 对话引擎的 API 预设：服务商、地址、推荐模型。"""
 
-# 常见的 OpenAI 兼容服务。group：local 本机开源模型 / free 有免费模型或免费额度 / paid 付费。
-# models 是推荐的模型名（设置页里可选，也能手填）。模型名和免费政策会变，以服务商页面为准。
+# 常见的 OpenAI 兼容服务。region：cn 国内直连 / intl 海外（国内要开梯子）/ local 本机。free：有免费模型或免费额度。
+# models：推荐的模型 {id, name 显示名, tag 一句说明, vision 能看图}；也能手填，或点“获取模型列表”从接口拉全部。
+# api：默认 chat（/chat/completions）；OpenAI 官方用 responses。
+# 模型名和免费政策会变，以服务商页面为准（2026-10 核对过）。
+
+
+def _m(mid: str, name: str, tag: str = "", vision: bool = False) -> dict:
+    return {"id": mid, "name": name, "tag": tag, "vision": vision}
+
+
 PRESETS = [
-    {"id": "ollama", "group": "local", "name": "Ollama", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3:8b", "key": False,
-     "models": ["qwen3:8b", "qwen3:14b", "qwen2.5:14b", "glm4:9b", "gemma3:12b", "deepseek-r1:8b"],
-     "key_url": "https://ollama.com/download", "note": "装好 Ollama，再 ollama pull qwen3:8b。完全离线、免费；8B 模型要 8 GB 左右显存，14B 译得更好。"},
-    {"id": "lmstudio", "group": "local", "name": "LM Studio", "base_url": "http://127.0.0.1:1234/v1", "model": "qwen/qwen3-8b", "key": False,
-     "models": ["qwen/qwen3-8b", "qwen/qwen3-14b", "google/gemma-3-12b"],
-     "key_url": "https://lmstudio.ai", "note": "在 LM Studio 里下载模型，打开 Developer → Start Server。"},
-    {"id": "zhipu", "group": "free", "name": "智谱 GLM", "base_url": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4.5-flash", "key": True,
-     "models": ["glm-4.5-flash", "glm-4-flash-250414", "glm-4.5-air", "glm-4.5"],
-     "key_url": "https://open.bigmodel.cn/usercenter/apikeys", "note": "glm-4.5-flash、glm-4-flash 免费；GLM 系列权重开源。"},
-    {"id": "siliconflow", "group": "free", "name": "硅基流动", "base_url": "https://api.siliconflow.cn/v1", "model": "Qwen/Qwen3-8B", "key": True,
-     "models": ["Qwen/Qwen3-8B", "THUDM/GLM-4-9B-0414", "Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen3-32B", "deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-VL-72B-Instruct"],
-     "key_url": "https://cloud.siliconflow.cn/account/ak", "note": "托管开源模型：Qwen3-8B、GLM-4-9B 等 8B 级免费；更大的模型付费。"},
-    {"id": "modelscope", "group": "free", "name": "魔搭 ModelScope", "base_url": "https://api-inference.modelscope.cn/v1", "model": "Qwen/Qwen3-32B", "key": True,
-     "models": ["Qwen/Qwen3-32B", "Qwen/Qwen3-235B-A22B", "deepseek-ai/DeepSeek-V3", "ZhipuAI/GLM-4.5"],
-     "key_url": "https://modelscope.cn/my/myaccesstoken", "note": "阿里的开源模型社区，开源模型每天有免费调用次数（需绑定阿里云账号）。"},
-    {"id": "groq", "group": "free", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "model": "llama-3.3-70b-versatile", "key": True,
-     "models": ["llama-3.3-70b-versatile", "qwen/qwen3-32b", "openai/gpt-oss-120b"],
-     "key_url": "https://console.groq.com/keys", "note": "开源模型、免费额度、速度很快；有每分钟频率限制，并发开 1–2。"},
-    {"id": "cerebras", "group": "free", "name": "Cerebras", "base_url": "https://api.cerebras.ai/v1", "model": "qwen-3-32b", "key": True,
-     "models": ["qwen-3-32b", "llama-3.3-70b", "gpt-oss-120b"],
-     "key_url": "https://cloud.cerebras.ai", "note": "开源模型、免费额度。"},
-    {"id": "github", "group": "free", "name": "GitHub Models", "base_url": "https://models.github.ai/inference", "model": "openai/gpt-4.1-mini", "key": True,
-     "models": ["openai/gpt-4.1-mini", "openai/gpt-4.1", "deepseek/DeepSeek-V3-0324", "meta/Llama-4-Maverick-17B-128E-Instruct-FP8"],
-     "key_url": "https://github.com/settings/tokens", "note": "用 GitHub 账号的 token（勾 models 权限）即可免费调用，每天有次数限制。"},
-    {"id": "gemini", "group": "free", "name": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "model": "gemini-2.5-flash", "key": True,
-     "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
-     "key_url": "https://aistudio.google.com/apikey", "note": "免费额度，能看图（建议勾选“模型能看图”）。需要能访问 Google。"},
-    {"id": "openrouter", "group": "free", "name": "OpenRouter", "base_url": "https://openrouter.ai/api/v1", "model": "deepseek/deepseek-chat-v3-0324:free", "key": True,
-     "models": ["deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-     "key_url": "https://openrouter.ai/keys", "note": "带 :free 后缀的开源模型免费，有频率限制。"},
-    {"id": "deepseek", "group": "paid", "name": "DeepSeek", "base_url": "https://api.deepseek.com/v1", "model": "deepseek-chat", "key": True,
-     "models": ["deepseek-chat", "deepseek-reasoner"],
-     "key_url": "https://platform.deepseek.com/api_keys", "note": "开源模型的官方接口，很便宜，一篇 20 页论文大约几毛钱。"},
-    {"id": "dashscope", "group": "paid", "name": "通义千问", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "model": "qwen-plus", "key": True,
-     "models": ["qwen-plus", "qwen-max", "qwen-turbo", "qwen-vl-max"],
-     "key_url": "https://bailian.console.aliyun.com/?apiKey=1", "note": "阿里云百炼，新用户有免费额度；qwen-vl-max 能看图。"},
-    {"id": "moonshot", "group": "paid", "name": "Kimi", "base_url": "https://api.moonshot.cn/v1", "model": "kimi-k2-0905-preview", "key": True,
-     "models": ["kimi-k2-0905-preview", "moonshot-v1-32k"], "key_url": "https://platform.moonshot.cn/console/api-keys", "note": ""},
-    {"id": "openai", "group": "paid", "name": "OpenAI", "base_url": "https://api.openai.com/v1", "model": "gpt-4.1-mini", "key": True,
-     "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-5-mini", "gpt-5"], "key_url": "https://platform.openai.com/api-keys", "note": "能看图。"},
-    {"id": "anthropic", "group": "paid", "name": "Anthropic（Claude）", "base_url": "https://api.anthropic.com/v1", "model": "claude-sonnet-5-5", "key": True,
-     "models": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"], "key_url": "https://console.anthropic.com/settings/keys",
-     "note": "Anthropic 的 OpenAI 兼容接口；能看图。"},
+    # ---- 国内直连 ----
+    {"id": "deepseek", "region": "cn", "name": "DeepSeek", "base_url": "https://api.deepseek.com", "model": "deepseek-flash", "key": True, "free": False,
+     "models": [_m("deepseek-flash", "DeepSeek V4.1 Flash", "便宜、能看图", True), _m("deepseek-v4-pro", "DeepSeek V4 Pro", "更强，不能看图")],
+     "key_url": "https://platform.deepseek.com/api_keys", "note": "开源模型的官方接口，一篇 20 页论文几毛钱。"},
+    {"id": "zhipu", "region": "cn", "name": "智谱", "base_url": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4.7-flash", "key": True, "free": True,
+     "models": [_m("glm-4.7-flash", "GLM-4.7-Flash", "免费"), _m("glm-4.6v-flash", "GLM-4.6V-Flash", "免费、能看图", True),
+                _m("glm-5.3-flash", "GLM-5.3-Flash", "付费、能看图", True), _m("glm-5.3", "GLM-5.3", "付费、最强")],
+     "key_url": "https://open.bigmodel.cn/usercenter/apikeys", "note": "GLM-4.7-Flash、GLM-4.6V-Flash 免费。"},
+    {"id": "dashscope", "region": "cn", "name": "阿里云百炼（通义千问）", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "model": "qwen3.8-flash", "key": True, "free": False,
+     "models": [_m("qwen3.8-flash", "Qwen3.8-Flash", "便宜、能看图", True), _m("qwen3.7-plus", "Qwen3.7-Plus", "均衡、能看图", True),
+                _m("qwen3.8-max", "Qwen3.8-Max", "最强、能看图", True)],
+     "key_url": "https://bailian.console.aliyun.com/?apiKey=1", "note": "新用户有免费额度。"},
+    {"id": "moonshot", "region": "cn", "name": "Kimi", "base_url": "https://api.moonshot.cn/v1", "model": "kimi-k3", "key": True, "free": False,
+     "models": [_m("kimi-k3", "Kimi K3", "能看图", True), _m("kimi-k2.6", "Kimi K2.6", "能看图", True)],
+     "key_url": "https://platform.moonshot.cn/console/api-keys", "note": "月之暗面的官方接口。"},
+    {"id": "siliconflow", "region": "cn", "name": "硅基流动", "base_url": "https://api.siliconflow.cn/v1", "model": "Qwen/Qwen3-8B", "key": True, "free": True,
+     "models": [_m("Qwen/Qwen3-8B", "Qwen3 8B", "免费"), _m("Qwen/Qwen3.5-4B", "Qwen3.5 4B", "免费"), _m("THUDM/GLM-4-9B-0414", "GLM-4 9B", "免费"),
+                _m("deepseek-ai/DeepSeek-V4-Flash", "DeepSeek V4 Flash", "付费"), _m("zai-org/GLM-5.3", "GLM-5.3", "付费")],
+     "key_url": "https://cloud.siliconflow.cn/account/ak", "note": "托管各家开源模型，小模型免费、大模型付费。"},
+    {"id": "modelscope", "region": "cn", "name": "魔搭 ModelScope", "base_url": "https://api-inference.modelscope.cn/v1", "model": "Qwen/Qwen3.8-27B", "key": True, "free": True,
+     "models": [_m("Qwen/Qwen3.8-27B", "Qwen3.8 27B"), _m("Qwen/Qwen3.5-122B-A10B", "Qwen3.5 122B"),
+                _m("deepseek-ai/DeepSeek-V4.1-Flash", "DeepSeek V4.1 Flash"), _m("ZhipuAI/GLM-5.2", "GLM-5.2")],
+     "key_url": "https://modelscope.cn/my/myaccesstoken", "note": "阿里的开源模型社区，每天有免费调用次数（要绑定阿里云账号）。"},
+    # ---- 海外（国内要开梯子） ----
+    {"id": "openai", "region": "intl", "name": "OpenAI", "base_url": "https://api.openai.com/v1", "model": "gpt-6-luna", "key": True, "free": False, "api": "responses",
+     "models": [_m("gpt-6-luna", "GPT-6 Luna", "最便宜", True), _m("gpt-6.1-sol", "GPT-6.1 Sol", "均衡", True), _m("gpt-6-astra", "GPT-6 Astra", "最强", True)],
+     "key_url": "https://platform.openai.com/api-keys", "note": "用 Responses 接口。"},
+    {"id": "anthropic", "region": "intl", "name": "Anthropic", "base_url": "https://api.anthropic.com/v1", "model": "claude-sonnet-5-5", "key": True, "free": False,
+     "models": [_m("claude-sonnet-5-5", "Claude Sonnet 5.5", "均衡", True), _m("claude-opus-5-5", "Claude Opus 5.5", "更强", True),
+                _m("claude-haiku-4-5", "Claude Haiku 4.5", "最快最省", True), _m("claude-fable-5-1", "Claude Fable 5.1", "最强、最贵", True)],
+     "key_url": "https://platform.claude.com/settings/keys", "note": "Claude 的 API（按量付费，和 Claude 订阅是两回事；有订阅就用上面的 Claude Code）。"},
+    {"id": "gemini", "region": "intl", "name": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "model": "gemini-3.8-flash", "key": True, "free": True,
+     "models": [_m("gemini-3.8-flash", "Gemini 3.8 Flash", "有免费额度、能看图", True), _m("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", "有免费额度、最快", True),
+                _m("gemini-3.1-pro-preview", "Gemini 3.1 Pro", "付费、最强", True)],
+     "key_url": "https://aistudio.google.com/apikey", "note": "Flash 系列有免费额度。"},
+    {"id": "openrouter", "region": "intl", "name": "OpenRouter", "base_url": "https://openrouter.ai/api/v1", "model": "qwen/qwen3.8-27b:free", "key": True, "free": True,
+     "models": [_m("qwen/qwen3.8-27b:free", "Qwen3.8 27B", "免费"), _m("google/gemma-4-31b-it:free", "Gemma 4 31B", "免费"),
+                _m("nvidia/nemotron-3-super-120b-a12b:free", "Nemotron 3 Super", "免费")],
+     "key_url": "https://openrouter.ai/keys", "note": "一个 Key 用各家模型；带 :free 的免费，有频率限制，名单常变，点“获取模型列表”看最新的。"},
+    {"id": "groq", "region": "intl", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "model": "openai/gpt-oss-120b", "key": True, "free": True,
+     "models": [_m("openai/gpt-oss-120b", "GPT-OSS 120B", "免费额度"), _m("qwen/qwen3.8-27b", "Qwen3.8 27B", "免费额度、预览"),
+                _m("llama-3.3-70b-versatile", "Llama 3.3 70B", "免费额度")],
+     "key_url": "https://console.groq.com/keys", "note": "开源模型、速度很快；有每分钟频率限制，“同时翻译几批”开 1–2。"},
+    {"id": "cerebras", "region": "intl", "name": "Cerebras", "base_url": "https://api.cerebras.ai/v1", "model": "gpt-oss-120b", "key": True, "free": True,
+     "models": [_m("gpt-oss-120b", "GPT-OSS 120B", "免费额度"), _m("qwen-3.8-27b", "Qwen3.8 27B", "免费额度")],
+     "key_url": "https://cloud.cerebras.ai", "note": "开源模型、速度很快。"},
+    # ---- 本机 ----
+    {"id": "ollama", "region": "local", "name": "Ollama", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3.5:9b", "key": False, "free": True,
+     "models": [_m("qwen3.5:9b", "Qwen3.5 9B", "下载 6.6 GB，推荐"), _m("qwen3.5:4b", "Qwen3.5 4B", "下载 3.4 GB，显卡小用"),
+                _m("qwen3.5:27b", "Qwen3.5 27B", "下载 17 GB，译得更好"), _m("gemma4:12b", "Gemma 4 12B")],
+     "key_url": "https://ollama.com/download", "note": "装好 Ollama，再在终端运行 ollama pull qwen3.5:9b。完全离线、免费。"},
+    {"id": "lmstudio", "region": "local", "name": "LM Studio", "base_url": "http://127.0.0.1:1234/v1", "model": "", "key": False, "free": True,
+     "models": [],
+     "key_url": "https://lmstudio.ai", "note": "在 LM Studio 里下载模型，打开 Developer → Start Server，再点“获取模型列表”选一个。"},
 ]
 # 这些服务在国内要开梯子才连得上（连不上时提示用户）
-NEEDS_VPN = {"groq", "cerebras", "github", "gemini", "openrouter", "openai", "anthropic"}
-PRESET_GROUPS = [("local", "本机运行（开源、免费、离线）"), ("free", "有免费模型或免费额度"), ("paid", "付费（便宜、译得好）")]
+NEEDS_VPN = {p["id"] for p in PRESETS if p["region"] == "intl"}
+PRESET_GROUPS = [("cn", "国内直连"), ("intl", "海外（国内要开梯子）"), ("local", "本机运行（离线、免费）")]

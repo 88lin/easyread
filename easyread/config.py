@@ -31,7 +31,8 @@ DEFAULTS = {
     "concurrency": 1,            # 同时翻译几批
     "claude": {"command": "claude", "model": "", "extra_args": [], "timeout": 1200},
     "codex": {"command": "codex", "model": "", "extra_args": [], "timeout": 1200},
-    "openai": {"preset": "", "base_url": "", "api_key": "", "model": "", "vision": False, "timeout": 600},
+    # api：chat（/chat/completions）| responses（/responses），见 openai_api.py
+    "openai": {"preset": "", "base_url": "", "api": "chat", "api_key": "", "model": "", "vision": False, "timeout": 600},
     # 阅读页右侧“问 AI”的模型名单和默认模型，见 chat_models.py
     "chat": copy.deepcopy(DEFAULT_CHAT),
 }

@@ -125,3 +125,16 @@ label.check input { accent-color: var(--accent); width: 15px; height: 15px; marg
 .mc-form .field { margin-bottom: 8px; }
 .engine-cards .mc-more { padding: 0; min-height: 0; box-shadow: none; border-radius: 6px; }
 .cm-form-acts .btn:first-of-type { margin-left: auto; }
+
+/* API 表单（settings-api.js） */
+.engine-cards:not(.mc-cards) { grid-template-columns: repeat(3, 1fr); }
+.free-tag { font-style: normal; font-size: 10.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); padding: 0 5px; border-radius: 7px; margin-left: 5px; line-height: 16px; display: inline-block; }
+.preset-group > em.hint { font-style: normal; font-size: 12px; color: var(--ink-3); margin-left: 2px; }
+.model-row { display: flex; gap: 8px; align-items: center; }
+.model-row .input { flex: 1; min-width: 0; }
+.model-row .btn { flex: none; height: 34px; }
+.field > .test-result { display: block; margin: 5px 0 0; }
+.api-adv { margin: 2px 0 12px; }
+.api-adv > summary { cursor: pointer; font-size: 12.5px; color: var(--ink-3); margin-bottom: 10px; }
+.api-adv > summary:hover { color: var(--ink); }
+@media (max-width: 560px) { .engine-cards:not(.mc-cards) { grid-template-columns: 1fr; } }
