@@ -205,9 +205,9 @@
   }
   PR.$("#drawer").addEventListener("click", (e) => {
     const go = e.target.closest("[data-go]");
-    if (go) { e.preventDefault(); PR.toggleDrawer(false); PR.jumpTo("b-" + go.dataset.go, { block: "start" }); return; }
+    if (go) { e.preventDefault(); PR.toggleDrawer(false); PR.jumpTo("b-" + go.dataset.go); return; }
     const og = e.target.closest("[data-go-orig]");
-    if (og) { e.preventDefault(); PR.toggleDrawer(false); PR.jumpTo("orig-" + og.dataset.goOrig, { block: "start" }); return; }
+    if (og) { e.preventDefault(); PR.toggleDrawer(false); PR.jumpTo("orig-" + og.dataset.goOrig); return; }
     const t = e.target.closest("[data-term]");
     if (t) {
       let from, to;

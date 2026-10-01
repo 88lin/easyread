@@ -43,7 +43,7 @@
     if (!s) return;
     const el = document.getElementById("b-" + s.id);
     if (el && s.exact) {  // 知道是从哪段跳走的：把那段放回屏幕中间并高亮
-      el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.8 ? "start" : "center", behavior: "smooth" });
+      PR.centerOn(el);
       el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
     } else if (el) window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - s.off, behavior: "smooth" });  // 不知道：回到原来的位置，不乱高亮
     else window.scrollTo({ top: s.y, behavior: "smooth" });

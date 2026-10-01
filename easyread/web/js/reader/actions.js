@@ -40,7 +40,7 @@
     if (!current) { PR.hideBlockbar(); return; }
     const el = document.getElementById("b-" + current);
     el.classList.add("current");
-    if (opts && opts.scroll) el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.7 ? "start" : "center", behavior: "smooth" });  // J/K：放到屏幕中间
+    if (opts && opts.scroll) PR.centerOn(el);  // J/K：放到屏幕中间
     if (!opts || opts.bar !== false) showBar();
   };
 
@@ -78,7 +78,12 @@
     items.push("-",
       { label: "复制译文", icon: "copy", kbd: PR.keyOf("copy"), fn: () => copyBlock(id, "zh") },
       { label: "复制英文原文", icon: "copy", fn: () => copyBlock(id, "en") },
-      { label: "复制段落链接", icon: "link", fn: () => navigator.clipboard.writeText(location.origin + location.pathname + "#b-" + id).then(() => PR.toast("已复制链接")) });
+      // 贴进 Obsidian / Notion 是一条 Markdown 链接，点开（EasyRead 开着时）直接回到这一段
+      { label: "复制段落链接（贴进笔记软件）", icon: "link", fn: () => {
+        const sec = PR.sectionOf ? PR.sectionOf(id) : "";  // 用“论文 · 章节 · 页码”当链接文字，正文里可能有公式，不好截
+        const title = [(S.paper.meta || {}).short_zh || (S.paper.meta || {}).title_zh || "论文", sec, b && b.page ? "p." + b.page : ""].filter(Boolean).join(" · ");
+        navigator.clipboard.writeText("[" + title.replace(/[[\]]/g, "") + "](" + location.origin + location.pathname + "#b-" + id + ")").then(() => PR.toast("已复制 Markdown 链接，贴进笔记里点开就回到这一段"));
+      } });
     if (b && PR.blockKeys(b).some((k) => PR.editOf(k))) items.push("-", { label: "恢复译者稿", icon: "redo", fn: () => { PR.blockKeys(b).forEach((k) => PR.editOf(k) && PR.commit({ op: "edit", block: k, zh: null })); PR.renderBlock(id); PR.applyMarks(id); } });
     PR.menu(where, items);
   }
@@ -178,12 +183,22 @@
     return '<div class="hd">跳到</div><div class="cap">' + PR.esc((b.num ? b.num + "　" : "") + PR.plain(PR.textFor(b.id))) + "</div>";
   }
 
+  /* 所有跳转都用这个：目标放在屏幕正中（比一屏还高的才顶到上面），不被顶栏挡住 */
+  PR.centerOn = function (el, instant) {
+    const r = el.getBoundingClientRect(), bar = (PR.$("#bar") || {}).offsetHeight || 0;
+    const room = innerHeight - bar;
+    const top = r.height > room * 0.85 ? r.top - bar - 16 : r.top - bar - (room - r.height) / 2;
+    window.scrollTo({ top: scrollY + top, behavior: instant ? "auto" : "smooth" });
+  };
+
+  /* opts：noBack 不记返回点；instant 不要动画；noFlash 不闪 */
   PR.jumpTo = function (domId, opts) {
     const el = document.getElementById(domId);
     if (!el) return;
-    if (!(opts && opts.noBack) && PR.rememberSpot) PR.rememberSpot(el);  // 跳得远就记下原处，好回去
-    el.scrollIntoView({ block: (opts && opts.block) || "center", behavior: "smooth" });
-    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    opts = opts || {};
+    if (!opts.noBack && PR.rememberSpot) PR.rememberSpot(el);  // 跳得远就记下原处，好回去
+    PR.centerOn(el, opts.instant);
+    if (!opts.noFlash) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
     history.replaceState(history.state, "", "#" + domId);
   };
 

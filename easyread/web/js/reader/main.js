@@ -142,14 +142,18 @@
     PR.startPolling();
 
     if (location.hash && document.getElementById(location.hash.slice(1))) {
-      setTimeout(() => PR.jumpTo(location.hash.slice(1), { block: "start", noBack: true }), 200);
+      // 打开带 #段落 的链接：先跳过去，等字体、公式排好后再对一次中，免得排版变动把它挤偏
+      const id = location.hash.slice(1);
+      setTimeout(() => PR.jumpTo(id, { noBack: true, instant: true }), 200);
+      Promise.all([document.fonts ? document.fonts.ready : null, new Promise((r) => setTimeout(r, 900))])
+        .then(() => PR.jumpTo(id, { noBack: true, instant: true, noFlash: true }));
     } else {
       const b = PR.blockById[(S.reader.progress || {}).block];
       if (b && scrollY < 50) {
         let h = null;
         for (const x of S.paper.blocks) { if (x.type === "heading") h = x; if (x.id === b.id) break; }
         PR.toast("上次读到" + (h ? "「" + (h.num ? h.num + " " : "") + PR.plain(PR.textFor(h.id)) + "」" : "第 " + b.page + " 页"),
-          { label: "接着读", fn: () => PR.jumpTo("b-" + b.id, { block: "start", noBack: true }) }, 8000);
+          { label: "接着读", fn: () => PR.jumpTo("b-" + b.id, { noBack: true }) }, 8000);
       } else if (!PR.ls.get("easyread-hint-seen", false)) {
         PR.ls.set("easyread-hint-seen", true);
         const touch = matchMedia("(pointer: coarse)").matches;  // 手机上没有右键和键盘

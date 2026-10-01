@@ -80,7 +80,8 @@
       Object.assign(hl.style, { left: (x0 * 100 - 0.8) + "%", top: (y0 * 100 - 0.4) + "%", width: ((x1 - x0) * 100 + 1.6) + "%", height: ((y1 - y0) * 100 + 0.8) + "%" });
       hl.classList.add("on");
       const scroller = PR.$(".pv-scroll");
-      const doScroll = () => scroller.scrollTo({ top: Math.max(0, y0 * PR.$(".pv-page").offsetHeight + 18 - scroller.clientHeight * 0.3), behavior: "smooth" });
+      const doScroll = () => { const h = PR.$(".pv-page").offsetHeight;  // 原页里框出的那段也放在面板中间
+        scroller.scrollTo({ top: Math.max(0, ((y0 + y1) / 2) * h + 18 - scroller.clientHeight / 2), behavior: "smooth" }); };
       img.complete ? doScroll() : img.addEventListener("load", doScroll, { once: true });
     } else hl.classList.remove("on");
   }
