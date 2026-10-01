@@ -149,7 +149,8 @@ def _link(meta: dict) -> str:
         return meta["url"]
     m = sources.ARXIV_RE.search(meta.get("arxiv") or meta.get("source") or "")
     if m and (meta.get("arxiv") or re.fullmatch(r"\d{4}\.\d{4,5}(v\d+)?\.pdf", meta.get("source") or "")):
-        return f"https://arxiv.org/abs/{re.sub(r'v\d+$', '', m.group(1))}"
+        aid = re.sub(r"v\d+$", "", m.group(1))  # f-string 里不能有反斜杠（Python 3.10/3.11）
+        return f"https://arxiv.org/abs/{aid}"
     return f"https://doi.org/{meta['doi']}" if meta.get("doi") else ""
 
 if __name__ == "__main__":  # 调试用：打印库摘要
