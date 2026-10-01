@@ -51,7 +51,7 @@
   }
   L.addCat = function (name, paperId) {
     name = (name || "").trim().slice(0, 30);
-    if (!name) return;
+    if (!name) return L.render();
     if (!L.cats().includes(name)) { L.side.cats.push(name); saveSide(); }
     if (paperId) { const it = L.byId(paperId); if (it && !(it.tags || []).includes(name)) return patchMany([[paperId, { tags: (it.tags || []).concat(name) }]]); }
     L.render();
@@ -67,9 +67,9 @@
     saveSide();
     patchMany(L.items.filter((i) => (i.tags || []).includes(from)).map((i) => [i.id, { tags: i.tags.map((t) => (t === from ? to : t)) }]));
   };
-  L.deleteCat = function (name) {
+  L.deleteCat = async function (name, at) {
     const n = L.items.filter((i) => (i.tags || []).includes(name)).length;
-    if (!confirm("删除分类“" + name + "”？" + (n ? "里面的 " + n + " 篇论文不会删，只是不再属于这个分类。" : ""))) return;
+    if (!(await PR.confirm({ title: "删除分类“" + name + "”？", body: n ? "里面的 " + n + " 篇论文不会删，只是不再属于这个分类。" : "", ok: "删除", danger: true, at }))) return;
     L.side.cats = L.cats().filter((c) => c !== name);
     L.side.pinned = L.side.pinned.filter((k) => k !== "c:" + name);
     L.side.hidden = L.side.hidden.filter((k) => k !== "c:" + name);
@@ -202,6 +202,9 @@
     rowMenu(row, { x: e.clientX, y: e.clientY });
   });
   function commitInput(inp, cancel) {
+    if (inp.dataset.done) return;
+    inp.dataset.done = "1";
+    inp.blur();  // 输入框还有焦点时侧栏不重画（见 renderSide），先让它失焦，回车后新分类才会马上出现
     const val = inp.value;
     const forPaper = typeof ui.adding === "string" ? ui.adding : null;
     if (inp.dataset.new !== undefined) { ui.adding = false; if (!cancel) L.addCat(val, forPaper); else L.render(); }

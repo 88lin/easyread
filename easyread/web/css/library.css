@@ -217,8 +217,8 @@
 .side .srow.on { background: var(--accent-soft-2); color: var(--ink); font-weight: 500; }
 .side .srow.on svg.i { color: var(--accent); }
 .side .srow.paper svg.i { color: var(--accent); }
-.side .srow.editing { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--accent); cursor: text; }
-.side .side-input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; color: var(--ink); }
+.side .srow.editing { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); cursor: text; }  /* 和普通行同高同缩进，只多一圈细框 */
+.side .side-input { flex: 1; min-width: 0; height: 100%; padding: 0; margin: 0; border: 0; outline: 0; background: none; font: inherit; color: var(--ink); caret-color: var(--accent); }
 .side .hint-row, .side .toggle-more { color: var(--ink-3); font-size: 12.5px; }
 .side .toggle-more { padding-left: 34px; height: 28px; }
 .side.dragging [data-drop-zone] .srow:is([data-cat], [data-view="starred"], [data-view="reading"], [data-view="unread"], [data-view="done"]) { outline: 1px dashed var(--rule-2); outline-offset: -1px; }

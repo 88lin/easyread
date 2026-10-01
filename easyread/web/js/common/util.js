@@ -201,7 +201,13 @@ window.PR = window.PR || {};
     m.innerHTML = '<div class="menu-list">' + items.map((it, i) => it === "-" ? "<hr>" :
       '<button data-i="' + i + '"' + (it.disabled ? " disabled" : "") + ">" + (it.icon ? PR.icon(it.icon, "sm") : "") + "<span>" + PR.esc(it.label) + "</span>" +
       (it.kbd ? '<span class="kbd">' + PR.esc(it.kbd) + "</span>" : "") + "</button>").join("") + "</div>";
-    m.onclick = (e) => { const b = e.target.closest("[data-i]"); if (!b) return; PR.closeMenu(); items[+b.dataset.i].fn(); };
+    m.onclick = (e) => {
+      const b = e.target.closest("[data-i]"); if (!b) return;
+      const r = m.getBoundingClientRect();
+      PR.lastMenuAt = { x: r.left, y: r.top };  // 菜单项要确认时，确认框就出在菜单原来的位置
+      PR.closeMenu(); items[+b.dataset.i].fn();
+      setTimeout(() => (PR.lastMenuAt = null), 0);
+    };
     m.classList.add("open");
     const r = anchorOrPoint.getBoundingClientRect ? anchorOrPoint.getBoundingClientRect() : { left: anchorOrPoint.x, right: anchorOrPoint.x, top: anchorOrPoint.y, bottom: anchorOrPoint.y };
     const w = m.offsetWidth, h = m.offsetHeight;

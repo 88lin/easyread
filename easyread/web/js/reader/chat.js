@@ -236,13 +236,13 @@
     if (c === "go") return PR.jumpTo("b-" + b.dataset.anchor);
     if (c === "rename" && row) {
       const t = st.threads.find((x) => x.id === row.dataset.t);
-      const title = prompt("对话改名", t.title);
-      if (title && title.trim()) { t.title = title.trim(); await PR.api("/api/p/" + PR.pid + "/chat/rename", { method: "POST", body: { thread: t.id, title: t.title } }); render(); }
+      const title = await PR.promptText({ title: "对话改名", value: t.title, ok: "改名", at: row });
+      if (title) { t.title = title; await PR.api("/api/p/" + PR.pid + "/chat/rename", { method: "POST", body: { thread: t.id, title: t.title } }); render(); }
       return;
     }
     if (c === "del" && row) {
       const t = st.threads.find((x) => x.id === row.dataset.t);
-      if (!confirm("删除对话「" + t.title + "」？（已经放到页边的讨论不受影响）")) return;
+      if (!(await PR.confirm({ title: "删除这个对话？", body: "「" + t.title + "」。已经放到页边的讨论不受影响。", ok: "删除", danger: true, at: row }))) return;
       await PR.api("/api/p/" + PR.pid + "/chat/delete", { method: "POST", body: { thread: t.id } });
       st.threads = st.threads.filter((x) => x !== t);
       if (st.cur === t.id) st.cur = null;

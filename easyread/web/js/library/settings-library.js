@@ -28,7 +28,7 @@
         (cats.map((c) => row({ name: c, sub: count((x) => (x.tags || []).includes(c)) + " 篇", pinKey: "c:" + c, hideKey: "c:" + c, custom: true, renaming: s.libRename === c })).join("") || '<p class="hint">还没有自建分类。</p>') +
         '</div><div class="cm-form-acts" style="margin-top:10px"><input class="input" id="libNewInput" placeholder="新分类的名字" maxlength="30" style="max-width:240px"><button class="btn sm line" data-lib="add">' + PR.icon("plus", "sm") + "新建分类</button></div>";
     },
-    click(e, s) {
+    async click(e, s) {
       const b = e.target.closest("[data-lib]");
       if (!b) return false;
       const c = b.dataset.c, act = b.dataset.lib;
@@ -37,7 +37,7 @@
       if (act === "rename") s.libRename = c;
       if (act === "cancel") s.libRename = null;
       if (act === "rename-ok") { L.renameCat(c, PR.$("#libRenameInput").value); s.libRename = null; }
-      if (act === "del") L.deleteCat(c);
+      if (act === "del") await L.deleteCat(c, b);
       return true;
     },
     change(e) {

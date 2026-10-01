@@ -215,7 +215,8 @@
       else { const g = S.paper.glossary[+t.dataset.term]; from = g.zh; to = PR.$('.term-in[data-i="' + t.dataset.term + '"]').value.trim(); }
       const n = PR.replaceTerm(from, to, true);
       if (!n) return PR.toast("正文里没找到“" + PR.esc(from) + "”");
-      if (confirm("把正文里 " + n + " 处“" + from + "”换成“" + to + "”？")) { PR.replaceTerm(from, to); PR.toast("已替换 " + n + " 处"); }
+      PR.confirm({ title: "替换 " + n + " 处？", body: "把正文里的“" + from + "”换成“" + to + "”。", ok: "替换", at: t })
+        .then((ok) => { if (ok) { PR.replaceTerm(from, to); PR.toast("已替换 " + n + " 处"); } });
       return;
     }
     const x = e.target.closest("[data-x]");

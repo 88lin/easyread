@@ -137,7 +137,7 @@
     else if (act === "translate") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: {} }); PR.toast("已开始翻译"); L.load(); }
   });
   async function retranslateAll(i) {
-    if (!confirm("把全文重新翻译一遍？会消耗模型额度。你改过的译文、笔记都保留。")) return;
+    if (!(await PR.confirm({ title: "全部重新翻译？", body: "会消耗模型额度。你改过的译文、笔记都保留。", ok: "重新翻译" }))) return;
     await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { pages: "1-" + i.pages } });
     PR.toast("已开始重新翻译"); L.load();
   }
@@ -161,7 +161,7 @@
       { label: "全部重新翻译", icon: "redo", fn: () => retranslateAll(i) },
       { label: "翻译记录", icon: "log", fn: async () => { const r = await PR.api("/api/p/" + id + "/log"); PR.showText("翻译记录", r.text); } },
       { label: "移到回收站", icon: "trash", fn: async () => {
-        if (!confirm("把《" + (i.title_zh || i.title_en) + "》移到回收站？文件会放进文献库的 .trash 目录，可以找回。")) return;
+        if (!(await PR.confirm({ title: "移到回收站？", body: "《" + (i.title_zh || i.title_en) + "》会放进文献库的 .trash 目录，可以找回。", ok: "移到回收站", danger: true }))) return;
         await PR.api("/api/p/" + id + "/delete", { method: "POST", body: {} });
         L.select(null); L.load(); PR.toast("已移到回收站");
       } },
