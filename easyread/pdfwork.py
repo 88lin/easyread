@@ -212,18 +212,12 @@ def page_variant(root: Path, rel: str, width: int) -> Path | None:
         return None
     out = root / "pages" / f"w{width}" / src.name
     if not out.exists():
-        try:
-            from PIL import Image
-        except ImportError:
-            return src
-        try:
-            out.parent.mkdir(exist_ok=True)
-            with Image.open(src) as im:
-                if im.width <= width:
-                    return src
-                im.resize((width, round(im.height * width / im.width)), Image.LANCZOS).save(out, "WEBP", quality=80, method=4)
-        except Exception:
-            return src
+        from PIL import Image
+        out.parent.mkdir(exist_ok=True)
+        with Image.open(src) as im:
+            if im.width <= width:
+                return src
+            im.resize((width, round(im.height * width / im.width)), Image.LANCZOS).save(out, "WEBP", quality=80, method=4)
     return out
 
 
@@ -237,10 +231,7 @@ def warm_variants(root: Path, width: int = PANEL_WIDTH) -> None:
         return
     for src in sorted(pages_dir.glob("page-*.webp")):
         if not (root / "pages" / f"w{width}" / src.name).exists():
-            try:
-                page_variant(root, f"pages/{src.name}", width)
-            except Exception:
-                pass
+            page_variant(root, f"pages/{src.name}", width)
 
 
 def prepare(root: Path) -> list[dict]:
