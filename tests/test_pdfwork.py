@@ -47,5 +47,49 @@ class PdfworkTest(unittest.TestCase):
         self.assertTrue((self.pages / "w1000" / "page-002.webp").exists())
 
 
+
+def _loc(box, src="text", page=1):
+    return {"page": page, "box": list(box), "src": src}
+
+
+class TwoColumnLayoutTest(unittest.TestCase):
+    """双栏页：撑框、截重叠、补公式都只看同一栏。"""
+
+    def base(self):
+        return {
+            "l1": _loc([0.08, 0.10, 0.48, 0.40]),
+            "l2": _loc([0.08, 0.45, 0.48, 0.90]),
+            "r1": _loc([0.52, 0.10, 0.92, 0.30]),
+            "r2": _loc([0.52, 0.75, 0.92, 0.90]),
+        }
+
+    def test_caption_extends_within_its_column(self):
+        layout = self.base()
+        layout["tab"] = _loc([0.53, 0.66, 0.90, 0.70])  # 右栏表格的题注，表格在它上方
+        pdfwork._extend_captioned([{"id": "tab", "type": "table"}], layout)
+        self.assertEqual(layout["tab"]["box"], [0.52, 0.305, 0.92, 0.70])  # 撑到右栏 r1 下沿，不受左栏影响
+        pdfwork._clamp_overlaps(layout)
+        self.assertEqual(layout["tab"]["box"][3], 0.70)  # 撑过的框不再被截
+
+    def test_clamp_ignores_other_column(self):
+        layout = self.base()
+        layout["l1"]["src"] = "head"
+        layout["l1"]["box"][3] = 0.50  # 按长度估长了，压到同栏 l2
+        pdfwork._clamp_overlaps(layout)
+        self.assertEqual(layout["l1"]["box"][3], 0.448)  # 截到 l2 上沿，而不是右栏 r1 的 0.10
+        self.assertEqual(layout["r1"]["box"][3], 0.30)
+
+    def test_formula_gap_stays_in_column(self):
+        layout = self.base()
+        blocks = [{"id": "r1", "page": 1}, {"id": "eq", "page": 1, "type": "math"}, {"id": "r2", "page": 1}]
+        pdfwork._fill_gaps(blocks, layout)
+        self.assertEqual(layout["eq"]["box"], [0.52, 0.30, 0.92, 0.75])
+
+    def test_single_column_keeps_full_width(self):
+        layout = {"p1": _loc([0.12, 0.10, 0.88, 0.40]), "cap": _loc([0.40, 0.60, 0.60, 0.62])}
+        pdfwork._extend_captioned([{"id": "cap", "type": "figure"}], layout)
+        self.assertEqual(layout["cap"]["box"], [0.15, 0.405, 0.85, 0.62])
+
+
 if __name__ == "__main__":
     unittest.main()
