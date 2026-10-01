@@ -74,6 +74,24 @@ easyread
 
 浏览器会打开 `http://127.0.0.1:8765`。服务只监听本机。
 
+## 桌面版（Electron）
+
+桌面版复用同一套本地 Python 服务和 Web 界面，由 Electron 负责启动服务并显示窗口。开发环境需要 Node.js 22+、Python 3.10+ 和 PyInstaller：
+
+```bash
+npm install
+python -m pip install pyinstaller
+npm run dev
+```
+
+生成可分发安装包：
+
+```bash
+npm run dist
+```
+
+输出在 `dist/electron/`：Windows 为 NSIS 安装程序，macOS 为 DMG，Linux 为 AppImage。推送 `v*` 标签后，GitHub Actions 会在三个系统上构建，并把这些安装包自动附加到 GitHub Release；源码 zip 仍会由 GitHub 保留。打包后的文献库和设置保存在系统的 EasyRead 用户数据目录中，不会写进安装目录。
+
 ## 怎么用
 
 1. 右上角“设置”选翻译引擎。
