@@ -9,7 +9,7 @@
 <p align="center"><a href="https://edwardxlai.github.io/easyread/demo/"><b>▶ 在线试读一篇</b></a> · <a href="https://edwardxlai.github.io/easyread/">项目主页</a> · <a href="https://github.com/Edwardxlai/easyread/releases/latest">下载</a></p>
 
 <p align="center">
-  <a href="https://github.com/Edwardxlai/easyread/releases/latest"><img src="https://img.shields.io/github/v/release/Edwardxlai/easyread?label=版本" alt="版本"></a>
+  <a href="https://github.com/Edwardxlai/easyread/releases/latest"><img src="https://img.shields.io/github/v/release/Edwardxlai/easyread?label=%E7%89%88%E6%9C%AC" alt="版本"></a>
   <a href="https://github.com/Edwardxlai/easyread/actions/workflows/test.yml"><img src="https://github.com/Edwardxlai/easyread/actions/workflows/test.yml/badge.svg" alt="测试"></a>
   <img src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-本地运行-2f6070" alt="平台">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="MIT">
