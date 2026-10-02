@@ -41,7 +41,7 @@
       lastBlock = id;
       const h = PR.blockById[PR.currentHeading()];
       PR.$(".bar-section").textContent = h ? (h.num ? h.num + " " : "") + PR.plain(PR.textFor(h.id) || h.zh) : "";
-      PR.syncPage(false);
+      if (!PR.panelDriven || !PR.panelDriven()) PR.syncPage(false);
     }
     saveProgress();
   }, 120);
