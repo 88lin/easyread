@@ -8,6 +8,7 @@ import re
 import threading
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 
 from . import engines, langs, netcheck, pdfwork, prompts, prompts_en, sources
 from .checks import block_problems, tex_problems
@@ -21,6 +22,11 @@ _merge_lock = threading.Lock()  # 并发翻译时，并入 paper.json 和重算�
 # 用量到顶、余额不足这类错误，后面的批次也一定失败：直接停，剩下的页记为没译，等额度恢复后一键重试
 _QUOTA = re.compile(r"session limit|usage limit|rate limit reached|insufficient_quota|余额不足|额度|接口返回 40[12]|insufficient balance|API returned 40[12]", re.I)  # i18n-ok
 _REF_LINE = re.compile(r"^\s*(\d+\.?\s*)?(references|bibliography|参考文献)\s*$", re.I | re.M)  # i18n-ok
+_LIGATURES = str.maketrans({"ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st"})
+_CONTINUATION_BREAK = re.compile(
+    r"(?<=[^\W\d_])[\u00ad\ufffe](?:[ \t]*\n[ \t]*)?(?=[^\W\d_])"
+    r"|(?<=[^\W\d_]{2})-[ \t]*\n[ \t]*(?=[^\W\d_]{2})"
+)
 
 
 def prepare(ws: Workspace) -> None:
@@ -109,11 +115,44 @@ def _taken(ws: Workspace, batch: list[int]) -> set[str]:
 
 
 def _continuation_text(text: str) -> str:
-    """只消除抽取时的空白、断词和连字差异，保留数值、标点和数学符号。"""
-    text = unicodedata.normalize("NFKC", text).casefold().replace("\u00ad", "").replace("\ufffe", "")
-    text = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", text)
-    text = re.sub(r"(?<=[^\W\d_])-(?=[^\W\d_])", "", text)
-    return re.sub(r"\s+", "", text)
+    """只统一空白和 PDF 连字，保留大小写、词间边界、连字符及上下标。"""
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", text).translate(_LIGATURES)).strip()
+
+
+def _continuation_pattern(text: str) -> str:
+    """仅原页明确的断词位置允许有/无连字符，不删除普通词中或公式里的减号。"""
+    text = unicodedata.normalize("NFC", text).translate(_LIGATURES).strip()
+    return "[-\u00ad\ufffe]?".join(re.escape(_continuation_text(part)) for part in _CONTINUATION_BREAK.split(text))
+
+
+def _continuation_source(ws: Workspace, batch: list[int]) -> str | None:
+    """文字吻合不能证明图形也已处理；空输出只接受可核对的纯文本 PDF 页。"""
+    import pypdfium2 as pdfium
+
+    if not (ws.root / "source.pdf").exists():
+        return None
+    parts = []
+    try:
+        with pdfwork.open_pdf(ws.root / "source.pdf") as doc:
+            for n in batch:
+                path = ws.root / "extract" / f"page-{n:03d}.txt"
+                if not path.exists():
+                    return None
+                lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                with closing(doc[n - 1]) as page, closing(page.get_textpage()) as textpage:
+                    if not textpage.count_chars() or any(obj.type != pdfium.raw.FPDF_PAGEOBJ_TEXT for obj in page.get_objects()):
+                        return None
+                    width, height = page.get_size()
+                    footer = _continuation_text(textpage.get_text_bounded(0, 0, width, height * 0.08))
+                    if lines and lines[-1] == str(n) and footer == str(n):
+                        lines.pop()  # 仅忽略原页底部单独的页码，不把正文数字当页码丢掉。
+                text = "\n".join(lines)
+                if not text or not any(c.isalpha() for c in text):
+                    return None  # 空白页、扫描页、只有页码，都没有可核对的正文。
+                parts.append(text)
+        return "\n".join(parts)
+    except (OSError, UnicodeError, pdfium.PdfiumError, IndexError, ValueError):
+        return None  # 原页读不出就保留失败状态，不能仅凭缓存文本宣告完成。
 
 
 def _covered_continuation(ws: Workspace, batch: list[int], read: bool) -> bool:
@@ -126,22 +165,11 @@ def _covered_continuation(ws: Workspace, batch: list[int], read: bool) -> bool:
     blocks = paper.get("blocks", [])
     if any(b.get("page") in batch for b in blocks):
         return False  # 重译空输出不能删掉这些页上已有的块。
-    prev = next((b for b in reversed(blocks) if (b.get("page") or 0) < batch[0] and b.get("en")), None)
-    if not prev or prev.get("type") != "para" or (not read and not (prev.get("zh") or "").strip()):
+    prev = next((b for b in reversed(blocks) if (b.get("page") or 0) < batch[0]), None)
+    if not prev or prev.get("type") != "para" or not prev.get("en") or (not read and not (prev.get("zh") or "").strip()):
         return False
-    parts = []
-    for n in batch:
-        path = ws.root / "extract" / f"page-{n:03d}.txt"
-        if not path.exists():
-            return False
-        lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if lines and lines[-1] == str(n):
-            lines.pop()  # 仅忽略末尾单独成行的当前页码，正文数字仍参与匹配。
-        text = _continuation_text("\n".join(lines))
-        if not text or not any(c.isalpha() for c in text):
-            return False  # 没有可核对的正文（空白页、扫描页、只有页码）仍不能算成功。
-        parts.append(text)
-    return _continuation_text(prev["en"]).endswith("".join(parts))
+    text = _continuation_source(ws, batch)
+    return text is not None and re.search(_continuation_pattern(text) + r"\Z", _continuation_text(prev["en"])) is not None
 
 
 def _problems(data: dict) -> list[str]:
@@ -157,9 +185,20 @@ def journal(ws: Workspace, line: str) -> None:
 
 def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=None) -> None:
     """只读原文整理过的页：不重排，只给已有的块补译文。漏译的键抛错，重试时只译剩下的。"""
-    items = prompts_en.todo([b for b in ws.load("paper").get("blocks", []) if b.get("page") in batch])
+    blocks = [b for b in ws.load("paper").get("blocks", []) if b.get("page") in batch]
+    empty_pages = [n for n in batch if not any(b.get("page") == n for b in blocks)]
+    empty_batches = []
+    for n in empty_pages:
+        if empty_batches and empty_batches[-1][-1] == n - 1:
+            empty_batches[-1].append(n)
+        else:
+            empty_batches.append([n])
+    items = prompts_en.todo(blocks)
     if not items:
-        fill_zh(ws, {}, batch, set())
+        with _merge_lock:
+            if any(not _covered_continuation(ws, pages, read=False) for pages in empty_batches):
+                raise engines.EngineError(tr("模型没有译出任何内容"))
+            fill_zh(ws, {}, batch, set())
         return
     text = engines.run(cfg, prompts_en.fill(ws, batch, items), ws.root, None, cancel, meter)
     data = engines.parse_json(text)
@@ -176,10 +215,16 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
         except engines.EngineError as e:
             journal(ws, tr("第 {pages} 页修正失败，保留原译：{err}", pages=batch, err=e))
     with _merge_lock:
-        missing = fill_zh(ws, data, batch, set(items))
+        missing = fill_zh(ws, data, [n for n in batch if n not in empty_pages], set(items))
+        uncovered = [n for pages in empty_batches if not _covered_continuation(ws, pages, read=False) for n in pages]
+        covered = [n for n in empty_pages if n not in uncovered]
+        if covered:
+            fill_zh(ws, {}, covered, set())
         _save_checks(ws, data.get("checks"), batch)
     if missing:
         raise engines.EngineError(tr("漏译了 {n} 处（{ids}）", n=len(missing), ids=", ".join(missing[:5])))
+    if uncovered:
+        raise engines.EngineError(tr("模型没有译出任何内容"))
 
 
 def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, cancel, say, meter=None, read=False) -> None:

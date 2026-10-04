@@ -107,15 +107,15 @@ class ContinuationPageTest(unittest.TestCase):
         self.cfg = {"engine": "openai", "batch_pages": 1, "concurrency": 1, "openai": {"vision": False}}
         self.previous = {
             "id": "p1-1", "type": "para", "page": 1,
-            "en": "We improve robustness by requiring agreement between multiple teacher rollouts before accepting a sample. "
-                  "Another promising direction is quality-aware teacher selection and confidence-weighted distillation.",
-            "zh": "接受样本前要求多次教师采样结果一致，并采用质量感知的教师选择与置信度加权蒸馏。",
+            "en": "The paragraph includes all remaining details. "
+                  "Another useful check preserves word boundaries and confidence-weighted results.",
+            "zh": "这段包含所有剩余细节。另一项检查保留词间边界和置信度加权结果。",
         }
-        self.continuation = ("ment between multiple teacher rollouts before accepting a\nsample. "
-                             "Another promising direction is quality-aware teacher\nselection and "
-                             "conﬁdence\u00adweighted distillation.\n\n2\n")
+        self.continuation = ("maining details.\nAnother useful check preserves word\nboundaries and "
+                             "conﬁdence\ufffeweighted results.\n\n2\n")
         self.page = self.ws.root / "extract" / "page-002.txt"
         self.page.write_text(self.continuation, encoding="utf-8")
+        self.write_pdf()
         self.ws.update("paper", lambda p: p.update(blocks=[self.previous], translation={"done_pages": [1]}))
         self.ws.update("paper", lambda p: p["meta"].update(target="zh"))
         for patch in (mock.patch.object(translate.pdfwork, "locate"),
@@ -123,6 +123,37 @@ class ContinuationPageTest(unittest.TestCase):
                       mock.patch.object(translate.netcheck, "problem", return_value=None)):
             patch.start()
             self.addCleanup(patch.stop)
+
+    def write_pdf(self, n_pages=2, graphic=None, footer=True):
+        from pypdf import PdfWriter
+        from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
+
+        writer = PdfWriter()
+        font = writer._add_object(DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"), NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }))
+        for n in range(1, n_pages + 1):
+            page = writer.add_blank_page(width=600, height=800)
+            resources = DictionaryObject({NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})})
+            content = b"BT /F1 12 Tf 50 700 Td (Continuation text.) Tj ET\n"
+            if footer:
+                content += f"BT /F1 12 Tf 290 25 Td ({n}) Tj ET\n".encode("ascii")
+            if n == 2 and graphic == "path":
+                content += b"50 500 150 80 re S\n"
+            elif n == 2 and graphic == "image":
+                image = DecodedStreamObject()
+                image.set_data(b"\xff\x00\x00")
+                image.update({NameObject("/Type"): NameObject("/XObject"), NameObject("/Subtype"): NameObject("/Image"),
+                              NameObject("/Width"): NumberObject(1), NameObject("/Height"): NumberObject(1),
+                              NameObject("/ColorSpace"): NameObject("/DeviceRGB"), NameObject("/BitsPerComponent"): NumberObject(8)})
+                resources[NameObject("/XObject")] = DictionaryObject({NameObject("/Im1"): writer._add_object(image)})
+                content += b"q 150 0 0 80 50 500 cm /Im1 Do Q\n"
+            stream = DecodedStreamObject()
+            stream.set_data(content)
+            page[NameObject("/Resources")] = resources
+            page[NameObject("/Contents")] = writer._add_object(stream)
+        writer.write(self.ws.root / "source.pdf")
 
     def run_empty(self, pages=None, read=False):
         with mock.patch.object(engines, "run", return_value='{"blocks": []}') as run:
@@ -156,8 +187,8 @@ class ContinuationPageTest(unittest.TestCase):
 
     def test_uncovered_text_is_retried_and_remains_failed(self):
         for text in ("A new paragraph absent from the previous translation.\n2\n",
-                     self.continuation.replace("distillation.", "distillation. An additional result is 99%."),
-                     self.continuation.replace("multiple", "three"),
+                     self.continuation.replace("results.", "results. An additional result is 99%."),
+                     self.continuation.replace("word", "sentence"),
                      "\n2\n", ""):
             with self.subTest(text=text):
                 self.page.write_text(text, encoding="utf-8")
@@ -190,12 +221,120 @@ class ContinuationPageTest(unittest.TestCase):
         self.assertIn(2, failed)
 
     def test_numbers_and_mathematical_operators_must_match(self):
-        for actual, previous in (("0.5", "0.6"), ("-3", "3"), ("x < y", "x > y"), ("x - y", "xy")):
+        for actual, previous in (("0.5", "0.6"), ("-3", "3"), ("x < y", "x > y"), ("x - y", "xy"),
+                                 ("x-y", "xy"), ("X", "x"), ("x²", "x2"), ("a b", "ab"), ("x-\ny", "xy")):
             with self.subTest(actual=actual, previous=previous):
                 self.page.write_text(f"The measured result is {actual}.\n2\n", encoding="utf-8")
                 self.ws.update("paper", lambda p: p["blocks"][0].update(en=f"We conclude. The measured result is {previous}."))
                 failed, _ = self.run_empty()
                 self.assertIn(2, failed)
+
+    def test_pdf_word_breaks_and_ligatures_are_accepted(self):
+        for source, previous in (("conﬁdence\ufffeweighted", "confidence-weighted"),
+                                 ("re\u00adsults", "results"), ("re-\nsults", "results"),
+                                 ("confidence-\nweighted", "confidence-weighted"), ("cafe\u0301", "café")):
+            with self.subTest(source=source):
+                self.page.write_text(f"The check preserves {source}.\n2\n", encoding="utf-8")
+                self.ws.update("paper", lambda p: p["blocks"][0].update(en=f"We conclude. The check preserves {previous}."))
+                failed, _ = self.run_empty()
+                self.assertEqual(failed, {})
+
+    def test_graphics_alongside_covered_text_are_not_silently_dropped(self):
+        for graphic in ("path", "image"):
+            with self.subTest(graphic=graphic):
+                self.write_pdf(graphic=graphic)
+                before = self.ws.load("paper")
+                failed, calls = self.run_empty()
+                self.assertIn(2, failed)
+                self.assertEqual(calls, 2)
+                self.assertEqual(self.ws.load("paper"), before)
+
+    def test_missing_or_unreadable_source_pdf_does_not_complete_continuation(self):
+        source = self.ws.root / "source.pdf"
+        source.unlink()
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+        source.write_bytes(b"not a PDF")
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_body_number_matching_page_index_is_not_discarded_as_footer(self):
+        self.write_pdf(footer=False)
+        self.page.write_text("The final number is\n2\n", encoding="utf-8")
+        self.ws.update("paper", lambda p: p["blocks"][0].update(en="We conclude. The final number is"))
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_math_after_previous_paragraph_is_not_skipped_to_find_a_match(self):
+        self.ws.update("paper", lambda p: p["blocks"].append({"id": "eq1", "type": "math", "page": 1, "tex": "x=1"}))
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_translating_only_untranslated_read_only_continuation_remains_failed(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].pop("zh"))
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[1, 2], en_pages=[1, 2]))
+        failed, calls = self.run_empty()
+        self.assertIn(2, failed)
+        self.assertEqual(calls, 0)
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [1, 2])
+
+    def test_continuation_in_fill_batch_waits_for_its_paragraph_translation(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].pop("zh"))
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[1, 2], en_pages=[1, 2]))
+        self.cfg["batch_pages"] = 2
+        with mock.patch.object(engines, "run", return_value='{"zh": {}}'):
+            failed = translate.translate_pages(self.ws, self.cfg, [1, 2], threading.Event(), lambda *a: None)
+        self.assertEqual(sorted(failed), [1, 2])
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [1, 2])
+
+    def test_translating_already_translated_read_only_continuation_needs_no_model_call(self):
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[1, 2], en_pages=[2]))
+        failed, calls = self.run_empty()
+        self.assertEqual((failed, calls), ({}, 0))
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [])
+
+    def test_read_only_formula_page_still_completes_without_translation(self):
+        block = {"id": "eq1", "type": "math", "page": 2, "tex": "x+y=1"}
+        self.ws.update("paper", lambda p: p.update(blocks=[block], translation={"done_pages": [2], "en_pages": [2]}))
+        failed, calls = self.run_empty()
+        self.assertEqual((failed, calls), ({}, 0))
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [])
+
+    def test_continuation_can_complete_at_later_page_indices(self):
+        self.write_pdf(n_pages=8)
+        (self.ws.root / "extract" / "page-008.txt").write_text(self.continuation.replace("\n2\n", "\n8\n"), encoding="utf-8")
+        self.ws.update("paper", lambda p: p["blocks"][0].update(page=7))
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[7]))
+        self.ws.update("paper", lambda p: p["meta"].update(page_count=8))
+        failed, calls = self.run_empty(pages=[8])
+        self.assertEqual((failed, calls), ({}, 1))
+        self.assertEqual(self.ws.load("paper")["translation"]["done_pages"], [7, 8])
+
+    def test_fully_covered_multi_page_batch_completes(self):
+        self.write_pdf(n_pages=3)
+        self.cfg["batch_pages"] = 2
+        self.page.write_text("Remaining\ndetails.\n2\n", encoding="utf-8")
+        (self.ws.root / "extract" / "page-003.txt").write_text("The check preserves word boundaries.\n3\n", encoding="utf-8")
+        self.ws.update("paper", lambda p: p["blocks"][0].update(en="We conclude. Remaining details. The check preserves word boundaries."))
+        self.ws.update("paper", lambda p: p["meta"].update(page_count=3))
+        failed, calls = self.run_empty(pages=[2, 3])
+        self.assertEqual((failed, calls), ({}, 1))
+        self.assertEqual(self.ws.load("paper")["translation"]["done_pages"], [1, 2, 3])
+
+    def test_read_only_multi_page_continuation_can_be_translated_in_one_batch(self):
+        self.write_pdf(n_pages=3)
+        self.cfg["batch_pages"] = 3
+        self.page.write_text("Remaining details.\n2\n", encoding="utf-8")
+        (self.ws.root / "extract" / "page-003.txt").write_text("The check preserves word boundaries.\n3\n", encoding="utf-8")
+        self.ws.update("paper", lambda p: p["blocks"][0].update(en="We conclude. Remaining details. The check preserves word boundaries."))
+        self.ws.update("paper", lambda p: p["blocks"][0].pop("zh"))
+        self.ws.update("paper", lambda p: p["meta"].update(page_count=3))
+        self.ws.update("paper", lambda p: p["translation"].update(en_pages=[1]))
+        self.assertEqual(self.run_empty(pages=[2, 3], read=True), ({}, 1))
+        with mock.patch.object(engines, "run", return_value='{"zh": {"p1-1": "完整段落的译文。"}}') as run:
+            failed = translate.translate_pages(self.ws, self.cfg, [1, 2, 3], threading.Event(), lambda *a: None)
+        self.assertEqual((failed, run.call_count), ({}, 1))
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [])
 
     def test_previous_caption_does_not_count_as_paragraph_continuation(self):
         self.ws.update("paper", lambda p: p["blocks"][0].update(type="figure"))
@@ -211,6 +350,7 @@ class ContinuationPageTest(unittest.TestCase):
         self.assertEqual(self.ws.load("paper"), before)
 
     def test_empty_batch_with_an_uncovered_page_remains_failed(self):
+        self.write_pdf(n_pages=3)
         self.cfg["batch_pages"] = 2
         (self.ws.root / "extract" / "page-003.txt").write_text("A new result on the next page.\n3\n", encoding="utf-8")
         self.ws.update("paper", lambda p: p["meta"].update(page_count=3))
