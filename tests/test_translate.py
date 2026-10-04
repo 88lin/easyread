@@ -100,6 +100,124 @@ class TranslateTest(unittest.TestCase):
 
 
 
+class ContinuationPageTest(unittest.TestCase):
+    def setUp(self):
+        self.ws = make_ws(2)
+        self.addCleanup(shutil.rmtree, self.ws.root, ignore_errors=True)
+        self.cfg = {"engine": "openai", "batch_pages": 1, "concurrency": 1, "openai": {"vision": False}}
+        self.previous = {
+            "id": "p1-1", "type": "para", "page": 1,
+            "en": "We improve robustness by requiring agreement between multiple teacher rollouts before accepting a sample. "
+                  "Another promising direction is quality-aware teacher selection and confidence-weighted distillation.",
+            "zh": "接受样本前要求多次教师采样结果一致，并采用质量感知的教师选择与置信度加权蒸馏。",
+        }
+        self.continuation = ("ment between multiple teacher rollouts before accepting a\nsample. "
+                             "Another promising direction is quality-aware teacher\nselection and "
+                             "conﬁdence\u00adweighted distillation.\n\n2\n")
+        self.page = self.ws.root / "extract" / "page-002.txt"
+        self.page.write_text(self.continuation, encoding="utf-8")
+        self.ws.update("paper", lambda p: p.update(blocks=[self.previous], translation={"done_pages": [1]}))
+        self.ws.update("paper", lambda p: p["meta"].update(target="zh"))
+        for patch in (mock.patch.object(translate.pdfwork, "locate"),
+                      mock.patch.object(translate, "tex_problems", return_value=[]),
+                      mock.patch.object(translate.netcheck, "problem", return_value=None)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def run_empty(self, pages=None, read=False):
+        with mock.patch.object(engines, "run", return_value='{"blocks": []}') as run:
+            failed = translate.translate_pages(self.ws, self.cfg, pages or [2], threading.Event(), lambda *a: None, read=read)
+        return failed, run.call_count
+
+    def test_translated_continuation_is_completed_without_duplicate_blocks(self):
+        before = self.ws.load("paper")["blocks"]
+        failed, calls = self.run_empty()
+        self.assertEqual(failed, {})
+        self.assertEqual(calls, 1)
+        paper = self.ws.load("paper")
+        self.assertEqual(paper["blocks"], before)
+        self.assertEqual(paper["translation"]["done_pages"], [1, 2])
+        self.assertEqual(paper["translation"]["scope"], "全文")
+
+    def test_read_only_continuation_is_completed_and_can_be_translated_in_place(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].pop("zh"))
+        self.ws.update("paper", lambda p: p["translation"].update(en_pages=[1]))
+        failed, calls = self.run_empty(read=True)
+        self.assertEqual((failed, calls), ({}, 1))
+        self.assertEqual(self.ws.load("paper")["translation"]["en_pages"], [1, 2])
+        with mock.patch.object(engines, "run", return_value=json.dumps({"zh": {"p1-1": self.previous["zh"]}})) as run:
+            failed = translate.translate_pages(self.ws, self.cfg, [1, 2], threading.Event(), lambda *a: None)
+        self.assertEqual(failed, {})
+        self.assertEqual(run.call_count, 1)
+        paper = self.ws.load("paper")
+        self.assertEqual(paper["blocks"], [self.previous])
+        self.assertEqual(paper["translation"]["en_pages"], [])
+        self.assertEqual(paper["translation"]["scope"], "全文")
+
+    def test_uncovered_text_is_retried_and_remains_failed(self):
+        for text in ("A new paragraph absent from the previous translation.\n2\n",
+                     self.continuation.replace("distillation.", "distillation. An additional result is 99%."),
+                     self.continuation.replace("multiple", "three"),
+                     "\n2\n", ""):
+            with self.subTest(text=text):
+                self.page.write_text(text, encoding="utf-8")
+                before = self.ws.load("paper")
+                failed, calls = self.run_empty()
+                self.assertEqual(failed, {2: "模型没有译出任何内容"})
+                self.assertEqual(calls, 2)
+                self.assertEqual(self.ws.load("paper"), before)
+
+    def test_missing_extraction_is_not_accepted(self):
+        self.page.unlink()
+        failed, calls = self.run_empty()
+        self.assertEqual(failed, {2: "模型没有译出任何内容"})
+        self.assertEqual(calls, 2)
+
+    def test_untranslated_previous_paragraph_does_not_complete_translation(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].pop("zh"))
+        failed, calls = self.run_empty()
+        self.assertEqual(failed, {2: "模型没有译出任何内容"})
+        self.assertEqual(calls, 2)
+
+    def test_incomplete_previous_page_does_not_complete_continuation(self):
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[]))
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_matching_text_inside_previous_paragraph_is_not_a_continuation(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].update(en=self.previous["en"] + " More text follows."))
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_numbers_and_mathematical_operators_must_match(self):
+        for actual, previous in (("0.5", "0.6"), ("-3", "3"), ("x < y", "x > y"), ("x - y", "xy")):
+            with self.subTest(actual=actual, previous=previous):
+                self.page.write_text(f"The measured result is {actual}.\n2\n", encoding="utf-8")
+                self.ws.update("paper", lambda p: p["blocks"][0].update(en=f"We conclude. The measured result is {previous}."))
+                failed, _ = self.run_empty()
+                self.assertIn(2, failed)
+
+    def test_previous_caption_does_not_count_as_paragraph_continuation(self):
+        self.ws.update("paper", lambda p: p["blocks"][0].update(type="figure"))
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+
+    def test_empty_retranslation_preserves_existing_page_blocks(self):
+        block = {"id": "p2-1", "type": "para", "page": 2, "en": "Existing text.", "zh": "已有译文。"}
+        self.ws.update("paper", lambda p: p["blocks"].append(block))
+        before = self.ws.load("paper")
+        failed, _ = self.run_empty()
+        self.assertIn(2, failed)
+        self.assertEqual(self.ws.load("paper"), before)
+
+    def test_empty_batch_with_an_uncovered_page_remains_failed(self):
+        self.cfg["batch_pages"] = 2
+        (self.ws.root / "extract" / "page-003.txt").write_text("A new result on the next page.\n3\n", encoding="utf-8")
+        self.ws.update("paper", lambda p: p["meta"].update(page_count=3))
+        failed, _ = self.run_empty(pages=[2, 3])
+        self.assertEqual(sorted(failed), [2, 3])
+
+
 class ScopePagesTest(unittest.TestCase):
     def test_range(self):
         from easyread.translate import scope_pages

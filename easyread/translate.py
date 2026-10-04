@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 import threading
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
 from . import engines, langs, netcheck, pdfwork, prompts, prompts_en, sources
@@ -107,6 +108,42 @@ def _taken(ws: Workspace, batch: list[int]) -> set[str]:
     return {b["id"] for b in ws.load("paper").get("blocks", []) if b.get("page") not in batch}
 
 
+def _continuation_text(text: str) -> str:
+    """只消除抽取时的空白、断词和连字差异，保留数值、标点和数学符号。"""
+    text = unicodedata.normalize("NFKC", text).casefold().replace("\u00ad", "").replace("\ufffe", "")
+    text = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", text)
+    text = re.sub(r"(?<=[^\W\d_])-(?=[^\W\d_])", "", text)
+    return re.sub(r"\s+", "", text)
+
+
+def _covered_continuation(ws: Workspace, batch: list[int], read: bool) -> bool:
+    """空输出只能接受完整包含在上一段结尾中的续文，不能据此吞掉未译内容。"""
+    paper = ws.load("paper")
+    if not batch or batch != list(range(batch[0], batch[-1] + 1)):
+        return False
+    if batch[0] - 1 not in paper.get("translation", {}).get("done_pages", []):
+        return False
+    blocks = paper.get("blocks", [])
+    if any(b.get("page") in batch for b in blocks):
+        return False  # 重译空输出不能删掉这些页上已有的块。
+    prev = next((b for b in reversed(blocks) if (b.get("page") or 0) < batch[0] and b.get("en")), None)
+    if not prev or prev.get("type") != "para" or (not read and not (prev.get("zh") or "").strip()):
+        return False
+    parts = []
+    for n in batch:
+        path = ws.root / "extract" / f"page-{n:03d}.txt"
+        if not path.exists():
+            return False
+        lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if lines and lines[-1] == str(n):
+            lines.pop()  # 仅忽略末尾单独成行的当前页码，正文数字仍参与匹配。
+        text = _continuation_text("\n".join(lines))
+        if not text or not any(c.isalpha() for c in text):
+            return False  # 没有可核对的正文（空白页、扫描页、只有页码）仍不能算成功。
+        parts.append(text)
+    return _continuation_text(prev["en"]).endswith("".join(parts))
+
+
 def _problems(data: dict) -> list[str]:
     problems, tex = block_problems(data["blocks"])
     return problems + tex_problems(tex)
@@ -169,9 +206,10 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
                 data = fixed
         except engines.EngineError as e:
             journal(ws, tr("第 {pages} 页修正失败，保留原译：{err}", pages=batch, err=e))
-    if not data["blocks"] and not data.get("references"):  # 整页都是参考文献时只有 references，没有新块，也算译完
-        raise engines.EngineError(tr("模型没有整理出任何内容") if read else tr("模型没有译出任何内容"))
     with _merge_lock:
+        # 参考文献页可以只有 references；跨页续文也可能已完整并进上一段，无需重复输出。
+        if not data["blocks"] and not data.get("references") and not _covered_continuation(ws, batch, read):
+            raise engines.EngineError(tr("模型没有整理出任何内容") if read else tr("模型没有译出任何内容"))
         data = _normalize(data, batch, _taken(ws, batch))  # 并发时别的批可能刚占用了同名 id
         prepare_figures(ws.root, data["blocks"], total_pages)
         merge_blocks(ws, data, done=batch, replace_pages=batch, en_only=read)
