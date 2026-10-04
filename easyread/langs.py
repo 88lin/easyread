@@ -6,12 +6,14 @@ from __future__ import annotations
 
 # 代码 → (界面上显示的名字, 提示词里怎么称呼, 英文名)
 TARGETS = {
-    "zh": ("中文", "中文", "Chinese"),  # i18n-ok 语言名
+    "zh": ("简体中文", "中文", "Chinese"),  # i18n-ok 语言名
+    "zh-Hant": ("繁體中文", "繁体中文（正體中文）", "Traditional Chinese"),  # i18n-ok
     "ja": ("日本語", "日语（日本語）", "Japanese"),  # i18n-ok
     "ko": ("한국어", "韩语（한국어）", "Korean"),  # i18n-ok
     "es": ("Español", "西班牙语（Español）", "Spanish"),  # i18n-ok
     "fr": ("Français", "法语（Français）", "French"),  # i18n-ok
     "de": ("Deutsch", "德语（Deutsch）", "German"),  # i18n-ok
+    "it": ("Italiano", "意大利语（Italiano）", "Italian"),  # i18n-ok
 }
 DEFAULT = "zh"
 
@@ -43,6 +45,11 @@ def remember(ws, code: str | None) -> None:
         if not meta.get("target") and not any(b.get("zh") or b.get("caption_zh") for b in paper.get("blocks", [])):
             meta["target"] = code
     ws.update("paper", apply)
+
+
+def chinese(code: str | None) -> bool:
+    """简体、繁体都按中文写提示词（中文标点、短标题按字数），繁体再加一条用字要求。"""
+    return valid(code) in ("zh", "zh-Hant")
 
 
 def prompt_name(code: str) -> str:

@@ -60,8 +60,12 @@ _SCHEMA_SWAP = [
 ]
 
 
+_HANT = ("\n- 译文一律用繁体中文（正體字），用词按台湾学术圈的习惯（如“軟體”“資料”“網路”），标点用全形「」或“”。"
+         "上面规则和示例里的简体字只是写法示范，输出时都换成繁体；术语表里已有的译法照意思改成繁体用字。")
+
+
 def _swap(text: str, pairs, target: str) -> str:
-    if target == "zh":
+    if langs.chinese(target):
         return text
     name = langs.prompt_name(target)
     for a, b in pairs:
@@ -70,8 +74,8 @@ def _swap(text: str, pairs, target: str) -> str:
 
 
 def rules(target: str = "zh") -> str:
-    if target == "zh":
-        return RULES
+    if langs.chinese(target):
+        return RULES + (_HANT if target == "zh-Hant" else "")
     name = langs.prompt_name(target)
     return (_swap(RULES, _RULES_SWAP, target) +
             f"\n- 译文语言是{name}：zh、caption_zh、image_zh、title_zh 这些字段名是历史叫法，里面一律写{name}，不要写中文。")

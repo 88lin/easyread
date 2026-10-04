@@ -20,14 +20,15 @@ window.PR = window.PR || {};
   };
 
   /* 译文语言的名字跟着界面语言写：中文界面“日语”，英文界面“Japanese” */
-  PR.TARGETS = [["zh", PR.t("中文")], ["ja", PR.t("日语")], ["ko", PR.t("韩语")], ["es", PR.t("西班牙语")], ["fr", PR.t("法语")], ["de", PR.t("德语")]];
-  PR.targetName = (code) => (PR.TARGETS.find(([k]) => k === code) || PR.TARGETS[0])[1];
+  PR.TARGETS = [["zh", PR.t("简体中文")], ["zh-Hant", PR.t("繁体中文")], ["ja", PR.t("日语")], ["ko", PR.t("韩语")], ["es", PR.t("西班牙语")], ["fr", PR.t("法语")], ["de", PR.t("德语")], ["it", PR.t("意大利语")]];
+  // 按钮上（“翻译成中文”）简体照旧叫中文，只在选语言的下拉里分简繁
+  PR.targetName = (code) => code === "zh" || !code ? PR.t("中文") : (PR.TARGETS.find(([k]) => k === code) || PR.TARGETS[0])[1];
 
   /* 论文标题哪个当主标题：译文语言和界面语言一样时用译文标题（中文界面看中文译文），
-     否则用英文原标题，译文标题放第二行。short 是侧栏用的短标题 */
+     繁体也算中文；否则用英文原标题，译文标题放第二行。short 是侧栏用的短标题 */
   PR.titles = function (i) {
     const tr = i.title_zh || "", en = i.title_en || "", lang = i.target || "zh";
-    if (tr && (PR.lang === lang || !en)) return { main: tr, sub: en, subLang: "en", short: i.short_zh || tr.split(/[：:]/)[0] };
+    if (tr && (PR.lang === lang.split("-")[0] || !en)) return { main: tr, sub: en, subLang: "en", short: i.short_zh || tr.split(/[：:]/)[0] };
     return { main: en || PR.t("（未命名）"), sub: tr, subLang: lang, short: en.split(/:\s/)[0] || PR.t("（未命名）") };
   };
 

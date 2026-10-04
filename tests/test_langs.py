@@ -46,6 +46,21 @@ class LangsTest(unittest.TestCase):
             self.assertNotIn("中文译文", text)
             self.assertNotIn("中文语序", text)
 
+    def test_traditional_chinese_keeps_chinese_rules(self):
+        set_meta(self.ws, target="zh-Hant")
+        text = prompts.translate(self.ws, [1], "text", "")
+        self.assertIn("译成繁体中文（正體中文）", text)
+        self.assertIn("中文语序", text)  # 中文规则照旧，只多一条繁体用字要求
+        self.assertIn("正體字", text)
+        self.assertIn("不超过 12 字", prompts_en.fill(self.ws, [1], {"p1-1": "Hello"}))
+        self.assertNotIn("正體字", prompts.rules("zh"))
+
+    def test_italian_prompt(self):
+        set_meta(self.ws, target="it")
+        text = prompts.translate(self.ws, [1], "text", "")
+        self.assertIn("意大利语（Italiano）", text)
+        self.assertNotIn("标准误差", text)
+
     def test_old_papers_count_as_chinese(self):
         self.assertEqual(langs.of_paper({"title_zh": "旧论文"}, {"target": "ja"}), "zh")
         self.assertEqual(langs.of_paper({}, {"target": "ja"}), "ja")
@@ -89,6 +104,8 @@ class LangsTest(unittest.TestCase):
         with mock.patch.object(settings_api.config, "save", lambda patch: patch), mock.patch.object(settings_api.config, "public", lambda c: c):
             self.assertEqual(settings_api.save_config({"target": "xx"})["config"]["target"], "zh")
             self.assertEqual(settings_api.save_config({"target": "es"})["config"]["target"], "es")
+            for code in ("zh-Hant", "it"):
+                self.assertEqual(settings_api.save_config({"target": code})["config"]["target"], code)
 
 
 if __name__ == "__main__":
