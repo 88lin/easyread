@@ -117,7 +117,7 @@ def crop(root: Path, page: int, box: list[float], out_name: str, scale: float = 
 
 _MATH = re.compile(r"\$[^$]*\$")
 _ALNUM = re.compile(r"[a-z0-9]")
-LOCATE_VERSION = "5"  # 图形范围按页面上看得见的像素收边；旧论文打开时重算。
+LOCATE_VERSION = "6"  # 跳过显式框和超大共享画布，避免旧论文定位时展开整本书。
 
 
 def _norm(s: str) -> str:
@@ -277,7 +277,7 @@ def _extend_captioned(blocks: list[dict], layout: dict, root: Path | None = None
     visual = locate_figures(root, blocks, layout) if root else {}
     for block in blocks:
         loc = layout.get(block.get("id"))
-        if block.get("type") not in ("table", "figure") or not loc or loc.get("src") == "manual":
+        if block.get("type") not in ("table", "figure") or not loc or block.get("box") or loc.get("src") == "manual":
             continue
         if block["id"] in visual:
             loc["box"] = visual[block["id"]]

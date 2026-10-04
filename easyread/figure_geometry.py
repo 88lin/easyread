@@ -167,7 +167,7 @@ def _page_regions(page, captions, occupied, render, running=()):
     marks = [b for b in marks if b[3] > top + .002 and b[1] < bottom - .002]
     for bid, candidates in assigned.items():
         caption = captions[bid]
-        if caption["type"] != "figure" or not candidates:
+        if caption["type"] != "figure" or caption.get("fixed") or not candidates:
             continue
         nearest = min(_score(b, caption, aspect) for b in candidates)
         if nearest > .18:
@@ -208,6 +208,65 @@ def _page_regions(page, captions, occupied, render, running=()):
     return result
 
 
+def _oversized_form(page) -> bool:
+    """Reject tiled pages before a PDF layout engine expands their shared canvas.
+
+    Paginated web exports can nest an entire book in every page's Form XObject.
+    Reading Form dictionaries is cheap; extracting that Form's text/paths is not.
+    Account for Form matrices so ordinary scaled artwork keeps its geometry.
+    The conservative fallback also bounds cyclic/deep resource graphs.
+    """
+    def resolved(value):
+        return value.get_object() if hasattr(value, "get_object") else value
+
+    width, height = float(page.cropbox.width), float(page.cropbox.height)
+    pending = [(resolved(page.get("/Resources", {})), (1., 0., 0., 1.), frozenset())]
+    seen = set()
+    while pending:
+        resources, parent, ancestors = pending.pop()
+        objects = resolved(resources.get("/XObject", {}))
+        for ref in objects.values():
+            form = resolved(ref)
+            if form.get("/Subtype") != "/Form":
+                continue
+            identity = id(form)
+            if identity in ancestors or len(ancestors) >= 32:
+                return True
+            matrix = [float(v) for v in form.get("/Matrix", [1, 0, 0, 1, 0, 0])]
+            box = [float(v) for v in form.get("/BBox", [])]
+            if len(matrix) != 6 or len(box) != 4 or not all(math.isfinite(v) for v in matrix + box):
+                return True
+            a, b, c, d = parent
+            x, y, z, w = matrix[:4]
+            transform = (a*x + c*y, b*x + d*y, a*z + c*w, b*z + d*w)
+            key = (identity, transform)
+            if key in seen:
+                continue
+            seen.add(key)
+            if len(seen) > 128:
+                return True
+            fw, fh = abs(box[2] - box[0]), abs(box[3] - box[1])
+            a, b, c, d = transform
+            if abs(a)*fw + abs(c)*fh > width * 4 or abs(b)*fw + abs(d)*fh > height * 4:
+                return True
+            pending.append((resolved(form.get("/Resources", {})), transform, ancestors | {identity}))
+    return False
+
+
+def _unsafe_pages(path: Path, pages) -> set[int]:
+    """Inspect only candidate pages, without decompressing Form content streams."""
+    from pypdf import PdfReader
+
+    pages = set(pages)
+    try:
+        with path.open("rb") as source:
+            pdf = PdfReader(source)
+            return {pn for pn in pages if 1 <= pn <= len(pdf.pages) and _oversized_form(pdf.pages[pn - 1])}
+    except Exception:  # noqa: BLE001
+        log.exception("检查 PDF 图形资源失败 %s", path)
+        return pages  # 无法确认安全时保留题注估算，不展开未知的大画布。
+
+
 def locate_figures(root: Path, blocks: list[dict], layout: dict) -> dict[str, list[float]]:
     """没有可靠图形边界时返回空结果，让原有题注估算规则继续工作。"""
     by_page = {}
@@ -217,8 +276,16 @@ def locate_figures(root: Path, blocks: list[dict], layout: dict) -> dict[str, li
         if block.get("type") not in ("figure", "table") or not loc:
             continue
         by_page.setdefault(loc["page"], {})[block["id"]] = {
-            "box": loc["box"], "type": block["type"], "caption_pos": block.get("caption_pos", "below")}
+            "box": loc["box"], "type": block["type"], "caption_pos": block.get("caption_pos", "below"),
+            "fixed": bool(block.get("box") or loc.get("src") == "manual")}
+    # Keep fixed captions as blockers only on pages with a figure that needs work.
+    by_page = {pn: captions for pn, captions in by_page.items()
+               if any(c["type"] == "figure" and not c["fixed"] for c in captions.values())}
     if not by_page or not (root / "source.pdf").is_file():
+        return {}
+    unsafe = _unsafe_pages(root / "source.pdf", by_page)
+    by_page = {pn: captions for pn, captions in by_page.items() if pn not in unsafe}
+    if not by_page:
         return {}
     import pdfplumber
 
@@ -237,10 +304,13 @@ def locate_figures(root: Path, blocks: list[dict], layout: dict) -> dict[str, li
                     except Exception:  # noqa: BLE001
                         log.exception("渲染原页失败 %s 第 %s 页", root, pn)
                         return None
+                page = pdf.pages[pn - 1]
                 try:
-                    result.update(_page_regions(pdf.pages[pn - 1], captions, occupied, render, running.get(pn, ())))
+                    result.update(_page_regions(page, captions, occupied, render, running.get(pn, ())))
                 except Exception:  # noqa: BLE001
                     log.exception("读取 PDF 图形边界失败 %s 第 %s 页", root, pn)
+                finally:
+                    page.close()  # pdfplumber caches the whole parsed layout until explicitly closed.
     except Exception:  # noqa: BLE001
         log.exception("读取 PDF 图形边界失败 %s", root)
     return result

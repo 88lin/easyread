@@ -4,10 +4,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pypdf import PdfWriter
-from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject, RectangleObject, ArrayObject, FloatObject
 
-from easyread import pdfwork
+from easyread import figure_geometry, pdfwork
 from easyread.store import write_json_atomic
 
 
@@ -65,6 +65,32 @@ def make_pdf(path, images=(), paths=(), words=(), rotation=0, fills=(), framed=(
 
 def loc(box, src="text"):
     return {"page": 1, "box": list(box), "src": src}
+
+
+def make_tiled_pdf(path, *, scaled=False):
+    """A page-sized wrapper references a shared canvas ten pages tall."""
+    writer = PdfWriter()
+    shared = DecodedStreamObject()
+    shared.update({NameObject("/Type"): NameObject("/XObject"), NameObject("/Subtype"): NameObject("/Form"),
+                   NameObject("/BBox"): RectangleObject([0, 0, 300, 3000]),
+                   NameObject("/Resources"): DictionaryObject()})
+    shared.set_data(b"20 2450 200 100 re S 20 450 200 100 re S")
+    if scaled:
+        shared[NameObject("/Matrix")] = ArrayObject([FloatObject(v) for v in [.05, 0, 0, .05, 0, 0]])
+    wrapper = DecodedStreamObject()
+    wrapper.update({NameObject("/Type"): NameObject("/XObject"), NameObject("/Subtype"): NameObject("/Form"),
+                    NameObject("/BBox"): RectangleObject([0, 2250, 300, 2550]),
+                    NameObject("/Matrix"): ArrayObject([FloatObject(v) for v in [1, 0, 0, 1, 0, -2250]]),
+                    NameObject("/Resources"): DictionaryObject({NameObject("/XObject"): DictionaryObject({
+                        NameObject("/Shared"): writer._add_object(shared)})})})
+    wrapper.set_data(b"/Shared Do")
+    page = writer.add_blank_page(width=300, height=300)
+    page[NameObject("/Resources")] = DictionaryObject({NameObject("/XObject"): DictionaryObject({
+        NameObject("/Tile"): writer._add_object(wrapper)})})
+    stream = DecodedStreamObject()
+    stream.set_data(b"/Tile Do")
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    writer.write(path)
 
 
 class FigureGeometryTest(unittest.TestCase):
@@ -149,6 +175,77 @@ class FigureGeometryTest(unittest.TestCase):
                     images=[[.05, .2, .52, .9], [.55, .3, .9, .68]])
         self.assertEqual(layout["fig"], loc([.1, .3, .5, .8], "manual"))
         self.assertEqual(layout["table"]["src"], "caption")
+
+    def test_manual_figures_do_not_open_pdf_layout_or_preflight(self):
+        make_pdf(self.root / "source.pdf", images=[[.05, .2, .52, .9]])
+        box = [.1, .3, .5, .8]
+        blocks = [{"id": "fig", "type": "figure", "box": box, "src": "figures/saved.webp"}]
+        layout = {"fig": loc(box, "manual")}
+        with patch("pdfplumber.open") as opened, patch("pypdf.PdfReader") as preflight:
+            pdfwork._extend_captioned(blocks, layout, self.root)
+        opened.assert_not_called()
+        preflight.assert_not_called()
+        self.assertEqual(layout["fig"], loc(box, "manual"))
+        self.assertEqual(blocks[0]["src"], "figures/saved.webp")
+
+    def test_tiled_nested_long_form_falls_back_without_pdfplumber(self):
+        make_tiled_pdf(self.root / "source.pdf")
+        blocks = [{"id": "fig", "type": "figure", "src": "figures/saved.webp"}]
+        layout = {"body": loc([.1, .1, .9, .3]), "fig": loc([.1, .7, .9, .75])}
+        with patch("pdfplumber.open") as opened:
+            pdfwork._extend_captioned(blocks, layout, self.root)
+        opened.assert_not_called()
+        self.assertEqual(layout["fig"]["src"], "caption")
+        self.assertAlmostEqual(layout["fig"]["box"][1], .305)
+        self.assertEqual(blocks[0]["src"], "figures/saved.webp")
+
+    def test_scaled_long_form_that_fits_page_is_safe(self):
+        make_tiled_pdf(self.root / "source.pdf", scaled=True)
+        self.assertEqual(figure_geometry._unsafe_pages(self.root / "source.pdf", [1]), set())
+
+    def test_safe_page_geometry_still_runs_beside_tiled_page(self):
+        normal, tiled = self.root / "normal.pdf", self.root / "tiled.pdf"
+        make_pdf(normal, images=[[.1, .3, .45, .65]])
+        make_tiled_pdf(tiled)
+        writer = PdfWriter()
+        writer.add_page(PdfReader(normal).pages[0])
+        writer.add_page(PdfReader(tiled).pages[0])
+        writer.write(self.root / "source.pdf")
+        blocks = [{"id": "safe", "type": "figure"}, {"id": "tile", "type": "figure"}]
+        layout = {"safe": loc([.1, .72, .45, .77]), "tile": {**loc([.1, .7, .9, .75]), "page": 2}}
+        with patch.object(figure_geometry, "_page_regions", wraps=figure_geometry._page_regions) as regions:
+            pdfwork._extend_captioned(blocks, layout, self.root)
+        self.assertEqual(regions.call_count, 1)
+        self.assertEqual(layout["safe"]["src"], "graphic")
+        self.assertEqual(layout["tile"]["src"], "caption")
+
+    def test_page_layout_is_closed_even_when_geometry_fails(self):
+        make_pdf(self.root / "normal.pdf", images=[[.1, .3, .45, .65]])
+        writer = PdfWriter()
+        page = PdfReader(self.root / "normal.pdf").pages[0]
+        writer.add_page(page)
+        writer.add_page(page)
+        writer.write(self.root / "source.pdf")
+        for failed in (False, True):
+            with self.subTest(failed=failed):
+                parsed, retained = [], []
+
+                def regions(page, *_):
+                    if parsed:
+                        retained.append(hasattr(parsed[0], "_layout") or hasattr(parsed[0], "_objects"))
+                    page.chars  # Populate the actual pdfplumber page cache.
+                    parsed.append(page)
+                    if failed and page.page_number == 1:
+                        raise RuntimeError("test read failure")
+                    return {}
+
+                blocks = [{"id": "first", "type": "figure"}, {"id": "second", "type": "figure"}]
+                layout = {"first": loc([.1, .72, .45, .77]), "second": {**loc([.1, .72, .45, .77]), "page": 2}}
+                with patch.object(figure_geometry, "_page_regions", side_effect=regions), \
+                        patch.object(figure_geometry.log, "exception"):
+                    pdfwork._extend_captioned(blocks, layout, self.root)
+                self.assertEqual(len(parsed), 2)
+                self.assertEqual(retained, [False])  # Already closed before the next page, not just on PDF exit.
 
     def test_nearby_table_graphic_is_not_assigned_to_figure(self):
         layout = {"fig": loc([.1, .72, .45, .77]), "table": loc([.55, .68, .9, .71])}
