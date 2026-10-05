@@ -185,6 +185,8 @@ MIT。公式渲染用 [KaTeX](https://katex.org)（MIT）。
 
 - [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron 桌面版打包与发布流程
 - [@bisuwuss-netizen](https://github.com/bisuwuss-netizen) — 修复桌面安装包漏打 PDF 依赖、双栏论文原页定位；“问 AI”和笔记里的 Markdown 表格与引用块
-- [@MeshedPoto](https://github.com/MeshedPoto) — 并行翻译时 PDFium 随机报错、跨栏段落原页高亮、macOS 桌面版稳定性、HTTPS 证书与流式回答的一批修复；v1.3 的 ASD-STE100 中文问答和公式显示修复
-
+- [@MeshedPoto](https://github.com/MeshedPoto) — 并行翻译时 PDFium 随机报错、跨栏段落原页高亮、macOS 桌面版稳定性、HTTPS 证书与流式回答的一批修复；v1.3 的 ASD-STE100 中文问答和公式显示修复；v1.3.1 的图片裁剪修复（[#22](https://github.com/Edwardxlai/easyread/pull/22)）
 - [@Lzy22301093](https://github.com/Lzy22301093) — 异常表格校验与渲染修复，避免单个表格导致整篇译文空白（[#17](https://github.com/Edwardxlai/easyread/pull/17)）
+- [@NGman-s](https://github.com/NGman-s) — 整页都是上一页续文时不再误报翻译失败（[#30](https://github.com/Edwardxlai/easyread/pull/30)）
+- [@TWwWT1](https://github.com/TWwWT1) — 裁切分页 PDF 导入时内存暴涨（[#28](https://github.com/Edwardxlai/easyread/issues/28)）、打开时卡在加载中（[#35](https://github.com/Edwardxlai/easyread/issues/35)）的补丁
+- [@kevin9327](https://github.com/kevin9327) — 网页元数据里的撇号不再截断标题和作者名（[#37](https://github.com/Edwardxlai/easyread/pull/37)）
