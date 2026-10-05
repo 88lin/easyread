@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import math
+import random
 import threading
 import time
 import urllib.error
@@ -104,18 +105,23 @@ def _http_error(e: urllib.error.HTTPError) -> EngineError:
 
 
 # ---------- 一次拿到整段（翻译用） ----------
+# 接口没给 Retry-After 时每次等多久。限流多半按分钟算（每分钟请求数 / token 数），分段并行时几段一起撞上，
+# 所以至少要能跨过一个整分钟：合计约 3 分钟，每次再随机错开 ±20%，免得几段同时醒来又一起被限流
+_BACKOFF = (10, 20, 40, 60, 60)
+
+
 def complete(o: dict, prompt: str, images: list[Path], cancel=None, meter=None) -> str:
     body = _body(o, prompt, images, False, None if kind(o) == "responses" else 0.2)
     res = None
-    for attempt in range(4):  # 限流、服务端错误、网络抖动：等一会儿再试
+    for attempt in range(len(_BACKOFF) + 1):  # 限流、服务端错误、网络抖动：等一会儿再试
         if cancel is not None and cancel.is_set():
             raise Cancelled()
         try:
             res = _fetch(o, body, cancel)
             break
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 504) and attempt < 3:
-                _sleep(_retry_after(e.headers.get("Retry-After"), 5 * 2 ** attempt), cancel)
+            if e.code in (429, 500, 502, 503, 504) and attempt < len(_BACKOFF):
+                _sleep(_retry_after(e.headers.get("Retry-After"), _BACKOFF[attempt] * random.uniform(.8, 1.2)), cancel)
                 continue
             raise _http_error(e)
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
@@ -208,7 +214,7 @@ def _retry_after(value: str | None, default: float) -> float:
 
 
 def _sleep(seconds: float, cancel) -> None:
-    end = time.time() + min(seconds, 90)
+    end = time.time() + min(seconds, 120)
     while time.time() < end:
         if cancel is not None and cancel.is_set():
             raise Cancelled()
