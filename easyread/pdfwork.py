@@ -13,7 +13,8 @@ from functools import lru_cache
 from pathlib import Path
 from statistics import median
 
-from .store import write_json_atomic
+from . import float_order
+from .store import Workspace, write_json_atomic
 
 # PDFium is not thread-safe, even when threads open separate documents.
 # Keep native handles and their cleanup inside the same process-wide lock.
@@ -117,7 +118,7 @@ def crop(root: Path, page: int, box: list[float], out_name: str, scale: float = 
 
 _MATH = re.compile(r"\$[^$]*\$")
 _ALNUM = re.compile(r"[a-z0-9]")
-LOCATE_VERSION = "6"  # 跳过显式框和超大共享画布，避免旧论文定位时展开整本书。
+LOCATE_VERSION = "7"  # 图表按原页位置重排；旧论文打开时重算一次。
 
 
 def _norm(s: str) -> str:
@@ -232,6 +233,9 @@ def _locate(root: Path) -> dict:
             break
     _extend_captioned(paper.get("blocks", []), layout, root)
     _clamp_overlaps(layout)
+    ids = float_order.order(paper.get("blocks", []), layout)
+    if ids:  # 图表挪回原页位置；公式的估算框按块顺序算，要在这之后
+        paper = Workspace(root).update("paper", lambda p: (float_order.apply(p, ids), p)[1])
     _fill_gaps(paper.get("blocks", []), layout)
     write_json_atomic(root / "layout.json", layout)
     (extract_dir / "locate.version").write_text(LOCATE_VERSION, encoding="utf-8")
