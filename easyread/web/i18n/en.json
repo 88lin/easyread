@@ -1084,10 +1084,12 @@
  "整理原文需要可用模型。请检查模型设置后重试；重试使用当前翻译模型，已整理的内容会保留。": "Preparing the original needs a working model. Check your model settings, then retry with the current translation model. Existing content is kept.",
  "模型设置": "Model settings",
  "重试整理原文": "Retry preparing the original",
- "重启并更新": "Restart and update",
+ "更新并重启": "Update and restart",
  "正在重启…": "Restarting…",
  "更新": "Update",
  "稍后": "Later",
+ "后台下载": "Download in background",
+ "EasyRead {v} 已经下好了": "EasyRead {v} is ready to install",
  "正在下载 {p}%": "Downloading {p}%",
 
 
