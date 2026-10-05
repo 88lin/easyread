@@ -1,6 +1,6 @@
 /* 新版本提示：打开文献库时问一次服务（服务一天最多问一次 GitHub），有新版本就在顶栏放一个“新版本 x.y.z”，
    第一次看到这个版本时再弹一条提示。点开看这次更新了什么，Windows 安装版直接点“更新”。
-   帮助里有“检查更新”和“自动检查新版本”开关。 */
+   顶栏问号里有“检查更新”和“自动检查新版本”开关。 */
 (function (PR) {
   "use strict";
   const SEEN = "easyread-seen-update";
@@ -78,6 +78,8 @@
     PR.update = u;
     const on = !!(u && u.newer);
     chip.hidden = !on;
+    const help = PR.$("#helpBtn");
+    if (help) help.classList.toggle("has-update", on);  // 问号上也亮个小点
     if (!on) return;
     chip.innerHTML = '<span class="dot"></span><span>' + PR.t("新版本 {v}", { v: PR.esc(u.latest) }) + "</span>";
     chip.title = PR.t("EasyRead {v} 已发布，点开看更新了什么", { v: u.latest });
@@ -101,7 +103,7 @@
     renderNativeUpdate();
   };
 
-  /* 帮助里用：force 为真时马上问 GitHub */
+  /* 问号面板里用：force 为真时马上问 GitHub */
   PR.checkUpdate = async function (force) {
     const u = await PR.api("/api/update" + (force ? "?force=1" : ""));
     show(u);
@@ -111,28 +113,30 @@
     show(await PR.api("/api/update", { method: "POST", body: { enabled: on } }));
   };
 
-  /* 设置 → 阅读最下面：版本、检查更新、自动检查开关 */
-  function updateLine() {
-    const u = PR.update;
-    if (!u) return "";
-    if (u.newer) return PR.t("有新版本 {v}", { v: '<a href="#" data-help="open">' + PR.esc(u.latest) + "</a>" });
-    return u.latest ? PR.t("已经是最新版") : "";
+  /* 问号面板最上面（help.js）：版本、检查更新、自动检查开关。有新版本时主按钮换成“看看更新了什么” */
+  function panelInner(msg) {
+    const u = PR.update, newer = !!(u && u.newer);
+    const line = msg || (newer ? PR.t("新版本 {v} 可以更新", { v: PR.esc(u.latest) }) : u && u.latest ? PR.t("已经是最新版") : "");
+    return '<div class="hu-row"><span class="hu-dot' + (newer ? " new" : "") + '"></span><div class="hu-text"><b>' + PR.t("版本 {v}", { v: PR.esc(PR.lib.version || "") }) +
+      '</b><span class="hint" id="helpUpdateMsg">' + line + "</span></div>" +
+      (newer ? '<button class="btn sm accent" data-help="open">' + PR.t("看看更新了什么") + "</button>"
+        : '<button class="btn sm line" data-help="check">' + PR.t("检查更新") + "</button>") + "</div>" +
+      '<label class="check"><input type="checkbox" data-help="auto"' + (!u || u.enabled !== false ? " checked" : "") + ">" + PR.t("自动检查新版本（一天一次）") + "</label>";
   }
-  PR.updateSection = () => '<h4 class="set-h">' + PR.t("版本") + '</h4><div class="help-update"><span>' + PR.esc(PR.lib.version || "") + "</span>" +
-    '<button class="btn sm line" data-help="check">' + PR.t("检查更新") + '</button><span class="hint" id="helpUpdateMsg">' + updateLine() + "</span>" +
-    '<label class="check"><input type="checkbox" data-help="auto"' + (!PR.update || PR.update.enabled !== false ? " checked" : "") + ">" + PR.t("自动检查新版本（一天一次，只问 GitHub）") + "</label></div>";
+  PR.updatePanel = () => '<div class="help-update" id="helpUpdate">' + panelInner() + "</div>";
   document.addEventListener("click", async (e) => {
     const b = e.target.closest('[data-help="check"], [data-help="open"]');
     if (!b) return;
     e.preventDefault();
     if (b.dataset.help === "open") return PR.openUpdate();
-    const msg = PR.$("#helpUpdateMsg");
-    b.disabled = true; msg.textContent = PR.t("正在检查…");
+    const box = PR.$("#helpUpdate");
+    b.disabled = true; PR.$("#helpUpdateMsg").textContent = PR.t("正在检查…");
+    let msg = "";
     try {
       const u = await PR.checkUpdate(true);
-      msg.innerHTML = u.latest ? updateLine() : PR.t("没连上 GitHub，稍后再试");
-    } catch (err) { msg.textContent = PR.t("检查失败：") + err.message; }
-    b.disabled = false;
+      if (!u.latest) msg = PR.t("没连上 GitHub，稍后再试");
+    } catch (err) { msg = PR.t("检查失败：") + PR.esc(err.message); }
+    if (box.isConnected) box.innerHTML = panelInner(msg);
   });
   document.addEventListener("change", (e) => {
     if (e.target.dataset.help === "auto") PR.setAutoUpdate(e.target.checked).catch((err) => PR.toast(PR.t("保存失败：") + PR.esc(err.message)));

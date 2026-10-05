@@ -1,6 +1,6 @@
 {
   "name": "easyread-desktop",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "EasyRead desktop application powered by Electron",
   "author": "Edwardxlai",
   "main": "electron/main.cjs",
@@ -52,6 +52,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "include": "installer/installer.nsh",
       "createDesktopShortcut": true,
       "artifactName": "EasyRead-Setup-${version}.exe"
     },

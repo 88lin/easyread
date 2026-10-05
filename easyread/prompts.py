@@ -36,7 +36,7 @@ SCHEMA = """输出格式：只输出一个 JSON 对象，不要任何别的文�
 - {"id":"refs","type":"references","page":10,"zh":"参考文献","en":"References"}
 句子对齐：para 和 list 的每一项，en 和 zh 都在两边对应的句子交界处各插一个 ‖，两边 ‖ 个数必须相同。只在两边都断句的地方插：中文把两句英文合成一句时，这两句英文之间不插；一句英文拆成两句中文时，这两句中文之间也不插。只有一句就不插。‖ 不要放进 $公式$ 里，标题、表格、图、题注都不插。
 id 规则：段落 p{页}-{序号}，标题 s{编号，点换成横线}，公式 eq{编号} 或 eq-p{页}-{序号}，表 tab{编号}，图 fig{编号}。
-注意 JSON 里 TeX 的反斜杠要写两个（\\\\frac、\\\\text、\\\\bar）。字符串里的中文引号用“”或「」，不要出现没转义的英文双引号 "。表格和图放在正文第一次提到它的段落之后。"""
+注意 JSON 里 TeX 的反斜杠要写两个（\\\\frac、\\\\text、\\\\bar）。字符串里的中文引号用“”或「」，不要出现没转义的英文双引号 "。表格和图按它在原页上的位置排，不要挪到提到它的段落后面。"""
 
 
 # 译成中文以外的语言时，把只适用于中文的说法换掉；中文的提示词保持原样
@@ -60,8 +60,12 @@ _SCHEMA_SWAP = [
 ]
 
 
+_HANT = ("\n- 译文一律用繁体中文（正體字），用词按台湾学术圈的习惯（如“軟體”“資料”“網路”），标点用全形「」或“”。"
+         "上面规则和示例里的简体字只是写法示范，输出时都换成繁体；术语表里已有的译法照意思改成繁体用字。")
+
+
 def _swap(text: str, pairs, target: str) -> str:
-    if target == "zh":
+    if langs.chinese(target):
         return text
     name = langs.prompt_name(target)
     for a, b in pairs:
@@ -70,8 +74,8 @@ def _swap(text: str, pairs, target: str) -> str:
 
 
 def rules(target: str = "zh") -> str:
-    if target == "zh":
-        return RULES
+    if langs.chinese(target):
+        return RULES + (_HANT if target == "zh-Hant" else "")
     name = langs.prompt_name(target)
     return (_swap(RULES, _RULES_SWAP, target) +
             f"\n- 译文语言是{name}：zh、caption_zh、image_zh、title_zh 这些字段名是历史叫法，里面一律写{name}，不要写中文。")

@@ -17,7 +17,7 @@ from .jobs import Jobs
 from .library import Library
 from .i18n import tr
 from .store import now_iso
-from .reader_files import refresh_layout as _refresh_layout, warm as _warm, reveal as _reveal, _warming
+from .reader_files import prepare_later as _prepare_later, reveal as _reveal
 
 WEB = config.WEB
 mimetypes.add_type("image/webp", ".webp")
@@ -172,6 +172,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             with self.app.location.request(self.command, self.path):
                 self._get()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # Back/close/timeout can cancel a read after headers are sent. The
+            # client is gone; a second error response only raises again.
+            self.close_connection = True
         except ValueError as e:
             self._json(409, {"error": str(e), "library_status": self.app.location.status})
         except Exception as e:  # noqa: BLE001
@@ -233,15 +237,23 @@ class Handler(BaseHTTPRequestHandler):
                     opened["status"] = "reading"
                 if app.location.status == "idle":
                     ws.patch_item(opened)
-                    _warm(ws.root, app.location)
-                    _refresh_layout(ws)
+                # Take versions before reading content: concurrent preparation
+                # can then trigger a later poll, never tag old data as current.
+                versions = ws.versions()
                 state = {**{n: ws.load(n) for n in ("paper", "discussion", "reader", "layout", "item", "job")},
-                         "versions": ws.versions(), "token": app.token, "id": ws.id, "library_status": app.location.status,
+                         "versions": versions, "token": app.token, "id": ws.id, "library_status": app.location.status,
                          "engine": config.load().get("engine")}
-                # 旧论文的图按定位框补截图；等内容和版本号都取完再开始，页面轮询到 paper 变了就会重画
+                self._json(200, state)
+                # Existing layout is usable immediately. Upgrade only after the
+                # response has been sent; polling picks up the new layout/crops.
                 if app.location.status == "idle" and (state["job"] or {}).get("state") not in ("queued", "running"):
-                    figures.fill_later(ws, app.location)
-                return self._json(200, state)
+                    try:
+                        _prepare_later(ws, app.location)
+                    except Exception:  # noqa: BLE001
+                        # The 200 response is already sent; do not append a 500
+                        # response if migration or thread registration now fails.
+                        log.exception("启动阅读页准备失败 %s", ws.root)
+                return
             if action == "versions":
                 return self._json(200, {**ws.versions(), "library_status": app.location.status})
             if action == "chat":
@@ -255,7 +267,8 @@ class Handler(BaseHTTPRequestHandler):
                 out = build(ws)
                 return self._download(out.read_bytes(), out.name, "text/html; charset=utf-8")
             if action == "part" and len(parts) > 5 and parts[5] in ("paper", "discussion", "reader", "layout", "job"):
-                return self._json(200, {"data": ws.load(parts[5]), "version": ws.versions()[parts[5]]})
+                version = ws.versions()[parts[5]]
+                return self._json(200, {"data": ws.load(parts[5]), "version": version})
         if path.startswith("/p/"):
             _, _, pid, rel = path.split("/", 3)
             ws = lib.ws(pid)

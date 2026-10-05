@@ -1,76 +1,6 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
 const { test } = require("node:test");
-
-const source = file => fs.readFileSync(path.join(__dirname, "../easyread/web/js/", file), "utf8");
-const settled = () => new Promise(resolve => setImmediate(resolve));
-
-function page(url = "http://127.0.0.1:8765/", storage = new Map(), state = null, blocked = false) {
-  let current = new URL(url), seq = 0;
-  const location = {
-    get href() { return current.href; }, set href(value) { current = new URL(value, current); },
-    get pathname() { return current.pathname; }, get search() { return current.search; },
-  };
-  const history = { state, replaceState(value, unused, url) { this.state = value; location.href = url; } };
-  const nodes = new Map(), listeners = new Map(), windowEvents = new Map(), frames = [];
-  let rows = [], items = [], categories = [], prefsResult = null;
-  const node = selector => {
-    if (!nodes.has(selector)) nodes.set(selector, {
-      value: "", style: {}, dataset: {}, scrollTop: 0, offsetHeight: selector === ".list-head" ? 60 : 0,
-      classList: { toggle() {}, add() {}, remove() {} },
-      addEventListener(name, fn) { this[name] = fn; },
-      focus(options) { this.focused = options || true; },
-      getBoundingClientRect() { return { top: 50, bottom: 650, height: 600 }; },
-    });
-    return nodes.get(selector);
-  };
-  Object.defineProperty(node("#list"), "innerHTML", {
-    get() { return this.html || ""; },
-    set(html) {
-      this.html = html;
-      rows = [...html.matchAll(/class="row[^\"]*" data-id="([^\"]+)"/g)].map(([unused, id], index) => ({
-        dataset: { id }, classList: { toggle() {} },
-        getBoundingClientRect() { const top = 110 + index * 120 - node(".main").scrollTop; return { top, bottom: top + 100 }; },
-        scrollIntoView() { node(".main").scrollTop = Math.max(0, 60 + index * 120 - 250); },
-      }));
-    },
-  });
-  const PR = {
-    t: (s, values = {}) => s.replace(/\{(\w+)\}/g, (m, key) => values[key] ?? m),
-    titles: i => ({ main: i.title_zh || i.title_en || "" }),
-    uid: prefix => prefix + (++seq), $: node, $$: () => rows,
-    ls: { get: (key, fallback) => fallback, set() {} },
-    applyTheme() {}, useServerUi() {}, renderSide() {}, renderDetail() {},
-    loadPrefs: async () => prefsResult || { library: { cats: categories } },
-    icon: () => "", logo: () => "", esc: text => String(text || ""), debounce: fn => fn,
-    api: async url => url === "/api/engines" ? { ready: true } : { items: structuredClone(items), engine: "none" },
-  };
-  const context = {
-    window: { PR, addEventListener(name, fn) { windowEvents.set(name, fn); } },
-    document: { addEventListener(name, fn, capture) { const key = (capture ? "capture:" : "") + name; if (!listeners.has(key)) listeners.set(key, []); listeners.get(key).push(fn); } },
-    location, history, URL, URLSearchParams,
-    localStorage: { getItem: key => { if (blocked) throw new Error("storage blocked"); return storage.get(key) || null; },
-      setItem: (key, value) => { if (blocked) throw new Error("storage blocked"); storage.set(key, value); } },
-    requestAnimationFrame: fn => frames.push(fn), setTimeout() {}, clearTimeout() {},
-  };
-  vm.runInNewContext(source("common/library-nav.js"), context);
-  return { PR, location, history, storage, node, listeners, windowEvents,
-    get rows() { return rows; }, setItems(value) { items = value; },
-    setPrefs(value) { prefsResult = value; },
-    library(value, cats = ["分类"]) {
-      items = value; categories = cats;
-      vm.runInNewContext(source("library/app.js"), context);
-      PR.lib.VIEWS = [["all", "全部", "", () => true], ["unread", "未读", "", i => i.status === "unread"], ["reading", "在读", "", i => i.status === "reading"]];
-      PR.lib.cats = () => categories;
-      PR.lib.useServerSide = prefs => { categories = (prefs.library || {}).cats || categories; };
-      return this;
-    },
-    async boot() { for (const fn of listeners.get("DOMContentLoaded") || []) fn(); await settled(); await settled(); frames.splice(0).forEach(fn => fn()); },
-    async cachedBack() { windowEvents.get("pageshow")({ persisted: true }); await settled(); frames.splice(0).forEach(fn => fn()); },
-  };
-}
+const { page } = require("./helpers/library_page.cjs");
 
 const papers = () => Array.from({ length: 20 }, (unused, i) => ({
   id: "p" + i, title_zh: "示例论文 " + String(i).padStart(2, "0"), tags: i === 19 ? [] : ["分类"],
@@ -152,7 +82,7 @@ test("a removed paper, category or changed status cannot force another category 
 test("missing, mismatched and corrupted contexts and blocked storage fall back to normal navigation", async () => {
   const p = page().library(papers()); await p.boot(); p.PR.lib.openReader("p1");
   const r = page(p.location.href, p.storage); r.PR.libraryNav.readerBack("p2");
-  assert.equal(r.node("#backBtn").href, undefined);
+  assert.equal(r.node("#backBtn").href, "/");
   p.storage.set("easyread-library-navigation", "{broken");
   assert.equal(r.PR.libraryNav.restore(), null);
   const blocked = page("http://127.0.0.1:8765/", new Map(), null, true).library(papers());

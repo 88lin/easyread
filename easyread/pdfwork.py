@@ -13,7 +13,8 @@ from functools import lru_cache
 from pathlib import Path
 from statistics import median
 
-from .store import write_json_atomic
+from . import float_order
+from .store import Workspace, write_json_atomic
 
 # PDFium is not thread-safe, even when threads open separate documents.
 # Keep native handles and their cleanup inside the same process-wide lock.
@@ -117,7 +118,7 @@ def crop(root: Path, page: int, box: list[float], out_name: str, scale: float = 
 
 _MATH = re.compile(r"\$[^$]*\$")
 _ALNUM = re.compile(r"[a-z0-9]")
-LOCATE_VERSION = "5"  # 图形范围按页面上看得见的像素收边；旧论文打开时重算。
+LOCATE_VERSION = "7"  # 图表按原页位置重排；旧论文打开时重算一次。
 
 
 def _norm(s: str) -> str:
@@ -232,6 +233,9 @@ def _locate(root: Path) -> dict:
             break
     _extend_captioned(paper.get("blocks", []), layout, root)
     _clamp_overlaps(layout)
+    ids = float_order.order(paper.get("blocks", []), layout)
+    if ids:  # 图表挪回原页位置；公式的估算框按块顺序算，要在这之后
+        paper = Workspace(root).update("paper", lambda p: (float_order.apply(p, ids), p)[1])
     _fill_gaps(paper.get("blocks", []), layout)
     write_json_atomic(root / "layout.json", layout)
     (extract_dir / "locate.version").write_text(LOCATE_VERSION, encoding="utf-8")
@@ -277,7 +281,7 @@ def _extend_captioned(blocks: list[dict], layout: dict, root: Path | None = None
     visual = locate_figures(root, blocks, layout) if root else {}
     for block in blocks:
         loc = layout.get(block.get("id"))
-        if block.get("type") not in ("table", "figure") or not loc or loc.get("src") == "manual":
+        if block.get("type") not in ("table", "figure") or not loc or block.get("box") or loc.get("src") == "manual":
             continue
         if block["id"] in visual:
             loc["box"] = visual[block["id"]]
