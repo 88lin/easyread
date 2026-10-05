@@ -5,10 +5,11 @@ const vm = require("node:vm");
 const { EventEmitter } = require("node:events");
 const { test } = require("node:test");
 
-async function desktop(platform = "darwin", lock = true, ready = true, argv = []) {
+async function desktop(platform = "darwin", lock = true, ready = true, argv = [], appDataBroken = false) {
   const app = new EventEmitter();
   Object.assign(app, {
-    setPath() {}, getPath: () => "/tmp", getLocale: () => "zh-CN", isPackaged: true,
+    setPath(name, value) { this.paths = { ...this.paths, [name]: value }; },
+    getPath(name) { if (appDataBroken && name === "appData") throw new Error("Failed to get 'appData' path"); return "/tmp"; }, getLocale: () => "zh-CN", isPackaged: true,
     requestSingleInstanceLock: () => lock, whenReady: () => Promise.resolve(), isReady: () => true,
     setAsDefaultProtocolClient(scheme) { this.protocol = scheme; },
     quit() { this.quitCalled = true; this.emit("before-quit", { preventDefault() {} }); },
@@ -55,6 +56,7 @@ async function desktop(platform = "darwin", lock = true, ready = true, argv = []
     : name === "./startup-feedback.cjs" ? { ...require("../electron/startup-feedback.cjs"), mark(_app, stage) { stages.push(stage); }, loginShellPath: async () => "/usr/bin:/bin" }
     : name === "./desktop-updates.cjs" ? { registerUpdates() {} }
     : name === "./deep-link.cjs" ? require("../electron/deep-link.cjs")
+    : name === "./data-dir.cjs" ? { prepare: async () => null }
     : name === "electron-updater" ? { autoUpdater: {} }
     : name === "./window-state.cjs" ? { options: () => ({ opts: { width: 1440, height: 960 }, maximized: false }), track() {} }
     : require(name);
@@ -64,6 +66,13 @@ async function desktop(platform = "darwin", lock = true, ready = true, argv = []
   await settled();
   return { app, windows, launches, menus, handlers, stages, settled };
 }
+
+test("startup survives a missing appData path instead of crashing the main process", async () => {
+  const d = await desktop("win32", true, true, [], true);
+  assert.ok(d.app.paths.userData.endsWith("EasyRead"));
+  assert.equal(d.windows.length, 1);
+  d.app.quit();
+});
 
 test("macOS keeps native editing roles and offers input context actions", async () => {
   const d = await desktop();
