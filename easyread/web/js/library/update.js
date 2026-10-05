@@ -121,7 +121,7 @@
       '</b><span class="hint" id="helpUpdateMsg">' + line + "</span></div>" +
       (newer ? '<button class="btn sm accent" data-help="open">' + PR.t("看看更新了什么") + "</button>"
         : '<button class="btn sm line" data-help="check">' + PR.t("检查更新") + "</button>") + "</div>" +
-      '<label class="check"><input type="checkbox" data-help="auto"' + (!u || u.enabled !== false ? " checked" : "") + ">" + PR.t("自动检查新版本（一天一次，只问 GitHub）") + "</label>";
+      '<label class="check"><input type="checkbox" data-help="auto"' + (!u || u.enabled !== false ? " checked" : "") + ">" + PR.t("自动检查新版本（一天一次）") + "</label>";
   }
   PR.updatePanel = () => '<div class="help-update" id="helpUpdate">' + panelInner() + "</div>";
   document.addEventListener("click", async (e) => {

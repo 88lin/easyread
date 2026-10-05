@@ -19,7 +19,7 @@ Runs locally. You choose the model service and whether to keep your library in a
 
 <p align="center"><img src="docs/images/en/hero.png" width="860" alt="English paper text and equations alongside the original PDF"></p>
 
-> **Choose your reading language.** Translate English papers into **Chinese, Japanese, Korean, Spanish, French or German**. Choose a language when importing, or set your default in Settings → Reading → Translate papers into (initially Chinese). The interface supports **English and Chinese**, independently of the translation language. You can also choose "Read the English original" on import and use the layout, highlights, notes and Ask AI without translating.
+> **Choose your reading language.** Translate English papers into **Simplified or Traditional Chinese, Japanese, Korean, Spanish, French, German or Italian**. Choose a language when importing, or set your default in Settings → Reading → Translate papers into (initially Chinese). The interface supports **English and Chinese**, independently of the translation language. You can also choose "Read the English original" on import and use the layout, highlights, notes and Ask AI without translating.
 
 <p align="center"><img src="docs/images/en/japanese.png" width="860" alt="Japanese abstract alongside the original English PDF"></p>
 
@@ -106,7 +106,7 @@ Your browser opens `http://127.0.0.1:8765`. The server only listens on localhost
 1. Open Settings (top right) → Model: add the models you want and choose "Use for translation" on one card. Models for translation and Ask AI are managed on the same page.
 2. Drag a PDF into the window, or paste an arXiv ID, arXiv / OpenReview link or a direct PDF link (`Ctrl+V` on the library page works too). For long papers you can translate just the main text, or a page range such as pages 5–12. You can also pick the model and target language for this import, or choose "Read the English original" to lay out the paper without translating; use "Translate to…" any time later. Whole-paper jobs above 60 pages ask for confirmation by default; change the limit in Settings → Model.
 3. Translation runs in the background page by page. Translated parts are readable immediately; untranslated pages show the original.
-4. Click a paragraph for its action bar; select text to highlight, note or ask. Press `?` for all shortcuts.
+4. Click a paragraph for its action bar; select text to highlight, note or ask. Shortcuts are listed and editable under Settings → Shortcuts; the question mark at top right has help and updates.
 
 ## Reading with an AI agent
 
@@ -132,7 +132,7 @@ See `easyread --help` for all commands and [docs/data-format.md](docs/data-forma
 
 To publish on a site such as GitHub Pages, use `easyread demo ID --out DIR`: images are saved as separate files and loaded on demand, and AI chats are included (read-only).
 
-**Can it translate into languages other than Chinese?** Yes: Chinese, Japanese, Korean, Spanish, French and German are available under Settings → Reading → Translate papers into, and in the import dialog. You can also read the English original. Interface language is independent: choose Chinese or English under Settings → Reading → Language.
+**Can it translate into languages other than Chinese?** Yes: Simplified and Traditional Chinese, Japanese, Korean, Spanish, French, German and Italian are available under Settings → Reading → Translate papers into, and in the import dialog. You can also read the English original. Interface language is independent: choose Chinese or English under Settings → Reading → Language.
 
 ## Development
 

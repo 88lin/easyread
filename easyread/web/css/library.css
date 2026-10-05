@@ -180,18 +180,20 @@
 .hu-text b { font-weight: 600; }
 .hu-text .hint { font-size: 12.5px; }
 .help-h { font-size: 11.5px; font-weight: 500; letter-spacing: .14em; color: var(--ink-3); margin: 18px 0 8px; }
-.help-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.help-tile { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 0; background: none; box-shadow: inset 0 0 0 1px var(--rule); color: var(--ink); text-align: left; font: inherit; text-decoration: none; cursor: pointer; }
-.help-tile:hover { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
-.help-tile svg.i { flex: none; margin-top: 2px; color: var(--accent); }
-.help-tile span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.help-tile b { font-weight: 600; font-size: 14px; }
-.help-tile small { color: var(--ink-3); font-size: 12.5px; line-height: 1.45; }
-.help-foot { margin: 14px 0 0; font-size: 12.5px; }
+.help-faq details { border-top: 1px solid var(--rule); }
+.help-faq details:last-child { border-bottom: 1px solid var(--rule); }
+.help-faq summary { list-style: none; cursor: pointer; padding: 11px 26px 11px 2px; position: relative; font-size: 14px; font-weight: 500; }
+.help-faq summary::-webkit-details-marker { display: none; }
+.help-faq summary::after { content: "+"; position: absolute; right: 4px; top: 8px; font-size: 18px; color: var(--ink-3); }
+.help-faq details[open] summary::after { content: "−"; }
+.help-faq summary:hover { color: var(--accent); }
+.help-faq p { margin: 0 0 12px; padding-right: 26px; color: var(--ink-2); font-size: 13.5px; line-height: 1.7; }
+.help-faq .linkish { font-size: 13.5px; }
+.help-ask { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); font-size: 13.5px; }
 
 @media (max-width: 760px) {
   .engine-cards { grid-template-columns: 1fr 1fr; }
-  .grid3, .help-tiles { grid-template-columns: 1fr; }
+  .grid3 { grid-template-columns: 1fr; }
   .engine-chip { display: none; }
   .steps li { grid-template-columns: 30px 1fr; }
   .steps li .btn { grid-column: 2; grid-row: auto; justify-self: start; margin-top: 8px; }

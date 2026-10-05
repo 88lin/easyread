@@ -36,7 +36,7 @@ class LibraryLocation:
     def request(self, method: str, raw_path: str):
         path = unquote(urlparse(raw_path).path)
         protected = (method == "POST" and path not in (
-            "/api/library/move", "/api/library/inspect", "/api/library/pick-folder", "/api/library/reveal", "/api/log/reveal", "/api/shutdown", "/api/presence/keep"))
+            "/api/library/move", "/api/library/inspect", "/api/library/pick-folder", "/api/library/reveal", "/api/shutdown", "/api/presence/keep"))
         if method in ("GET", "HEAD"):
             protected = path.startswith(("/read/", "/p/")) or (path.startswith("/api/p/") and not path.endswith("/versions"))
         entered = False
@@ -152,13 +152,9 @@ def post(app, path: str, body: dict):
         from .reader_files import reveal
         reveal(app.lib.root)
         return {"ok": True}
-    if path == "/api/log/reveal":  # 问号面板：打开 easyread.log 所在的数据目录，出错时附在反馈里
-        from .reader_files import reveal
-        reveal(config.LOG_PATH.parent)
-        return {"ok": True}
     if path == "/api/shutdown":
         return app.location.shutdown()
     return None
 
 
-POST = {"/api/library/inspect", "/api/library/pick-folder", "/api/library/cleanup", "/api/library/move", "/api/library/reveal", "/api/log/reveal", "/api/shutdown"}
+POST = {"/api/library/inspect", "/api/library/pick-folder", "/api/library/cleanup", "/api/library/move", "/api/library/reveal", "/api/shutdown"}
