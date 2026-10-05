@@ -16,14 +16,14 @@ dependencies = [
 ]
 
 [project.scripts]
-easyread = "easyread.cli:main"
+easyread = "easyread.app.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["easyread"]
+packages.find = { include = ["easyread*"] }
 
 [tool.setuptools.package-data]
-easyread = ["check_tex.js", "web/*", "web/**/*"]
+easyread = ["library/check_tex.js", "web/*", "web/**/*"]
