@@ -13,8 +13,8 @@
     const dlg = PR.$("#textDlg");
     return !!(dlg && dlg.classList.contains("open") && dlg.querySelector("#upFoot"));
   }
-  /* 弹窗下半部分。Windows 安装版：只有“稍后”和“更新”，按钮自己显示进度；下载时“稍后”换成“后台下载”，
-     关掉弹窗照样下，进度显示在顶栏的新版本按钮上。其他平台没有应用内更新，给下载链接 */
+  /* 弹窗下半部分。Windows 安装版：只有“关闭”和“更新”，按钮自己显示进度；下载中关掉弹窗照样下，
+     进度显示在顶栏的新版本按钮上。其他平台没有应用内更新，给下载链接 */
   function renderNativeUpdate() {
     const status = document.querySelector("#upStatus"), foot = document.querySelector("#upFoot");
     if (!status || !foot) return;
@@ -29,14 +29,13 @@
     }
     const labels = { checking: PR.t("正在检查…"), downloading: PR.t("正在下载 {p}%", { p: pct }), downloaded: PR.t("更新并重启"), installing: PR.t("正在重启…"), error: PR.t("重试"), current: PR.t("已经是最新版") };
     const off = ["checking", "downloading", "installing", "current"].includes(phase);
-    const later = phase === "checking" || phase === "downloading" ? PR.t("后台下载") : PR.t("稍后");
     const label = labels[phase] || PR.t("更新");
-    // 下载进度一秒来好几次：只改按钮上的字。整排重画的话按下和松开落在两个不同的按钮上，“后台下载”就点不动
+    // 下载进度一秒来好几次：只改按钮上的字。整排重画的话按下和松开落在两个不同的按钮上，“关闭”就点不动
     const key = phase + "|" + (n.error || "");
     if (foot.dataset.key === key) { foot.querySelector("[data-native-update]").textContent = label; return; }
     foot.dataset.key = key;
     foot.innerHTML = (n.error ? '<p class="hint up-err">' + PR.esc(n.error) + "</p>" : "") +
-      '<button class="btn" data-close>' + later + '</button><button class="btn accent" data-native-update' + (off ? " disabled" : "") + ">" + label + "</button>";
+      '<button class="btn" data-close>' + PR.t("关闭") + '</button><button class="btn accent" data-native-update' + (off ? " disabled" : "") + ">" + label + "</button>";
   }
   /* 顶栏新版本按钮跟着下载走：下载中显示百分比，下好了显示“更新并重启” */
   function renderChip() {
@@ -64,7 +63,7 @@
     if (state.phase === "downloaded" && was !== "downloaded") notifyReady();
   }
   /* 点一次“更新”：弹窗开着就下载完直接重启安装（等下载那次调用返回再装，主进程那时才空出来）；
-     中途点了“后台下载”就只下载，下好了提示再装。后台正在翻译等原因装不了，会带着原因停在“更新并重启” */
+     中途点了“关闭”就只下载，下好了提示再装。后台正在翻译等原因装不了，会带着原因停在“更新并重启” */
   async function runUpdate() {
     try {
       if (nativeUpdate.phase !== "downloaded") acceptNativeUpdate(await bridge.downloadUpdate());
