@@ -112,9 +112,11 @@
 
   /* ---------- 启动 ---------- */
   async function boot() {
+    PR.libraryNav.readerBack(PR.pid);  // The return link must work even while a long paper is still loading.
     PR.applyPrefs();
     try { await PR.load(); } catch (e) {
-      PR.$("#paper").innerHTML = '<div class="pending">' + PR.t("读不到论文：{msg}。", { msg: PR.esc(e.message) }) + '<a href="/">' + PR.t("回文献库") + "</a></div>";
+      const back = PR.$("#backBtn").getAttribute("href") || "/";
+      PR.$("#paper").innerHTML = '<div class="pending">' + PR.t("读不到论文：{msg}。", { msg: PR.esc(e.message) }) + '<a href="' + PR.esc(back) + '">' + PR.t("回文献库") + "</a></div>";
       return;
     }
     if (PR.store.mode === "server") {  // 以本机 prefs.json 为准
@@ -123,7 +125,6 @@
       PR.useServerUi(p);
     }
     if (PR.store.mode === "static") PR.$("#backBtn").style.display = "none";
-    else PR.libraryNav.readerBack(PR.pid);
     PR.applyFeatures();
     const m = S.paper.meta || {};
     document.title = (m.short_zh || m.title_zh || m.title_en || PR.t("论文")) + " · EasyRead";

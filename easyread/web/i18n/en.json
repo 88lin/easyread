@@ -1,4 +1,8 @@
 {
+ "文献库加载超时，请重试": "The library took too long to load. Please retry",
+ "文献库数据不完整，请重试": "The library response is incomplete. Please retry",
+ "正在更新文献库…": "Updating the library…",
+ "正在加载文献库…": "Loading the library…",
  "页数确认上限必须是非负整数": "The confirmation page limit must be a non-negative integer",
  "这篇要译 {n} 页，超过了你设的 {cap} 页，确认后再开始": "This paper has {n} pages to translate, above your {cap}-page limit. Confirm to start",
  "这篇要整理 {n} 页，超过了你设的 {cap} 页，确认后再开始": "This paper has {n} pages to lay out, above your {cap}-page limit. Confirm to start",

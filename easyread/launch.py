@@ -7,7 +7,7 @@ import time
 import webbrowser
 from http.server import ThreadingHTTPServer
 
-from . import __version__, config, detect
+from . import __version__, config, detect, reader_files
 from .log import log, setup as setup_log
 from .presence import Presence
 from .server import App, Handler
@@ -38,7 +38,7 @@ def serve(port: int | None = None, open_browser: bool = False, path: str = "/", 
     log.info("startup http-bound +%.0fms", (time.monotonic() - started) * 1000)
     app.shutdown = httpd.shutdown
     app.location.marker.start()
-    app.presence = Presence(app.jobs.busy, httpd.shutdown, exit_on_close)
+    app.presence = Presence(lambda: app.jobs.busy() or reader_files.busy(), httpd.shutdown, exit_on_close)
     if not config.temp_library():
         write_json_atomic(config.SERVER_INFO, {"url": url, "pid": os.getpid(), "started": now_iso()})
     log.info("EasyRead %s 已启动：%s  文献库：%s", __version__, url, app.lib.root)
