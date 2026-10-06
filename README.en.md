@@ -112,6 +112,8 @@ Your browser opens `http://127.0.0.1:8765`. The server only listens on localhost
 
 EasyRead ships with a CLI, so agents like Claude Code or Codex can read your notes and questions in a conversation, write answers next to the right paragraphs, or translate / re-translate pages themselves. The skill is in [`skill/paper-reading/SKILL.md`](skill/paper-reading/SKILL.md); put that folder in `~/.claude/skills/` or `~/.codex/skills/`.
 
+To have an agent explain a paper in depth rather than only translate it — reconstruct where the authors actually started, make the key formulas concrete enough to work through by hand, then check where the conclusions stop holding — use [`skill/paper-xray/SKILL.md`](skill/paper-xray/SKILL.md). It reads the same `library/<ID>/` and writes its findings as discussion entries anchored to the paragraphs they belong to.
+
 ```bash
 easyread list                          # list the library
 easyread import paper.pdf              # or an arXiv ID / link

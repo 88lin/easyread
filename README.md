@@ -138,6 +138,8 @@ npm run dist
 
 EasyRead 自带命令行，Claude Code / Codex 这类 agent 可以在对话里直接读你的笔记和问题、把回答写到对应段落旁边，也可以亲自翻译或重译某几页。技能说明在 [`skill/paper-reading/SKILL.md`](skill/paper-reading/SKILL.md)，把这个目录放进 `~/.claude/skills/` 或 `~/.codex/skills/` 即可。
 
+想让 agent 把一篇论文**讲透**而不是只译出来——还原作者真实的思考起点、把关键公式落到能自己算的例子、再把结论的边界查一遍——用 [`skill/paper-xray/SKILL.md`](skill/paper-xray/SKILL.md)。它读的是同一份 `library/<ID>/`，谈出来的东西照样写成锚在段落旁的讨论条目。
+
 ```bash
 easyread list                          # 列出文献库
 easyread import 论文.pdf                # 或 arXiv 编号 / 链接
