@@ -6,6 +6,33 @@ const paper = (title = "Existing long article") => ({ id: "longpaper", title_en:
 const data = (items = [paper()]) => ({ items, engine: "none", token: "live-token", first_run: false, version: "1.3.1" });
 const welcome = p => p.node("#list").innerHTML.includes('class="welcome"');
 
+test("idle polling keeps loaded rows in place without an updating banner", async () => {
+  const p = page().library([paper()]); await p.boot();
+  const pending = deferred(), row = p.rows[0], html = p.node("#list").innerHTML;
+  p.node(".main").scrollTop = 420;
+  p.setLibraryRead(() => pending.promise);
+  await p.advance(15000);
+  assert.equal(p.requests.length, 2);
+  assert.equal(p.PR.lib.loadStatus, "ready");
+  assert.equal(p.node("#list").innerHTML, html);
+  assert.equal(p.rows[0], row);
+  pending.resolve({ ...p.PR.lib.lastData, token: "renewed-token" }); await p.flush();
+  assert.equal(p.rows[0], row);
+  assert.equal(p.node(".main").scrollTop, 420);
+  assert.equal(p.PR.token, "renewed-token");
+});
+
+test("busy polling updates changed progress without showing a library-loading banner", async () => {
+  const running = { ...paper(), job: { state: "running", done: 1, total: 4 } };
+  const p = page().library([running]); await p.boot();
+  const pending = deferred(); p.setLibraryRead(() => pending.promise);
+  await p.advance(2500);
+  assert.doesNotMatch(p.node("#list").innerHTML, /正在更新文献库/);
+  pending.resolve(data([{ ...running, job: { ...running.job, done: 2 } }])); await p.flush();
+  assert.match(p.node("#list").innerHTML, /2\/4 页/);
+  assert.doesNotMatch(p.node("#list").innerHTML, /正在更新文献库/);
+});
+
 test("prefs arriving before library data never show first-time setup", async () => {
   const library = deferred(), prefs = deferred(), p = page().library([]);
   p.PR.loadPrefs = () => prefs.promise;
