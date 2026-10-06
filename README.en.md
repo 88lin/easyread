@@ -63,7 +63,9 @@ Settings auto-detect what's installed; "Test one sentence" tells you right away 
 - **macOS** (Apple silicon): `EasyRead-x.x.x-arm64.dmg`, drag EasyRead into Applications. If macOS blocks the first launch, follow the matching instructions below.
 - **Linux**: `EasyRead-x.x.x.AppImage`, `chmod +x` and run it.
 
-Papers and settings live in the `EasyRead` folder in your home directory (same place as the pip install), so reinstalling keeps them.
+Where papers and settings live: the Windows installer keeps them in a `data` folder inside the install directory (kept on updates and uninstall); macOS and Linux use the `EasyRead` folder in your home directory (same place as the pip install). Reinstalling keeps them.
+
+Updating: the Windows and macOS apps and a directly launched Linux AppImage update in-app. When a new version is out the top bar shows it (or check from the question mark at top right); click "Update", let it download in the background, then click "Update and restart". An extracted AppImage or a source install downloads the new version from Releases. macOS and Linux users on 1.3.2 or earlier need to download 1.3.3 manually once; on macOS, keep EasyRead in Applications for in-app updates to work.
 
 ### First launch on macOS
 
@@ -74,7 +76,7 @@ Papers and settings live in the `EasyRead` folder in your home directory (same p
    xattr -dr com.apple.quarantine /Applications/EasyRead.app
    ```
 
-3. **Why verification may fail**: the macOS package currently has an ad-hoc signature, without an Apple developer certificate or notarization, so macOS may block it. The code is open source; you can also [run from source](#run-from-source).
+3. **Why verification may fail**: the macOS package is signed with the project's own self-signed certificate (so in-app updates work), not an Apple developer certificate, and is not notarized, so macOS may block it. The code is open source; you can also [run from source](#run-from-source).
 
 If macOS says the app **“will damage your computer”**, or explicitly detects malware and asks you to move it to the Trash, stop the installation and do not use the steps above to bypass the warning. Follow [Apple’s official guidance](https://support.apple.com/en-us/102445).
 
@@ -111,6 +113,8 @@ Your browser opens `http://127.0.0.1:8765`. The server only listens on localhost
 ## Reading with an AI agent
 
 EasyRead ships with a CLI, so agents like Claude Code or Codex can read your notes and questions in a conversation, write answers next to the right paragraphs, or translate / re-translate pages themselves. The skill is in [`skill/paper-reading/SKILL.md`](skill/paper-reading/SKILL.md); put that folder in `~/.claude/skills/` or `~/.codex/skills/`.
+
+To have an agent explain a paper in depth rather than only translate it — reconstruct where the authors actually started, make the key formulas concrete enough to work through by hand, then check where the conclusions stop holding — use [`skill/paper-xray/SKILL.md`](skill/paper-xray/SKILL.md). It reads the same `library/<ID>/` and writes its findings as discussion entries anchored to the paragraphs they belong to.
 
 ```bash
 easyread list                          # list the library
@@ -155,8 +159,10 @@ Screenshots use a demonstration library. The Japanese sample translates the abst
 
 ## Contributors
 
-- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron desktop packaging and release workflow
+- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron desktop packaging and release workflow; the paper-xray deep-reading skill ([#40](https://github.com/Edwardxlai/easyread/pull/40))
 - [@bisuwuss-netizen](https://github.com/bisuwuss-netizen) — missing PDF dependency in desktop builds, two-column page locating; Markdown tables and blockquotes in Ask AI and notes
-- [@MeshedPoto](https://github.com/MeshedPoto) — PDFium errors during parallel translation, cross-column page highlights, macOS desktop reliability, HTTPS certificates and streaming fixes; ASD-STE100 Chinese answers and math rendering in v1.3
-
+- [@MeshedPoto](https://github.com/MeshedPoto) — PDFium errors during parallel translation, cross-column page highlights, macOS desktop reliability, HTTPS certificates and streaming fixes; ASD-STE100 Chinese answers and math rendering in v1.3; figure cropping fixes in v1.3.1 ([#22](https://github.com/Edwardxlai/easyread/pull/22))
 - [@Lzy22301093](https://github.com/Lzy22301093) — malformed table validation and rendering resilience ([#17](https://github.com/Edwardxlai/easyread/pull/17))
+- [@NGman-s](https://github.com/NGman-s) — pages that only continue the previous paragraph no longer reported as failed translations ([#30](https://github.com/Edwardxlai/easyread/pull/30))
+- [@TWwWT1](https://github.com/TWwWT1) — patches for memory blow-up when importing cropped-page PDFs ([#28](https://github.com/Edwardxlai/easyread/issues/28)) and for papers stuck loading on open ([#35](https://github.com/Edwardxlai/easyread/issues/35))
+- [@kevin9327](https://github.com/kevin9327) — apostrophes in page metadata no longer truncate titles and author names ([#37](https://github.com/Edwardxlai/easyread/pull/37))

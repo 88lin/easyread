@@ -5,7 +5,7 @@
  "翻译到一半失败了怎么办？": "Translation failed partway?",
  "在文献库里点这篇，右侧“翻译”一栏写着失败的原因和页码，点“重试”就行，已经译好的页不会重译。额度用完了就等额度恢复，或者在“设置 → 模型”里临时换一个模型。": "Click the paper in the library. The Translation section on the right shows why it failed and which pages; click Retry. Pages already translated are kept. If you ran out of quota, wait for it to reset or switch models in Settings → Models.",
  "怎么更新？论文和笔记会丢吗？": "How do I update? Will I lose my papers and notes?",
- "点上面的“检查更新”。Windows 安装版点“更新”会自动下载并重启装好；其他系统下载新安装包覆盖安装。论文、笔记和设置都不受影响。": "Click Check for updates above. The Windows installer version downloads and restarts to install with one click; on other systems, install the new package over the old one. Papers, notes and settings are kept.",
+ "点上面的“检查更新”。Windows、macOS 安装版和 Linux 的 AppImage 点“更新”会自动下载并重启装好（macOS 从 1.3.3 起）；从源码运行的照旧下载新版。论文、笔记和设置都不受影响。": "Click Check for updates above. The Windows and macOS apps and the Linux AppImage download and restart to install with one click (macOS from 1.3.3); source installs download the new version as before. Papers, notes and settings are kept.",
  "论文和笔记存在哪？怎么备份、换电脑？": "Where are my papers stored? How do I back up or switch computers?",
  "都在文献库文件夹里，每篇论文一个文件夹，复制整个文件夹就是备份。想在几台电脑上接着读，在“设置 → 云文献库”里把它迁到网盘的同步文件夹。": "Everything is in the library folder, one folder per paper. Copy the whole folder to back up. To read on several computers, move it into a cloud-drive sync folder in Settings → Cloud library.",
  "能发给没装 EasyRead 的人看吗？": "Can I share a paper with someone who doesn't have EasyRead?",
@@ -1084,10 +1084,10 @@
  "整理原文需要可用模型。请检查模型设置后重试；重试使用当前翻译模型，已整理的内容会保留。": "Preparing the original needs a working model. Check your model settings, then retry with the current translation model. Existing content is kept.",
  "模型设置": "Model settings",
  "重试整理原文": "Retry preparing the original",
- "重启并更新": "Restart and update",
+ "更新并重启": "Update and restart",
  "正在重启…": "Restarting…",
  "更新": "Update",
- "稍后": "Later",
+ "EasyRead {v} 已经下好了": "EasyRead {v} is ready to install",
  "正在下载 {p}%": "Downloading {p}%",
 
 

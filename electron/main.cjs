@@ -28,7 +28,7 @@ function appDataDir() {
 app.setPath("userData", path.join(appDataDir(), "EasyRead"));
 startup.mark(app, "electron-entry");
 
-// 桌面版自己的几句报错跟系统语言走（界面语言由后端决定，见 easyread/i18n.py）
+// 桌面版自己的几句报错跟系统语言走（界面语言由后端决定，见 easyread/app/i18n.py）
 const isZh = () => app.getLocale().toLowerCase().startsWith("zh");
 let backend;
 let mainWindow;

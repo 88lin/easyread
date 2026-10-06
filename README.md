@@ -65,7 +65,9 @@
 - **Linux**：`EasyRead-x.x.x.AppImage`，`chmod +x` 后运行。
 - 如果 Linux 提示缺少 `libfuse.so.2`，可按 [AppImage 官方说明](https://docs.appimage.org/user-guide/troubleshooting/fuse.html)配置 FUSE，或在独立目录运行 `./EasyRead-x.x.x.AppImage --appimage-extract`，再运行 `./squashfs-root/AppRun`；无需关闭沙箱
 
-安装版的论文和设置存在用户目录下的 `EasyRead` 文件夹（和 pip 安装版同一个位置），卸载重装不会丢。
+论文和设置存在哪：Windows 安装版在安装目录下的 `data` 文件夹（装在 D 盘就在 D 盘，更新和卸载都会保留）；macOS、Linux 在用户目录下的 `EasyRead` 文件夹（和 pip 安装版同一个位置）。卸载重装不会丢。
+
+以后升级：Windows、macOS 安装版和直接打开的 Linux AppImage 都可以在程序里更新，有新版本时顶栏会提示（也可以在右上角问号里手动检查），点“更新”，可以放到后台下载，下好后点“更新并重启”。解压运行的 AppImage 和从源码运行的照旧从 Releases 下载新版。macOS 和 Linux 从 1.3.2 及以前升级时，要先手动下载 1.3.3 一次；macOS 要把 EasyRead 放在“应用程序”里才能在程序里更新。
 
 ### macOS 首次打开
 
@@ -76,7 +78,7 @@
    xattr -dr com.apple.quarantine /Applications/EasyRead.app
    ```
 
-3. **为什么会出现验证提示**：目前的 macOS 安装包只做了临时签名，没有 Apple 开发者证书，也没有经过公证，因此可能被系统拦截；代码完全开源，也可以[从源码运行](#run-from-source)
+3. **为什么会出现验证提示**：目前的 macOS 安装包用的是项目自己的自签名证书（为了应用内更新），不是 Apple 开发者证书，也没有经过公证，因此可能被系统拦截；代码完全开源，也可以[从源码运行](#run-from-source)
 
 如果系统提示“将损坏你的电脑”，或明确检测出恶意软件并要求移到废纸篓，请停止安装，不要用上面的步骤绕过；按 [Apple 官方说明](https://support.apple.com/zh-cn/102445) 处理
 
@@ -123,7 +125,7 @@ npm run dev
 npm run dist
 ```
 
-输出在 `dist/electron/`：Windows 为 NSIS 安装程序，macOS 为 DMG，Linux 为 AppImage。推送 `v*` 标签后，GitHub Actions 会在三个系统上构建，并把这些安装包自动附加到 GitHub Release；源码 zip 仍会由 GitHub 保留。打包后的文献库和设置保存在系统的 EasyRead 用户数据目录中，不会写进安装目录。
+输出在 `dist/electron/`：Windows 为 NSIS 安装程序，macOS 为 DMG（另有一个给应用内更新用的 zip），Linux 为 AppImage。macOS 包由 `scripts/mac_sign.cjs` 用固定的自签名证书签名，证书从环境变量 `MAC_SIGN_P12`、`MAC_SIGN_P12_PASSWORD` 读（发版时来自仓库 Secrets）；本机没设时退回临时签名，这样打出的包不能应用内更新。推送 `v*` 标签后，GitHub Actions 会在三个系统上构建，并把这些安装包自动附加到 GitHub Release；源码 zip 仍会由 GitHub 保留。打包后的文献库和设置：Windows 存在安装目录下的 `data`（安装目录写不进去时退回 `~/EasyRead`），macOS、Linux 存在 `~/EasyRead`。
 
 ## 怎么用
 
@@ -137,6 +139,8 @@ npm run dist
 ## 和 AI agent 一起读
 
 EasyRead 自带命令行，Claude Code / Codex 这类 agent 可以在对话里直接读你的笔记和问题、把回答写到对应段落旁边，也可以亲自翻译或重译某几页。技能说明在 [`skill/paper-reading/SKILL.md`](skill/paper-reading/SKILL.md)，把这个目录放进 `~/.claude/skills/` 或 `~/.codex/skills/` 即可。
+
+想让 agent 把一篇论文**讲透**而不是只译出来——还原作者真实的思考起点、把关键公式落到能自己算的例子、再把结论的边界查一遍——用 [`skill/paper-xray/SKILL.md`](skill/paper-xray/SKILL.md)。它读的是同一份 `library/<ID>/`，谈出来的东西照样写成锚在段落旁的讨论条目。
 
 ```bash
 easyread list                          # 列出文献库
@@ -183,8 +187,10 @@ MIT。公式渲染用 [KaTeX](https://katex.org)（MIT）。
 
 ## 贡献者
 
-- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron 桌面版打包与发布流程
+- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron 桌面版打包与发布流程；论文精读技能 paper-xray（[#40](https://github.com/Edwardxlai/easyread/pull/40)）
 - [@bisuwuss-netizen](https://github.com/bisuwuss-netizen) — 修复桌面安装包漏打 PDF 依赖、双栏论文原页定位；“问 AI”和笔记里的 Markdown 表格与引用块
-- [@MeshedPoto](https://github.com/MeshedPoto) — 并行翻译时 PDFium 随机报错、跨栏段落原页高亮、macOS 桌面版稳定性、HTTPS 证书与流式回答的一批修复；v1.3 的 ASD-STE100 中文问答和公式显示修复
-
+- [@MeshedPoto](https://github.com/MeshedPoto) — 并行翻译时 PDFium 随机报错、跨栏段落原页高亮、macOS 桌面版稳定性、HTTPS 证书与流式回答的一批修复；v1.3 的 ASD-STE100 中文问答和公式显示修复；v1.3.1 的图片裁剪修复（[#22](https://github.com/Edwardxlai/easyread/pull/22)）
 - [@Lzy22301093](https://github.com/Lzy22301093) — 异常表格校验与渲染修复，避免单个表格导致整篇译文空白（[#17](https://github.com/Edwardxlai/easyread/pull/17)）
+- [@NGman-s](https://github.com/NGman-s) — 整页都是上一页续文时不再误报翻译失败（[#30](https://github.com/Edwardxlai/easyread/pull/30)）
+- [@TWwWT1](https://github.com/TWwWT1) — 裁切分页 PDF 导入时内存暴涨（[#28](https://github.com/Edwardxlai/easyread/issues/28)）、打开时卡在加载中（[#35](https://github.com/Edwardxlai/easyread/issues/35)）的补丁
+- [@kevin9327](https://github.com/kevin9327) — 网页元数据里的撇号不再截断标题和作者名（[#37](https://github.com/Edwardxlai/easyread/pull/37)）
