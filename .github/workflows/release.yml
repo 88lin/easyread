@@ -45,6 +45,10 @@ jobs:
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
       - name: Build and package
         run: npm run dist
+        env:
+          # macOS 包用固定的自签名证书签（scripts/mac_sign.cjs），应用内更新靠它认出是同一个程序
+          MAC_SIGN_P12: ${{ secrets.MAC_SIGN_P12 }}
+          MAC_SIGN_P12_PASSWORD: ${{ secrets.MAC_SIGN_P12_PASSWORD }}
       - name: Smoke test the frozen backend
         run: python scripts/smoke_backend.py
       - name: Check glibc floor of the bundled libpython
@@ -64,6 +68,7 @@ jobs:
           path: |
             dist/electron/*.exe
             dist/electron/*.dmg
+            dist/electron/*.zip
             dist/electron/*.AppImage
             dist/electron/*.blockmap
             dist/electron/latest*.yml
@@ -87,6 +92,7 @@ jobs:
           files: |
             release-assets/**/*.exe
             release-assets/**/*.dmg
+            release-assets/**/*.zip
             release-assets/**/*.AppImage
             release-assets/**/*.blockmap
             release-assets/**/latest*.yml

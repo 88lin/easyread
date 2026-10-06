@@ -64,12 +64,19 @@
           "arch": [
             "arm64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "category": "publications",
-      "identity": "-",
+      "identity": null,
       "hardenedRuntime": false
     },
+    "afterSign": "scripts/mac_sign.cjs",
     "linux": {
       "icon": "electron/assets/icon.png",
       "target": [

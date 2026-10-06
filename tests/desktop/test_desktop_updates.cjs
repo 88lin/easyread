@@ -62,10 +62,10 @@ test("concurrent downloads are coalesced", async () => {
   assert.deepEqual(f.calls, ["download"]);
 });
 
-test("Linux AppImage updates in place; other Linux runs and macOS keep the download link", async () => {
+test("macOS and Linux AppImage update in place; other Linux runs keep the download link", async () => {
   assert.equal(canUpdate("linux", { APPIMAGE: "/home/u/EasyRead.AppImage" }), true);
   assert.equal(canUpdate("linux", {}), false);
-  assert.equal(canUpdate("darwin", {}), false);
+  assert.equal(canUpdate("darwin", {}), true);
   const f = fixture("linux", { APPIMAGE: "/home/u/EasyRead.AppImage" });
   assert.equal((await f.run("download")).phase, "downloaded");
   await f.run("install");
