@@ -1,6 +1,13 @@
-// Windows NSIS updates. The renderer never supplies a feed URL or installer path.
-function registerUpdates({ app, ipcMain, updater, trustedWindow, getWindow, prepareInstall, recover }) {
-  const supported = app.isPackaged && process.platform === "win32";
+// In-app updates for the Windows NSIS installer and the Linux AppImage.
+// The renderer never supplies a feed URL or installer path.
+// An AppImage can only replace itself when launched from the .AppImage file (APPIMAGE is set);
+// extracted or source runs keep the download link. macOS needs a stable signature first.
+function canUpdate(platform, env) {
+  return platform === "win32" || (platform === "linux" && !!env.APPIMAGE);
+}
+
+function registerUpdates({ app, ipcMain, updater, trustedWindow, getWindow, prepareInstall, recover, platform = process.platform, env = process.env }) {
+  const supported = app.isPackaged && canUpdate(platform, env);
   let state = { supported, phase: "idle", version: "", percent: 0, error: "" };
   let busy = false;
   const publish = (patch) => {
@@ -52,4 +59,4 @@ function registerUpdates({ app, ipcMain, updater, trustedWindow, getWindow, prep
   });
 }
 
-module.exports = { registerUpdates };
+module.exports = { registerUpdates, canUpdate };
