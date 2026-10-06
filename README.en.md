@@ -63,7 +63,9 @@ Settings auto-detect what's installed; "Test one sentence" tells you right away 
 - **macOS** (Apple silicon): `EasyRead-x.x.x-arm64.dmg`, drag EasyRead into Applications. If macOS blocks the first launch, follow the matching instructions below.
 - **Linux**: `EasyRead-x.x.x.AppImage`, `chmod +x` and run it.
 
-Papers and settings live in the `EasyRead` folder in your home directory (same place as the pip install), so reinstalling keeps them.
+Where papers and settings live: the Windows installer keeps them in a `data` folder inside the install directory (kept on updates and uninstall); macOS and Linux use the `EasyRead` folder in your home directory (same place as the pip install). Reinstalling keeps them.
+
+Updating: the Windows and macOS apps and a directly launched Linux AppImage update in-app. When a new version is out the top bar shows it (or check from the question mark at top right); click "Update", let it download in the background, then click "Update and restart". An extracted AppImage or a source install downloads the new version from Releases. macOS and Linux users on 1.3.2 or earlier need to download 1.3.3 manually once; on macOS, keep EasyRead in Applications for in-app updates to work.
 
 ### First launch on macOS
 
@@ -74,7 +76,7 @@ Papers and settings live in the `EasyRead` folder in your home directory (same p
    xattr -dr com.apple.quarantine /Applications/EasyRead.app
    ```
 
-3. **Why verification may fail**: the macOS package currently has an ad-hoc signature, without an Apple developer certificate or notarization, so macOS may block it. The code is open source; you can also [run from source](#run-from-source).
+3. **Why verification may fail**: the macOS package is signed with the project's own self-signed certificate (so in-app updates work), not an Apple developer certificate, and is not notarized, so macOS may block it. The code is open source; you can also [run from source](#run-from-source).
 
 If macOS says the app **“will damage your computer”**, or explicitly detects malware and asks you to move it to the Trash, stop the installation and do not use the steps above to bypass the warning. Follow [Apple’s official guidance](https://support.apple.com/en-us/102445).
 
@@ -157,7 +159,7 @@ Screenshots use a demonstration library. The Japanese sample translates the abst
 
 ## Contributors
 
-- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron desktop packaging and release workflow
+- [@Wang-auspicious](https://github.com/Wang-auspicious) — Electron desktop packaging and release workflow; the paper-xray deep-reading skill ([#40](https://github.com/Edwardxlai/easyread/pull/40))
 - [@bisuwuss-netizen](https://github.com/bisuwuss-netizen) — missing PDF dependency in desktop builds, two-column page locating; Markdown tables and blockquotes in Ask AI and notes
 - [@MeshedPoto](https://github.com/MeshedPoto) — PDFium errors during parallel translation, cross-column page highlights, macOS desktop reliability, HTTPS certificates and streaming fixes; ASD-STE100 Chinese answers and math rendering in v1.3; figure cropping fixes in v1.3.1 ([#22](https://github.com/Edwardxlai/easyread/pull/22))
 - [@Lzy22301093](https://github.com/Lzy22301093) — malformed table validation and rendering resilience ([#17](https://github.com/Edwardxlai/easyread/pull/17))
