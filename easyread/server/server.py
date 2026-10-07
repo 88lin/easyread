@@ -20,6 +20,7 @@ from ..translate import langs
 from ..library import trash
 from . import settings_api, library_api, jobs_api, paper_api, wsock
 from ..app.log import log, tail
+from ..zotero import api as zotero_api
 from .jobs import Jobs
 from ..library.library import Library
 from ..app.i18n import tr
@@ -208,6 +209,8 @@ class Handler(BaseHTTPRequestHandler):
         location = library_api.get(app, path)
         if location is not None:
             return self._json(200, location)
+        if path in zotero_api.GET:
+            return self._json(200, zotero_api.get(app, path))
         if path == "/api/library":
             cfg = config.load()
             return self._json(200, {"items": lib.list(), "token": app.token, "jobs": app.jobs.small_status(),
@@ -329,6 +332,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, library_api.post(app, path, json.loads(self._body() or b"{}")))
         if path in jobs_api.POST:  # 一键停止翻译
             return self._json(200, jobs_api.post(app, path, json.loads(self._body() or b"{}")))
+        if path in zotero_api.POST:  # 从 Zotero 迁移
+            return self._json(200, zotero_api.post(app, path, json.loads(self._body() or b"{}")))
         if path == "/api/update":  # 开关“自动检查新版本”
             config.save({"check_updates": bool(json.loads(self._body() or b"{}").get("enabled"))})
             return self._json(200, updates.check())
