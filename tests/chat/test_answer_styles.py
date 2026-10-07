@@ -11,7 +11,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from easyread.chat import chat, chat_store
+from easyread.chat import answer_styles, chat, chat_store
 from easyread.server.server import Handler
 from easyread.library.store import Workspace, write_json_atomic
 
@@ -51,12 +51,38 @@ class AnswerStyleTest(unittest.TestCase):
                 self.assertIn("不要把英文的词数限制机械地套到中文", ste)
                 self.assertIn("不要声称", ste)
 
+    def test_xray_mode_reconstructs_and_checks_instead_of_summarizing(self):
+        messages = [{"role": "assistant", "content": "Previous answer in English."}, {"role": "user", "content": "这个设计为什么长这样"}]
+        for engine in ("openai", "claude", "codex"):
+            with self.subTest(engine=engine):
+                xr = chat.prompt(self.ws, messages, "b", "引用", engine, answer_style="xray")
+                self.assertIn("本次使用精读问答模式", xr)
+                self.assertNotIn("本次使用 ASD-STE100", xr)
+                self.assertNotIn("用中文，直接", xr)
+                # 精读和简明回答一样，要拿到整篇正文作依据
+                self.assertIn("当前已导入的正文", xr)
+                for fact in ("Previous answer in English.", "A source fact with $x$.", "引用", "A test condition.", "2%", "$$y=2x$$", "A final limitation."):
+                    self.assertIn(fact, xr)
+                # 还原作者出发点、分清承重和装饰
+                self.assertIn("先还原作者的出发点", xr)
+                self.assertIn("承重和装饰", xr)
+                # 公式要落到能手算的例子，而不是停在符号层面
+                self.assertIn("能手算的微型例子", xr)
+                # 对照条件、测试集选型、泄漏都要查
+                for check in ("基线的对照条件是否对齐", "只在测试集上挑的", "预处理有没有看过测试集"):
+                    self.assertIn(check, xr)
+                # 没报告的就说没报告，不许补一个像样的数字
+                self.assertIn("论文没有报告", xr)
+                self.assertIn("不要用常识补一个看着合理的数字", xr)
+                # 语气强度照录
+                self.assertIn('“可能”不写成“确定”', xr)
+
     def test_ste_context_only_includes_annotations_when_the_question_requests_them(self):
         write_json_atomic(self.ws.root / "reader.json", {"notes": {
             "r": {"anchor": "b", "quote": "red selection", "body": "red private note", "color": "pink"},
             "b": {"anchor": "c", "quote": "blue selection", "body": "blue private note", "color": "blue"},
         }})
-        for style in ("standard", "ste100"):
+        for style in ("standard", "ste100", "xray"):
             with self.subTest(style=style):
                 plain = chat.prompt(self.ws, [{"role": "user", "content": "总结论文"}], "b", "", "openai", answer_style=style)
                 self.assertNotIn("red private note", plain)
@@ -67,7 +93,7 @@ class AnswerStyleTest(unittest.TestCase):
 
     def test_all_modes_and_engines_require_renderable_math_output(self):
         for engine in ("openai", "claude", "codex"):
-            for style in ("standard", "ste100"):
+            for style in ("standard", "ste100", "xray"):
                 with self.subTest(engine=engine, style=style):
                     prompt = chat.prompt(self.ws, [{"role": "user", "content": "推导这个公式"}], "eq", "", engine, answer_style=style)
                     self.assertIn("行内公式只用 $TeX$", prompt)
@@ -169,6 +195,21 @@ class AnswerStyleTest(unittest.TestCase):
             saved = chat_store.get(self.ws, tid)
             self.assertEqual(saved["answer_style"], "standard")
             self.assertEqual(saved["messages"][1]["answer_style"], "ste100")
+
+    def test_every_declared_mode_round_trips_through_the_server(self):
+        self.start_server()
+        engine = {"engine": "openai"}
+        model = {"id": "m", "name": "Model", "engine": "openai", "model": "test"}
+        for style in answer_styles.VALUES:
+            with self.subTest(style=style), patch("easyread.server.server.config.load", return_value={}), \
+                    patch("easyread.server.server.chat_models.engine_cfg", return_value=(engine, model)), \
+                    patch("easyread.server.server.chat.stream", side_effect=lambda *a: iter([ANSWER])) as stream:
+                events = self.post({"text": "总结论文", "anchor": "b", "answer_style": style})
+                self.assertEqual(events[0]["answer_style"], style)
+                self.assertEqual(chat_store.get(self.ws, events[0]["thread"])["answer_style"], style)
+                # 只有要把整篇正文一起发给模型的模式，提示词里才带得上正文
+                sent = stream.call_args.args[1]
+                self.assertEqual("当前已导入的正文" in sent, style in answer_styles.WHOLE_PAPER)
 
     def test_invalid_mode_is_http_400_before_any_model_call(self):
         self.start_server()
