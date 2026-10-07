@@ -271,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
                 if app.location.status != "idle":
                     raise app.location._error()
                 from ..export.build import build
-                out = build(ws)
+                out = build(ws, mobile=parse_qs(url.query).get("mobile") == ["1"])
                 return self._download(out.read_bytes(), out.name, "text/html; charset=utf-8")
             if action == "part" and len(parts) > 5 and parts[5] in ("paper", "discussion", "reader", "layout", "job"):
                 version = ws.versions()[parts[5]]

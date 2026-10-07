@@ -181,6 +181,8 @@
  "{m}月{d}日 {time}": "{m}/{d} {time}",
  "{name} 拒绝了当前地区的访问：梯子节点在它不支持的地区（比如香港），换成美国、日本、新加坡等节点再重试。": "{name} refused access from your region: your VPN node is in an unsupported region (e.g. Hong Kong). Switch to a node in the US, Japan, Singapore, etc. and retry.",
  "{name}-离线版.html": "{name}-offline.html",
+ "{name}-手机版.html": "{name}-mobile.html",
+ "导出手机版（只读，体积小）": "Export for phone (read-only, small)",
  "{name}（{host}）证书校验失败：请检查系统信任的根证书；使用代理时，也检查代理证书是否已获系统信任。": "{name} ({host}): certificate verification failed. Check your system's trusted root certificates; if you use a proxy, make sure its certificate is trusted too.",
  "{n} 个问题待回答": "{n} open questions",
  "{n} 分钟前": "{n} min ago",
