@@ -49,7 +49,9 @@
     const controller = (loadController = new AbortController());
     let timer;
     if (restorePending && restoreView === null) restoreView = viewKey();
-    L.loadStatus = "loading"; L.loadError = ""; L.render();
+    // Poll an already loaded list in the background: inserting a status row
+    // on every request shifts the papers and resets their DOM twice per poll.
+    if (L.loadStatus === "loading") L.render();
     try {
       const deadline = new Promise((resolve, reject) => {
         timer = setTimeout(() => {
@@ -86,6 +88,9 @@
     }
   };
   function apply(d, cached = false) {
+    const changed = cached || L.loadStatus !== "ready" ||
+      JSON.stringify([L.items, L.engine, L.engineLabel, L.firstRun, L.version, L.trashCount]) !==
+      JSON.stringify([d.items, d.engine, d.engine_label, d.first_run, d.version, d.trash || 0]);
     L.lastData = d;  // 切换界面语言前存一份，刷新后先拿它画列表，不闪空白（lang-toggle.js）
     L.loadStatus = cached ? "loading" : "ready"; L.loadError = "";
     if (!cached) PR.token = d.token;
@@ -98,9 +103,9 @@
     if (!cached) {
       if (PR.libraryLocationNotice) PR.libraryLocationNotice(d);
       PR.libraryNav.rememberList(d);
-      engineChip();
+      if (changed) engineChip();
     }
-    L.render();
+    if (changed) L.render();
   }
 
   function schedule() {
