@@ -77,6 +77,8 @@ function page(url = "http://127.0.0.1:8765/", storage = new Map(), state = null,
     library(value, cats = ["分类"]) {
       items = value; categories = cats;
       vm.runInNewContext(source("library/app.js"), context);
+      vm.runInNewContext(source("library/cat-tree.js"), context);
+      vm.runInNewContext(source("library/categories.js"), context);
       vm.runInNewContext(source("library/sidebar.js"), context);
       PR.renderSide = () => {};
       return this;

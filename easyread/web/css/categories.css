@@ -1,0 +1,6 @@
+/* 侧栏里分类的层级：子分类每深一级往右缩 16px；有子分类的行左边一个小箭头，点它展开 / 收起 */
+.side .srow[style*="--lvl"] { padding-left: calc(10px + var(--lvl) * 16px); }
+.side .srow .fold { position: absolute; left: calc(var(--lvl, 0) * 16px - 8px); top: 8px; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 4px; color: var(--ink-3); transform: rotate(-90deg); transition: transform .12s; }
+.side .srow .fold.open { transform: none; }
+.side .srow .fold:hover { background: var(--surface); color: var(--ink); }
+.side .srow .fold svg.i { width: 12px; height: 12px; }

@@ -1134,5 +1134,13 @@
  "停止翻译（{n}）": "Stop translation ({n})",
  "停止翻译": "Stop translation",
  "停止所有论文的翻译和原文整理，已译的部分保留": "Stop translating and laying out all papers; finished parts are kept",
- "ids 必须是字符串数组": "ids must be an array of strings"
+ "ids 必须是字符串数组": "ids must be an array of strings",
+ "不能把分类放进它自己的子分类里": "Can't move a category into its own sub-category",
+ "它下面的 {n} 个子分类也会一起删掉。": "Its {n} sub-categories will be deleted too. ",
+ "子分类名，回车": "Sub-category name, then Enter",
+ "展开 / 收起子分类": "Expand / collapse sub-categories",
+ "移到最外层": "Move to top level",
+ "新建子分类": "New sub-category",
+ "移到…": "Move to…",
+ "新分类的名字，“父/子”建子分类": "New category name (use Parent/Child for a sub-category)"
 }
