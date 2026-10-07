@@ -8,6 +8,7 @@
   const AFTER = [["translate", PR.t("翻译成"), PR.t("后台逐页翻译，随时对照原文；译成哪种语言在右边选")],
     ["read", PR.t("读英文原文"), PR.t("不翻译：模型只把公式、表格、段落排好，正文就是英文，比翻译省用量；想看译文了随时点“翻译成{lang}”", { lang: PR.targetName(PR.target) })],
     ["none", PR.t("先不处理"), PR.t("不用模型，阅读页先放原页图片")]];
+  const BULK = 5;  // 一次超过这么多篇，先问要不要翻译
 
   const pref = () => {
     const saved = PR.ls.get("easyread-import", null);
@@ -101,7 +102,17 @@
     const pdfs = files.filter((f) => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
     if (!pdfs.length) return PR.toast(PR.t("只支持 PDF 文件"));
     close();
-    const o = opts();
+    let o = opts();
+    // 一次拖进来很多篇：默认先只导入，免得按上次的设置把额度一下子用光
+    if (pdfs.length > BULK && o.translate) {
+      const pick = await PR.confirm({
+        title: PR.t("一次导入 {n} 篇，先不翻译？", { n: pdfs.length }),
+        body: (o.read ? PR.t("按上次的设置，导入后会用模型整理全部 {n} 篇的原文，比较费额度。", { n: pdfs.length }) : PR.t("按上次的设置，导入后会翻译全部 {n} 篇，比较费额度。", { n: pdfs.length })) +
+          PR.t("先只导入的话，之后在想读的论文上点翻译，或勾选几篇一起翻译。"),
+        ok: PR.t("只导入"), alt: o.read ? PR.t("照样整理全部") : PR.t("照样翻译全部"), center: true });
+      if (!pick) return;
+      if (pick === true) o = Object.assign(o, { translate: false, read: false, model: "", target: "" });
+    }
     let last = null;
     for (const [k, f] of pdfs.entries()) {
       PR.toast(PR.t("正在导入 {i}/{n}：{name}", { i: k + 1, n: pdfs.length, name: PR.esc(f.name) }), null, 60000);

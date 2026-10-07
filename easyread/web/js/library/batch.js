@@ -49,6 +49,7 @@
       (L.tag || L.view === "starred" ? tool("uncat", PR.t("移出“{name}”", { name: L.tag || PR.t("星标") }), "x") : "") +
       tool("status", PR.t("切换状态"), "book") +
       tool("translate", PR.t("翻译"), "sparkle") +
+      (pickedItems().some(L.modelBusy) ? tool("stop", PR.t("停止翻译"), "stop") : "") +
       tool("cite", PR.t("导出引用"), "copy") +
       tool("trash", "", "trash", PR.t("移到回收站")) + "</div>" +
       '<button class="btn sm accent" data-b="done">' + PR.t("完成") + "</button>";
@@ -143,6 +144,7 @@
     else if (act === "uncat") removeCurrent();
     else if (act === "status") statusMenu(at);
     else if (act === "translate") translateAll(at);
+    else if (act === "stop") PR.stopJobs(pickedItems(), at);
     else if (act === "cite") PR.openCiteExport(pickedItems(), L.tag || PR.$("#viewTitle").textContent);
     else if (act === "trash") trashAll(at);
   }
@@ -186,6 +188,7 @@
       ...(L.tag || L.view === "starred" ? [{ label: PR.t("移出“{name}”", { name: L.tag || PR.t("星标") }), icon: "x", fn: removeCurrent }] : []),
       { label: PR.t("切换状态…"), icon: "book", fn: () => statusMenu(at) },
       { label: PR.t("翻译"), icon: "sparkle", fn: () => translateAll(at) },
+      ...(pickedItems().some(L.modelBusy) ? [{ label: PR.t("停止翻译"), icon: "stop", fn: () => PR.stopJobs(pickedItems(), at) }] : []),
       { label: PR.t("导出引用"), icon: "copy", fn: () => run("cite") },
       "-",
       { label: PR.t("移到回收站"), icon: "trash", fn: () => trashAll(at) },

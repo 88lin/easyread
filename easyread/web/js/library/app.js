@@ -171,6 +171,7 @@
     PR.$("#viewTitle").textContent = L.tag ? L.tag : L.view === "all" ? PR.t("全部论文") : view[1];
     PR.$("#count").textContent = PR.t("{n} 篇", { n: list.length });
     PR.renderBatch && PR.renderBatch(list);
+    PR.renderStopAll && PR.renderStopAll();
     const status = L.loadStatus !== "ready" && L.items.length ? '<div class="up-status" role="status">' + loadHtml() + "</div>" : "";
     PR.$("#list").innerHTML = status + (list.length ? list.map(rowHtml).join("") : emptyHtml());
     if (L.selected && !L.byId(L.selected)) L.select(null);

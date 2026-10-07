@@ -1089,9 +1089,6 @@
  "更新": "Update",
  "EasyRead {v} 已经下好了": "EasyRead {v} is ready to install",
  "正在下载 {p}%": "Downloading {p}%",
-
-
-
  "同时译几段": "Parallel segments",
  "自动": "Auto",
  "把全文切成几段同时译，段内按顺序译；自动按篇幅每段约 2 批、最多 4 段；手动最多 8 段": "Split the paper into segments translated at the same time, in order within each segment; Auto uses about 2 batches per segment, up to 4; up to 8 when set manually",
@@ -1103,7 +1100,6 @@
  "术语一致性检查：查了 {n} 段，改了 {m} 段": "Terminology check: {n} passages checked, {m} changed",
  "术语一致性检查没做成：{err}": "Terminology check failed: {err}",
  "术语一致性检查已取消，译文保留": "Terminology check cancelled; translation kept",
- 
  "未知": "Unknown",
  "正在保存…": "Saving…",
  "保存失败": "Could not save",
@@ -1120,5 +1116,21 @@
  "双语顺序": "Bilingual order",
  "（原文）": " (original)",
  "对应原文里的标注": "Matches an annotation on the original",
- "对应译文里的标注": "Matches an annotation on the translation"
+ "对应译文里的标注": "Matches an annotation on the translation",
+ "一次导入 {n} 篇，先不翻译？": "Importing {n} papers. Skip translation for now?",
+ "按上次的设置，导入后会用模型整理全部 {n} 篇的原文，比较费额度。": "With your last settings, the model would lay out all {n} papers after import, which uses a lot of quota. ",
+ "按上次的设置，导入后会翻译全部 {n} 篇，比较费额度。": "With your last settings, all {n} papers would be translated after import, which uses a lot of quota. ",
+ "先只导入的话，之后在想读的论文上点翻译，或勾选几篇一起翻译。": "If you import only, you can translate the papers you want to read later, or pick several and translate them together.",
+ "只导入": "Import only",
+ "照样整理全部": "Lay out all anyway",
+ "照样翻译全部": "Translate all anyway",
+ "选中的论文没有在翻译": "None of the selected papers are being translated",
+ "停止 {n} 篇的翻译？": "Stop translating {n} papers?",
+ "已译的部分保留，之后可以接着译；还没渲染的原页照常渲染。": "Finished parts are kept and you can continue later. Pages not rendered yet will still be rendered.",
+ "已停止 {n} 篇": "Stopped {n} papers",
+ "停止失败：{msg}": "Couldn't stop: {msg}",
+ "停止翻译（{n}）": "Stop translation ({n})",
+ "停止翻译": "Stop translation",
+ "停止所有论文的翻译和原文整理，已译的部分保留": "Stop translating and laying out all papers; finished parts are kept",
+ "ids 必须是字符串数组": "ids must be an array of strings"
 }

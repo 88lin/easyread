@@ -16,15 +16,15 @@ from ..chat import answer_styles, chat, chat_models, chat_store, notehelp
 from ..pdf import figures, pdfwork
 from ..app import cli_models, config, i18n, open_link, prefs, updates
 from ..engines import detect, engines, usage
-from ..translate import langs, translate_api
-from ..library import paperdata, trash
-from . import settings_api, library_api, wsock
+from ..translate import langs
+from ..library import trash
+from . import settings_api, library_api, jobs_api, paper_api, wsock
 from ..app.log import log, tail
 from .jobs import Jobs
 from ..library.library import Library
 from ..app.i18n import tr
 from ..library.store import now_iso
-from ..library.reader_files import prepare_later as _prepare_later, reveal as _reveal
+from ..library.reader_files import prepare_later as _prepare_later
 
 WEB = config.WEB
 mimetypes.add_type("image/webp", ".webp")
@@ -327,6 +327,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path in library_api.POST:
             return self._json(200, library_api.post(app, path, json.loads(self._body() or b"{}")))
+        if path in jobs_api.POST:  # 一键停止翻译
+            return self._json(200, jobs_api.post(app, path, json.loads(self._body() or b"{}")))
         if path == "/api/update":  # 开关“自动检查新版本”
             config.save({"check_updates": bool(json.loads(self._body() or b"{}").get("enabled"))})
             return self._json(200, updates.check())
@@ -363,46 +365,13 @@ class Handler(BaseHTTPRequestHandler):
             ws = lib.ws(parts[3]) if len(parts) > 4 else None
             if not ws:
                 return self._json(404, {"error": tr("没有这篇论文")})
-            action = parts[4]
             body = json.loads(self._body() or b"{}")
-            if action == "chat" and len(parts) > 5:
-                sub, tid = parts[5], body.get("thread", "")
-                if sub == "pin":
-                    chat_store.pin(ws, tid, body.get("id", ""))
-                elif sub == "rename":
-                    chat_store.rename(ws, tid, body.get("title", ""))
-                elif sub == "delete":
-                    chat_store.delete(ws, tid)
-                return self._json(200, {"threads": chat_store.threads(ws)})
-            if action == "chat":
+            if parts[4] == "chat" and len(parts) == 5:
                 return self._chat(ws, body)
-            if action == "notehelp":
+            if parts[4] == "notehelp":
                 return notehelp.handle(self, ws, body)
-            if action == "discussion_del":
-                return self._json(200, {"deleted": paperdata.delete_discussion(ws, str(body.get("id", "")))})
-            if action == "ops":
-                ops = body.get("ops") or []
-                if not isinstance(ops, list):
-                    raise ValueError(tr("ops 必须是数组"))
-                res = ws.apply_reader_ops(ops, client=str(body.get("client", ""))[:40])
-                res["versions"] = ws.versions()
+            res = paper_api.post(app, ws, parts, body)
+            if res is not None:
                 return self._json(200, res)
-            if action == "item":
-                return self._json(200, ws.patch_item(body))
-            if action == "translate":
-                return self._json(200, translate_api.enqueue(app.jobs, ws, body))
-            if action == "reveal":  # 在资源管理器 / 访达里打开这篇的文件夹
-                _reveal(ws.root)
-                return self._json(200, {"ok": True})
-            if action == "cancel":
-                app.jobs.cancel(ws.id)
-                return self._json(200, {"ok": True})
-            if action == "answer":
-                return self._json(200, app.jobs.submit_small("answer", ws.id, note=body["note"]))
-            if action == "retranslate":
-                return self._json(200, app.jobs.submit_small("retranslate", ws.id, key=body["key"], hint=body.get("hint", "")))
-            if action == "delete":
-                app.jobs.cancel(ws.id)
-                return self._json(200, {"trash": str(lib.trash(ws.id))})
         return self._json(404, {"error": "not found"})
 
