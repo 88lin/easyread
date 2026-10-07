@@ -1184,5 +1184,19 @@
  "读不了 Zotero 的数据库。请先关掉 Zotero 再试。": "Can't read Zotero's database. Quit Zotero and try again.",
  "没有 PDF 附件": "No PDF attachment",
  "这个文件夹里没有 Zotero 的数据库（{db}）：{path}": "This folder has no Zotero database ({db}): {path}",
- "{done}/{total}：{title}": "{done}/{total}: {title}"
+ "{done}/{total}：{title}": "{done}/{total}: {title}",
+ "导入整个文件夹": "Import a whole folder",
+ "个 PDF，会导入": "PDFs will be imported",
+ "个文件夹，变成分类": "folders become categories",
+ "文件夹的层级就是分类的层级：选的文件夹是最外层，里面的子文件夹是它的子分类。同一个 PDF 放在几个文件夹里，只导入一篇，几个分类都会有它。": "Folders become nested categories: the folder you picked is the top level and its subfolders are sub-categories. A PDF that sits in several folders is imported once and placed in all of those categories.",
+ "导入后不会自动翻译，只准备原页；想读哪篇再翻译哪篇。可以重复导入同一个文件夹，已经导入的只补分类，不会重复。": "Nothing is translated automatically; pages are only prepared, so translate the papers you want to read. You can import the same folder again: papers already here only get their categories updated, nothing is duplicated.",
+ "换个文件夹": "Pick another folder",
+ "开始导入": "Start import",
+ "导入完成。": "Import finished.",
+ "选择要导入的文件夹": "Choose a folder to import",
+ "导入整个文件夹…": "Import a whole folder…",
+ "不认识的来源：{source}": "Unknown source: {source}",
+ "找不到这个文件夹：{path}": "Folder not found: {path}",
+ "这个文件夹里的 PDF 超过 {n} 个，请分几次导入，每次选一个子文件夹": "This folder has more than {n} PDFs. Import it in parts, one subfolder at a time",
+ "成批导入": "Bulk import"
 }

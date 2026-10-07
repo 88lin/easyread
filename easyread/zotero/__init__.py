@@ -1,1 +1,1 @@
-"""从 Zotero 整库迁移：找到 Zotero 的数据目录，读它的数据库副本，把论文、分类、标签搬进文献库。"""
+"""从 Zotero 读数据：找数据目录（locate）、读数据库副本（reader）。搬进文献库在 easyread/bulk/。"""

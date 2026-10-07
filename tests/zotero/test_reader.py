@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from easyread.zotero import locate, reader
-from .fake_zotero import FakeZotero
+from tests.zotero.fake_zotero import FakeZotero
 
 
 class ReaderTest(unittest.TestCase):

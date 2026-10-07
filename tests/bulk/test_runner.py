@@ -4,8 +4,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from easyread.library.library import Library
-from easyread.zotero import migrate
-from .fake_zotero import FakeZotero, pdf_bytes
+from easyread.bulk import runner as migrate
+from tests.zotero.fake_zotero import FakeZotero, pdf_bytes
 
 
 class NowThread:
@@ -54,13 +54,13 @@ class MigrateTest(unittest.TestCase):
 
     def test_scan_counts_without_importing(self):
         self.build()
-        s = self.mig.scan(str(self.zdir))
+        s = self.mig.scan("zotero", str(self.zdir))
         self.assertEqual((s["total"], s["with_pdf"], s["no_pdf"], s["fetchable"], s["collections"], s["tags"]), (2, 1, 1, 1, 3, 1))
         self.assertEqual(self.app.lib.all(), [])
 
     def test_import_keeps_metadata_categories_tags_and_date(self):
         self.build()
-        st = self.mig.start(str(self.zdir))
+        st = self.mig.start("zotero", str(self.zdir))
         self.assertEqual((st["state"], st["imported"], len(st["skipped"])), ("done", 1, 1))
         ws = self.papers()["Paper A"]
         item = ws.load("item")
@@ -72,11 +72,11 @@ class MigrateTest(unittest.TestCase):
 
     def test_without_tags_and_second_run_only_adds_categories(self):
         self.build()
-        self.mig.start(str(self.zdir), with_tags=False)
+        self.mig.start("zotero", str(self.zdir), with_tags=False)
         ws = self.papers()["Paper A"]
         self.assertEqual(ws.load("item")["tags"], ["ML/CV"])
         ws.update("item", lambda i: i["tags"].append("自己加的"))
-        st = self.mig.start(str(self.zdir))
+        st = self.mig.start("zotero", str(self.zdir))
         self.assertEqual((st["imported"], st["existing"]), (0, 1))
         self.assertEqual(ws.load("item")["tags"], ["ML/CV", "自己加的", "Zotero 标签/必读"])
         self.assertEqual(len(self.app.lib.all()), 1)
@@ -84,7 +84,7 @@ class MigrateTest(unittest.TestCase):
     def test_fetch_downloads_items_with_doi(self):
         self.build()
         self.app.lib.fetch = MagicMock(return_value=(pdf_bytes("B"), "b.pdf", {"title_en": "From the web", "venue": "Web"}))
-        st = self.mig.start(str(self.zdir), fetch=True)
+        st = self.mig.start("zotero", str(self.zdir), fetch=True)
         self.app.lib.fetch.assert_called_once_with("10.1/b")
         self.assertEqual(st["imported"], 2)
         meta = self.papers()["Paper B"].load("paper")["meta"]
@@ -93,7 +93,7 @@ class MigrateTest(unittest.TestCase):
     def test_failed_download_is_recorded_and_others_continue(self):
         self.build()
         self.app.lib.fetch = MagicMock(side_effect=ValueError("404"))
-        st = self.mig.start(str(self.zdir), fetch=True)
+        st = self.mig.start("zotero", str(self.zdir), fetch=True)
         self.assertEqual((st["state"], st["imported"]), ("done", 1))
         self.assertEqual(st["failed"][0]["title"], "Paper B")
 

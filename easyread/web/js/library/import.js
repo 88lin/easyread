@@ -30,7 +30,8 @@
       '<div class="or">' + PR.t("或者") + "</div>" +
       '<label class="field"><span>' + PR.t("链接、arXiv 编号、DOI 或论文标题") + '</span><div class="inline"><input class="input" id="arxivRef" placeholder="' + PR.t("2411.00640 · 10.18653/v1/N19-1423 · 论文网页链接 · 论文标题") + '">' +
       '<button class="btn accent" id="arxivGo">' + PR.t("导入") + "</button></div></label>" +
-      '<button class="linkish imp-zotero" id="zoteroGo">' + PR.icon("upload", "sm") + PR.t("从 Zotero 迁移整个文献库…") + "</button>" +
+      '<div class="imp-bulk"><button class="linkish" id="folderGo">' + PR.icon("folder", "sm") + PR.t("导入整个文件夹…") + "</button>" +
+      '<button class="linkish" id="zoteroGo">' + PR.icon("upload", "sm") + PR.t("从 Zotero 迁移整个文献库…") + "</button></div>" +
       '<div class="imp-opts"><span class="imp-lbl">' + PR.t("导入后") + '</span><div class="seg" id="afterSeg">' + AFTER.map(([k, l, tip]) => '<button data-after="' + k + '" title="' + PR.esc(tip) + '" class="' + (after === k ? "on" : "") + '"' + (off && k !== "none" ? " disabled" : "") + ">" + l + "</button>").join("") + "</div>" +
         '<select class="input imp-target" id="impTarget" title="' + PR.t("译成哪种语言") + '"' + (after === "translate" ? "" : " hidden") + ">" + PR.opt(PR.TARGETS, PR.target) + "</select></div>" +
       '<p class="hint" id="originalModelHint"' + (after === "read" ? "" : " hidden") + '>' + PR.t("读英文原文仍需可用模型整理段落、公式和表格，会消耗模型额度；只看 PDF 可选“先不处理”。") + "</p>" +
@@ -75,6 +76,7 @@
     if (e.target.closest("#arxivGo")) importRef(PR.$("#arxivRef").value);
     if (e.target.closest("#impEngine")) { close(); PR.openSettings(); }
     if (e.target.closest("#zoteroGo")) { close(); PR.openZotero(); }
+    if (e.target.closest("#folderGo")) { close(); PR.openFolderImport(); }
     const a = e.target.closest("[data-after]");
     if (a && !a.disabled) {
       savePref({ after: a.dataset.after });
