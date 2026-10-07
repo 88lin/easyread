@@ -51,7 +51,8 @@
     if (restorePending && restoreView === null) restoreView = viewKey();
     // Poll an already loaded list in the background: inserting a status row
     // on every request shifts the papers and resets their DOM twice per poll.
-    if (L.loadStatus === "loading") L.render();
+    // A retry after an error still shows "loading" so the click visibly took effect.
+    if (L.loadStatus !== "ready") { L.loadStatus = "loading"; L.loadError = ""; L.render(); }
     try {
       const deadline = new Promise((resolve, reject) => {
         timer = setTimeout(() => {

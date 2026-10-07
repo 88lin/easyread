@@ -33,6 +33,21 @@ test("busy polling updates changed progress without showing a library-loading ba
   assert.doesNotMatch(p.node("#list").innerHTML, /正在更新文献库/);
 });
 
+test("retrying after a failed poll shows loading instead of the stale error", async () => {
+  const retry = deferred(), p = page().library([paper()]); await p.boot();
+  p.setLibraryRead(() => Promise.reject(new Error("offline")));
+  await p.advance(15000);
+  assert.match(p.node("#list").innerHTML, /连不上本地服务/);
+  p.setLibraryRead(() => retry.promise);
+  await p.advance(1500);
+  assert.equal(p.PR.lib.loadStatus, "loading");
+  assert.match(p.node("#list").innerHTML, /正在更新文献库/);
+  assert.doesNotMatch(p.node("#list").innerHTML, /连不上本地服务/);
+  retry.resolve(data()); await p.flush();
+  assert.equal(p.PR.lib.loadStatus, "ready");
+  assert.doesNotMatch(p.node("#list").innerHTML, /up-status/);
+});
+
 test("prefs arriving before library data never show first-time setup", async () => {
   const library = deferred(), prefs = deferred(), p = page().library([]);
   p.PR.loadPrefs = () => prefs.promise;
