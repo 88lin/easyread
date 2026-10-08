@@ -38,6 +38,7 @@ class FigureTest(unittest.TestCase):
             figures.prepare_figures(self.root, [b], 2)
         self.assertEqual(crop.call_count, 2)
         self.assertNotEqual(a["src"], b["src"])
+        self.assertEqual(b["abox"], [.1, .1, .8, .8])  # abox 跟着当前截图走
         with Image.open(self.root / a["src"]) as small, Image.open(self.root / b["src"]) as big:
             self.assertLess(small.width, big.width)
 
@@ -56,6 +57,7 @@ class FigureTest(unittest.TestCase):
         crop.assert_not_called()
         self.assertEqual(a["src"], "")
         self.assertNotIn("box", a)
+        self.assertNotIn("abox", a)
 
     def test_failed_crop_drops_stale_source(self):
         a = self.figure()
@@ -164,9 +166,23 @@ class FigureTest(unittest.TestCase):
         self.assertEqual(updated["abox"], [.1, .3, .9, .9])
         # layout 没变时 fill 不再触发，abox 保持稳定
         self.assertNotIn("box", updated)
+        with mock.patch.object(figures.pdfwork, "crop") as crop:
+            self.assertEqual(figures.fill(ws), 0)
+        crop.assert_not_called()
+
+    def test_old_crop_missing_abox_is_backfilled_without_recropping(self):
+        ws, old = self.auto_figure()
+        write_json_atomic(self.root / "layout.json", {"fig1": {"page": 1, "box": [.5, .4, .9, .7], "src": "graphic"}})
+        with mock.patch.object(figures.pdfwork, "crop") as crop:
+            self.assertEqual(figures.fill(ws), 1)
+            self.assertEqual(figures.fill(ws), 0)
+        crop.assert_not_called()
+        updated = ws.load("paper")["blocks"][0]
+        self.assertEqual(updated["src"], old["src"])
+        self.assertEqual(updated["abox"], [.5, .4, .9, .7])
 
     def test_custom_image_and_unrecognized_model_box_are_not_replaced(self):
-        for manual, src in (({"src": "figures/custom.webp"}, "graphic"), ({"box": [.5, .4, .9, .7]}, "manual")):
+        for manual, src in (({"src": "figures/custom.webp"}, "graphic"), ({"box": [.5, .4, .9, .7], "abox": [.5, .4, .9, .7]}, "manual")):
             ws, old = self.auto_figure()
             ws.update("paper", lambda p: p["blocks"][0].update(manual))
             write_json_atomic(self.root / "layout.json", {"fig1": {"page": 1, "box": [.5, .4, .9, .7], "src": src}})
@@ -180,7 +196,9 @@ class FigureTest(unittest.TestCase):
         write_json_atomic(self.root / "layout.json", {"fig1": {
             "page": 1, "box": [.1, .3, .9, .9], "crop": [.1, .3, .9, .8], "src": "graphic"}})
         self.assertEqual(figures.fill(ws), 1)
-        self.assertEqual(ws.load("paper")["blocks"][0]["src"], figures.crop(self.root, 1, [.1, .3, .9, .8]))
+        updated = ws.load("paper")["blocks"][0]
+        self.assertEqual(updated["src"], figures.crop(self.root, 1, [.1, .3, .9, .8]))
+        self.assertEqual(updated["abox"], [.1, .3, .9, .8])  # 定宽用不含题注的截图框，不是 box
 
     def test_concurrent_retranslation_does_not_get_overwritten(self):
         ws, old = self.auto_figure()

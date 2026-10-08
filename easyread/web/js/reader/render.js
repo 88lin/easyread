@@ -106,11 +106,11 @@
       return b.caption_pos === "above" ? captionHtml(b) + table : table + captionHtml(b);
     },
     figure(b) {
-      // 图按原 PDF 的物理尺寸（1pt = 4/3 CSS px）显示，和原页一致；
-      // 版心放不下时 max-width:100% 兜底。没有 box 的旧论文维持浏览器默认。
+      // 图按原 PDF 的物理尺寸（1pt = 4/3 CSS px）显示，和原页一致；版心放不下时 max-width:100% 兜底。
+      // 优先用 abox（截图实际用的框，按 PDF 图形边界校正过）；模型给的 box 常偏紧，只在没有 abox 时退用。两个都没有维持浏览器默认。
       let style = "";
       const page = b.page && (S.paper.meta || {}).pages ? (S.paper.meta.pages.find((p) => p.n === b.page) || {}) : {};
-      const box = figureBox(b.box) || figureBox(b.abox);
+      const box = figureBox(b.abox) || figureBox(b.box);
       if (box && page.w) {
         const w = Math.round((box[2] - box[0]) * page.w * 4 / 3);
         if (w >= 24) style = ' style="width:' + Math.min(w, Math.round(page.w * 4 / 3)) + 'px"';

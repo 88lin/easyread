@@ -68,24 +68,27 @@ def normalize_figure(block: dict) -> None:
 
 def prepare_figures(root, blocks: list[dict], total_pages: int) -> None:
     """在合并锁里、最后一次 id 去重之后调用：有 box 的图块重新截图。
-    截不了（页码不对、框无效、截图失败）就清掉 src 和 box，留给原页入口和 fill_later。没 box 的块不动。"""
+    截不了（页码不对、框无效、截图失败）就清掉 src 和 box，留给原页入口和 fill_later。没 box 的块不动。
+    abox 始终是当前 src 那张截图实际用的框，阅读页按它占原页的比例给图定宽。"""
     for block in blocks:
         if block.get("type") != "figure" or not block.get("box"):
             continue
         block["src"] = ""
+        block.pop("abox", None)
         page, box = block.get("page"), figure_box(block["box"])
         if not box or not isinstance(page, int) or not 1 <= page <= total_pages:
             block.pop("box", None)
             continue
         try:
             block["src"] = crop(root, page, box)
+            block["abox"] = box
         except Exception:  # noqa: BLE001
             block.pop("box", None)
             log.exception("截图失败 %s 第 %s 页", block.get("id"), page)
 
 
 def _pending(ws):
-    """没有截图或自动裁剪范围已变化的图块；保留自定义 src。"""
+    """没有截图、自动裁剪范围已变化或缺 abox 的图块；保留自定义 src。"""
     layout = ws.load("layout") or {}
     out = []
     for b in (ws.load("paper") or {}).get("blocks", []):
@@ -134,7 +137,7 @@ def fill(ws) -> int:
                 if done_item and b == done_item[0]:
                     _, page, box, src = done_item
                     b["src"] = src
-                    b["abox"] = list(box)  # 自动定位的框写回 abox，前端按原页比例定宽；box 仍留给模型显式给框
+                    b["abox"] = list(box)  # 截图实际用的框（不含题注），前端按它占原页的比例定宽；box 仍是模型给的框
                     count += 1
             return count
         return ws.update("paper", apply)
