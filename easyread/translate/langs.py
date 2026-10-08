@@ -8,6 +8,7 @@ from __future__ import annotations
 TARGETS = {
     "zh": ("简体中文", "中文", "Chinese"),  # i18n-ok 语言名
     "zh-Hant": ("繁體中文", "繁体中文（正體中文）", "Traditional Chinese"),  # i18n-ok
+    "en": ("English", "英文（English）", "English"),  # i18n-ok 原文可能是任何语言，见 prompts.py 的 _EN
     "ja": ("日本語", "日语（日本語）", "Japanese"),  # i18n-ok
     "ko": ("한국어", "韩语（한국어）", "Korean"),  # i18n-ok
     "es": ("Español", "西班牙语（Español）", "Spanish"),  # i18n-ok

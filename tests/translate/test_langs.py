@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from easyread.engines import engines
-from easyread.translate import langs, prompts, prompts_en, translate
+from easyread.translate import langs, prompts, prompts_en, terms, translate
 from easyread.server import settings_api
 from easyread.library.store import write_json_atomic
 from tests.translate.test_translate import make_ws
@@ -63,6 +63,49 @@ class LangsTest(unittest.TestCase):
         self.assertIn("意大利语（Italiano）", text)
         self.assertNotIn("标准误差", text)
 
+    def test_english_prompt_any_source_language(self):
+        """#48 译成英文：原文可能是德语、中文等任何语言；原文本来就是英文时照抄。"""
+        set_meta(self.ws, target="en")
+        texts = (prompts.translate(self.ws, [1], "text", ""), prompts_en.fill(self.ws, [1], {"p1-1": "Hallo"}),
+                 prompts.rules("en"))  # 重译一段也用 rules
+        for text in texts:
+            self.assertIn("英文（English）", text)
+            self.assertIn("原文不一定是英文", text)
+            self.assertIn("照抄原文", text)
+            self.assertNotIn("标准误差", text)
+            self.assertNotIn("中文语序", text)
+        self.assertIn("English term (原文术语)", texts[0])
+        self.assertIn('{"en": "原文术语", "zh": "English term"}', texts[0])
+        self.assertIn('{"en": "原文术语", "zh": "English term"}', texts[1])
+        self.assertIn("不超过 6 个词", texts[1])
+        self.assertNotIn("原文不一定是英文", prompts.rules("de"))  # 只加在英语上
+        self.assertIn("原文术语", prompts.consistency([], {}, "英文（English）"))
+
+    def test_english_target_end_to_end(self):
+        """德语原文译成英文：en 存原文、zh 存英文译文，记下 target=en；问 AI 用英文回答。"""
+        def run(cfg, prompt, cwd, images=None, cancel=None, meter=None):
+            self.assertIn("译成英文（English）", prompt)
+            return json.dumps({"meta": {"title_zh": "Attention is all you need", "title_en": "Aufmerksamkeit ist alles"},
+                               "blocks": [{"id": "p1-1", "type": "para", "page": 1, "en": "Das ist gut. ‖ Sehr gut.", "zh": "That is good. ‖ Very good."}]})
+        cfg = {"engine": "openai", "batch_pages": 1, "concurrency": 1, "openai": {"vision": False}, "target": "en"}
+        with mock.patch.object(engines, "run", run), mock.patch.object(translate.netcheck, "problem", lambda cfg: ""), \
+                mock.patch.object(translate.pdfwork, "locate", lambda root: None), mock.patch.object(translate, "tex_problems", lambda tex: []):
+            translate.translate_pages(self.ws, cfg, [1], threading.Event(), lambda *a: None)
+        paper = self.ws.load("paper")
+        self.assertEqual(paper["meta"]["target"], "en")
+        b = next(b for b in paper["blocks"] if b["id"] == "p1-1")
+        self.assertEqual((b["en"], b["zh"]), ("Das ist gut. Sehr gut.", "That is good. Very good."))
+        self.assertTrue(b.get("sents"))  # 句子对齐照常
+        self.assertEqual(langs.reply_lang(paper["meta"]), "英文（English）")
+
+    def test_cjk_source_terms_unify(self):
+        """原文是中文、译成英文：术语按字串数次数（中文词间没空格），后来的说法换成术语表里的。"""
+        self.assertEqual(terms.mentions_count("我们用标准误差。标准误差很小", "标准误差"), 2)
+        data = {"glossary": [{"en": "标准误差", "zh": "std error"}],
+                "blocks": [{"id": "p1-1", "type": "para", "en": "标准误差很大。", "zh": "The std error is large."}]}
+        terms.unify([{"en": "标准误差", "zh": "standard error"}], data)
+        self.assertEqual(data["blocks"][0]["zh"], "The standard error is large.")
+
     def test_old_papers_count_as_chinese(self):
         self.assertEqual(langs.of_paper({"title_zh": "旧论文"}, {"target": "ja"}), "zh")
         self.assertEqual(langs.of_paper({}, {"target": "ja"}), "ja")
@@ -106,7 +149,7 @@ class LangsTest(unittest.TestCase):
         with mock.patch.object(settings_api.config, "save", lambda patch: patch), mock.patch.object(settings_api.config, "public", lambda c: c):
             self.assertEqual(settings_api.save_config({"target": "xx"})["config"]["target"], "zh")
             self.assertEqual(settings_api.save_config({"target": "es"})["config"]["target"], "es")
-            for code in ("zh-Hant", "it"):
+            for code in ("zh-Hant", "it", "en"):
                 self.assertEqual(settings_api.save_config({"target": code})["config"]["target"], code)
 
 

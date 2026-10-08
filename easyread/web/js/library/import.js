@@ -34,6 +34,7 @@
       '<button class="linkish" id="zoteroGo">' + PR.icon("upload", "sm") + PR.t("从 Zotero 迁移整个文献库…") + "</button></div>" +
       '<div class="imp-opts"><span class="imp-lbl">' + PR.t("导入后") + '</span><div class="seg" id="afterSeg">' + AFTER.map(([k, l, tip]) => '<button data-after="' + k + '" title="' + PR.esc(tip) + '" class="' + (after === k ? "on" : "") + '"' + (off && k !== "none" ? " disabled" : "") + ">" + l + "</button>").join("") + "</div>" +
         '<select class="input imp-target" id="impTarget" title="' + PR.t("译成哪种语言") + '"' + (after === "translate" ? "" : " hidden") + ">" + PR.opt(PR.TARGETS, PR.target) + "</select></div>" +
+      '<p class="hint" id="enTargetHint"' + (after === "translate" && PR.target === "en" ? "" : " hidden") + '>' + PR.t("原文本来就是英文的话，选“读英文原文”就行，不用翻译，更省用量。") + "</p>" +
       '<p class="hint" id="originalModelHint"' + (after === "read" ? "" : " hidden") + '>' + PR.t("读英文原文仍需可用模型整理段落、公式和表格，会消耗模型额度；只看 PDF 可选“先不处理”。") + "</p>" +
       '<div class="imp-opts' + (after === "none" ? " dim" : "") + '" id="scopeRow"><span class="imp-lbl">' + PR.t("范围") + '</span><div class="seg" id="scopeSeg">' + SCOPES.map(([k, l]) => '<button data-scope="' + k + '" class="' + (p.scope === k ? "on" : "") + '">' + l + "</button>").join("") + "</div>" +
       '<span class="first-n"' + (p.scope === "range" ? "" : " hidden") + '>' + PR.t("第 {from} 到 {to} 页", { from: '<input class="input" id="pgFrom" type="number" min="1" value="' + p.from + '">', to: '<input class="input" id="pgTo" type="number" min="1" value="' + p.to + '">' }) + "</span></div>" +
@@ -85,6 +86,7 @@
       PR.$("#modelRow").classList.toggle("dim", a.dataset.after === "none");
       PR.$("#impTarget").hidden = a.dataset.after !== "translate";
       PR.$("#originalModelHint").hidden = a.dataset.after !== "read";
+      enHint();
     }
     const s = e.target.closest("[data-scope]");
     if (s) {
@@ -93,7 +95,9 @@
       PR.$(".first-n", dlg).hidden = s.dataset.scope !== "range";
     }
   });
-  dlg.addEventListener("change", (e) => { if (e.target.id === "impModel") savePref({ model: e.target.value }); });
+  // 译成英语（#48）：原文本来就是英文时不用翻译，提示改选“读英文原文”
+  const enHint = () => { const t = PR.$("#impTarget"); PR.$("#enTargetHint").hidden = t.hidden || t.value !== "en"; };
+  dlg.addEventListener("change", (e) => { if (e.target.id === "impModel") savePref({ model: e.target.value }); if (e.target.id === "impTarget") enHint(); });
   dlg.addEventListener("input", (e) => {  // 边输边存：输完直接点“导入”也用新的页码
     if (e.target.id === "pgFrom") savePref({ from: +e.target.value || 1 });
     if (e.target.id === "pgTo") savePref({ to: +e.target.value || 1 });

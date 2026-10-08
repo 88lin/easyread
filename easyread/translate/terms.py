@@ -63,6 +63,9 @@ def occurrences(text: str, word: str, keep=()) -> int:
 
 
 def mentions_count(en_text: str, en: str) -> int:
+    """原文里出现几次这个术语。译成英文时原文可能是中日韩文（#48）：词之间没有空格，按字串数。"""
+    if _CJK.search(en or ""):
+        return codeblocks.prose(en_text or "").count(en)
     return len(re.findall(r"(?<!\w)" + re.escape(en) + r"(s|es)?(?!\w)", codeblocks.prose(en_text or ""), re.I))
 
 
