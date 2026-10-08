@@ -77,6 +77,11 @@
     return null;
   }
 
+  /* 跨段的划线（#46）：quote 是各段原话连起来的全文，parts 里每段各记一份锚点；单段的没有 parts */
+  const spans = (n) => (n.parts && n.parts.length ? n.parts : [n]);
+  PR.noteBlocks = (n) => [...new Set(spans(n).map((p) => p.anchor))];
+  PR.markNote = (n) => PR.noteBlocks(n).forEach((a) => PR.applyMarks(a));
+
   PR.applyMarks = function (onlyBlock) {
     const scope = onlyBlock ? document.getElementById("b-" + onlyBlock) : PR.$("#paper");
     if (!scope) return;
@@ -84,21 +89,42 @@
     scope.normalize();
     if (!onlyBlock) lost.clear();
     const items = [];
-    for (const n of PR.myNotes()) if (n.quote) items.push({ n, attrs: { class: "hl c-" + (n.color || "yellow") + (n.style === "underline" ? " s-ul" : "") + (n.kind === "question" ? " q" : ""), "data-note": n.id } });
-    for (const e of S.discussion.entries || []) if (e.quote && e.anchor) items.push({ n: e, attrs: { class: "hl agent", "data-card": e.id } });
-    for (const { n, attrs } of items) {
-      if (onlyBlock && n.anchor !== onlyBlock) continue;
-      const at = locate(n);
-      if (!at) { lost.add(n.id); continue; }
-      lost.delete(n.id);
-      wrap(at.el, at.i, at.i + n.quote.length, attrs);
+    for (const n of PR.myNotes()) {
+      if (!n.quote) continue;
+      const attrs = { class: "hl c-" + (n.color || "yellow") + (n.style === "underline" ? " s-ul" : "") + (n.kind === "question" ? " q" : ""), "data-note": n.id };
+      for (const p of spans(n)) items.push({ id: n.id, p, attrs });
     }
+    for (const e of S.discussion.entries || []) if (e.quote && e.anchor) items.push({ id: e.id, p: e, attrs: { class: "hl agent", "data-card": e.id } });
+    const seen = new Set(), miss = new Set();  // 跨段的划线有一段找不到就算丢了
+    for (const { id, p, attrs } of items) {
+      if (onlyBlock && p.anchor !== onlyBlock) continue;
+      seen.add(id);
+      const at = locate(p);
+      if (!at) { miss.add(id); continue; }
+      wrap(at.el, at.i, at.i + p.quote.length, attrs);
+    }
+    seen.forEach((id) => (miss.has(id) ? lost.add(id) : lost.delete(id)));
     PR.applyMirrors && PR.applyMirrors(scope);
   };
 
   /* ---------- 选中文字 -> 浮动条 ---------- */
   const selbar = () => PR.$("#selbar");
   let pendingSel = null;
+
+  const MAX_PARTS = 20;
+  /* 选区落在某个元素里的那一截；起点在它前面的从 0 算，终点在它后面的算到末尾 */
+  function partOf(el, range) {
+    const zh = PR.zhOfEl(el), blk = el.closest(".blk");
+    if (!zh || !zh.dataset.key || !blk || el.querySelector("textarea")) return null;
+    const text = fullText(el);
+    const s = el.contains(range.startContainer) ? offsetOf(el, range.startContainer, range.startOffset) : 0;
+    const e = el.contains(range.endContainer) ? offsetOf(el, range.endContainer, range.endOffset) : text.length;
+    const quote = text.slice(s, e);
+    if (!quote.trim()) return null;
+    const out = { anchor: blk.dataset.id, key: zh.dataset.key, quote, prefix: text.slice(Math.max(0, s - 32), s), suffix: text.slice(e, e + 32) };
+    if (PR.isEnEl(el)) out.side = "en";
+    return out;
+  }
 
   function readSelection() {
     const sel = window.getSelection();
@@ -107,18 +133,18 @@
     const startEl = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
     // 译文 .zh 和原文 .en 都能划：原文的记 side: "en"（只读原文没译的块，.zh 里排的就是英文）
     const el = startEl && startEl.closest("#paper .zh, #paper .en");
-    if (!el || !el.contains(range.endContainer) || el.querySelector("textarea")) return null;
-    const zh = PR.zhOfEl(el);
-    const blk = el.closest(".blk");
-    if (!zh || !zh.dataset.key || !blk) return null;
-    const text = fullText(el);
-    const s = offsetOf(el, range.startContainer, range.startOffset);
-    const e = offsetOf(el, range.endContainer, range.endOffset);
-    const quote = text.slice(s, e);
-    if (!quote.trim()) return null;
-    const out = { anchor: blk.dataset.id, key: zh.dataset.key, quote, prefix: text.slice(Math.max(0, s - 32), s), suffix: text.slice(e, e + 32), rect: range.getBoundingClientRect() };
-    if (PR.isEnEl(el)) out.side = "en";
-    return out;
+    if (!el) return null;
+    let parts;
+    if (el.contains(range.endContainer)) parts = [partOf(el, range)];
+    else {  // 跨段（#46）：起点在译文就取选中的每段译文，在原文就取原文，夹在中间的另一边不算
+      const same = el.classList.contains("zh") ? "#paper .zh" : "#paper .en";
+      parts = PR.$$(same).filter((x) => range.intersectsNode(x)).map((x) => partOf(x, range));
+    }
+    parts = parts.filter(Boolean);
+    if (!parts.length || parts.length > MAX_PARTS) return null;
+    const rect = range.getBoundingClientRect();
+    if (parts.length === 1) return Object.assign(parts[0], { rect });
+    return Object.assign({}, parts[0], { quote: parts.map((p) => p.quote.trim()).join("\n"), parts, rect });
   }
   PR.hasPendingSelection = () => !!pendingSel && selbar().classList.contains("open");
 
@@ -135,7 +161,7 @@
       '<button data-s="note" title="' + PR.t("写笔记（N）") + '">' + PR.icon("note", "sm") + PR.t("笔记") + "</button>" +
       '<button data-s="question" title="' + PR.t("提问（Q）") + '">' + PR.icon("question", "sm") + PR.t("提问") + "</button>" +
       (PR.canChat && PR.canChat() && PR.feature("chat") ? '<button data-s="chat" title="' + PR.t("把这句引用到问 AI（可以引用多段）") + '">' + PR.icon("sparkle", "sm") + (PR.chatOpen && PR.chatOpen() ? PR.t("引用到对话") : PR.t("问 AI")) + "</button>" : "") +
-      (pendingSel.side ? "" : '<button data-s="en" title="' + PR.t("看这段英文") + '">' + PR.icon("en", "sm") + PR.t("原文") + "</button>") +
+      (pendingSel.side || pendingSel.parts ? "" : '<button data-s="en" title="' + PR.t("看这段英文") + '">' + PR.icon("en", "sm") + PR.t("原文") + "</button>") +
       '<button data-s="copy" title="' + PR.t("复制") + '">' + PR.icon("copy", "sm") + "</button>";
     bar.classList.add("open");
     const r = pendingSel.rect, w = bar.offsetWidth;
@@ -149,7 +175,7 @@
 
   PR.selectionAction = function (kind, color) {
     if (!pendingSel) return;
-    const { anchor, key, quote, prefix, suffix, side } = pendingSel;
+    const { anchor, key, quote, prefix, suffix, side, parts } = pendingSel;
     selbar().classList.remove("open");
     getSelection().removeAllRanges();
     pendingSel = null;
@@ -158,12 +184,13 @@
     if (kind === "chat") { PR.chatAsk({ anchor, quote }); return; }
     const note = { anchor, key, quote, prefix, suffix, kind, color: color || "yellow" };
     if (side) note.side = side;
+    if (parts) note.parts = parts;
     if (PR.prefs.pen === "underline") note.style = "underline";
     if (kind === "highlight") {
       Object.assign(note, { id: PR.uid("n"), body: "", created: PR.nowIso() });
       PR.saveNote(note);
-      PR.applyMarks(anchor);
-      PR.toast(PR.t("已划线　点划线可以写笔记或改颜色"), { label: PR.t("撤销"), fn: () => { PR.commit({ op: "note_del", id: note.id }); PR.applyMarks(anchor); } }, 2600);
+      PR.markNote(note);
+      PR.toast(PR.t("已划线　点划线可以写笔记或改颜色"), { label: PR.t("撤销"), fn: () => { PR.commit({ op: "note_del", id: note.id }); PR.markNote(note); } }, 2600);
     } else PR.startNote(note);
   };
   selbar().addEventListener("mousedown", (e) => e.preventDefault()); // 点按钮时别丢掉选区
@@ -197,12 +224,12 @@
       '<div style="display:flex;gap:6px"><button class="btn sm line" data-hl="note">' + PR.t("写笔记") + '</button><button class="btn sm line" data-hl="question">' + PR.t("提问") + '</button><button class="btn sm danger" data-hl="del">' + PR.t("删除划线") + '</button></div>', { sticky: true });
     PR.$("#popover").onclick = (ev) => {
       const c = ev.target.closest("[data-hl-color]"), b = ev.target.closest("[data-hl]");
-      if (c) { PR.saveNote(Object.assign({}, n, { color: c.dataset.hlColor })); PR.applyMarks(n.anchor); PR.hidePopover(); return; }
+      if (c) { PR.saveNote(Object.assign({}, n, { color: c.dataset.hlColor })); PR.markNote(n); PR.hidePopover(); return; }
       const sty = ev.target.closest("[data-hl-style]");
-      if (sty) { const x = Object.assign({}, n); if (sty.dataset.hlStyle === "underline") x.style = "underline"; else delete x.style; PR.saveNote(x); PR.applyMarks(n.anchor); PR.hidePopover(); return; }
+      if (sty) { const x = Object.assign({}, n); if (sty.dataset.hlStyle === "underline") x.style = "underline"; else delete x.style; PR.saveNote(x); PR.markNote(n); PR.hidePopover(); return; }
       if (!b) return;
       PR.hidePopover();
-      if (b.dataset.hl === "del") { PR.commit({ op: "note_del", id: n.id }); PR.applyMarks(n.anchor); }
+      if (b.dataset.hl === "del") { PR.commit({ op: "note_del", id: n.id }); PR.markNote(n); }
       else { PR.saveNote(Object.assign({}, n, { kind: b.dataset.hl })); PR.openNoteEditor(n.id); }
     };
   };

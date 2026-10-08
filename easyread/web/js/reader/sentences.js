@@ -75,18 +75,20 @@
     const byNote = {};  // 一次取出所有划线按笔记分组，不必每条笔记查一遍全文
     PR.$$("mark.hl[data-note]", scope).forEach((m) => (byNote[m.dataset.note] = byNote[m.dataset.note] || []).push(m));
     for (const n of PR.myNotes()) {
-      const marks = n.quote && byNote[n.id];
-      if (!marks) continue;
-      const src = marks[0].closest(".zh, .en");
-      const other = src && partner(src);
-      if (!other) continue;
-      const idx = new Set(marks.map((m) => m.closest(".snt")).filter(Boolean).map((sp) => sp.dataset.s));
-      const spans = idx.size ? PR.$$(":scope .snt", other).filter((sp) => idx.has(sp.dataset.s)) : [];
-      const targets = spans.length ? spans : [other];
-      const cls = [spans.length ? "mir" : "mir-para", "c-" + (n.color || "yellow")].concat(n.kind === "question" ? ["mir-q"] : []);
-      const tip = isEnEl(src) ? PR.t("对应原文里的标注") : PR.t("对应译文里的标注");
-      // 同一处有几条标注时留第一条（按时间排在前面的），颜色不会叠在一起
-      targets.filter((t) => !t.dataset.mirror).forEach((t) => { t.classList.add(...cls); t.dataset.mirror = n.id; t.title = tip; });
+      if (!n.quote || !byNote[n.id]) continue;
+      const bySrc = new Map();  // 跨段的划线每段各自同步到对应的那段
+      byNote[n.id].forEach((m) => { const src = m.closest(".zh, .en"); if (src) bySrc.set(src, (bySrc.get(src) || []).concat(m)); });
+      for (const [src, marks] of bySrc) {
+        const other = partner(src);
+        if (!other) continue;
+        const idx = new Set(marks.map((m) => m.closest(".snt")).filter(Boolean).map((sp) => sp.dataset.s));
+        const spans = idx.size ? PR.$$(":scope .snt", other).filter((sp) => idx.has(sp.dataset.s)) : [];
+        const targets = spans.length ? spans : [other];
+        const cls = [spans.length ? "mir" : "mir-para", "c-" + (n.color || "yellow")].concat(n.kind === "question" ? ["mir-q"] : []);
+        const tip = isEnEl(src) ? PR.t("对应原文里的标注") : PR.t("对应译文里的标注");
+        // 同一处有几条标注时留第一条（按时间排在前面的），颜色不会叠在一起
+        targets.filter((t) => !t.dataset.mirror).forEach((t) => { t.classList.add(...cls); t.dataset.mirror = n.id; t.title = tip; });
+      }
     }
   };
 
