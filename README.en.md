@@ -19,7 +19,7 @@ Runs locally. You choose the model service and whether to keep your library in a
 
 <p align="center"><img src="docs/images/en/hero.png" width="860" alt="English paper text and equations alongside the original PDF"></p>
 
-> **Choose your reading language.** Translate English papers into **Simplified or Traditional Chinese, Japanese, Korean, Spanish, French, German or Italian**. Choose a language when importing, or set your default in Settings → Reading → Translate papers into (initially Chinese). The interface supports **English and Chinese**, independently of the translation language. You can also choose "Read the English original" on import and use the layout, highlights, notes and Ask AI without translating.
+> **Choose your reading language.** Translate papers into **Simplified or Traditional Chinese, English, Japanese, Korean, Spanish, French, German or Italian** (English is for papers written in other languages, such as German or French). Choose a language when importing, or set your default in Settings → Reading → Translate papers into (initially Chinese). The interface supports **English and Chinese**, independently of the translation language. You can also choose "Read the English original" on import and use the layout, highlights, notes and Ask AI without translating.
 
 <p align="center"><img src="docs/images/en/japanese.png" width="860" alt="Japanese abstract alongside the original English PDF"></p>
 
@@ -138,7 +138,7 @@ See `easyread --help` for all commands and [docs/data-format.md](docs/data-forma
 
 To publish on a site such as GitHub Pages, use `easyread demo ID --out DIR`: images are saved as separate files and loaded on demand, and AI chats are included (read-only).
 
-**Can it translate into languages other than Chinese?** Yes: Simplified and Traditional Chinese, Japanese, Korean, Spanish, French, German and Italian are available under Settings → Reading → Translate papers into, and in the import dialog. You can also read the English original. Interface language is independent: choose Chinese or English under Settings → Reading → Language.
+**Can it translate into languages other than Chinese?** Yes: Simplified and Traditional Chinese, English (for papers written in other languages), Japanese, Korean, Spanish, French, German and Italian are available under Settings → Reading → Translate papers into, and in the import dialog. You can also read the English original. Interface language is independent: choose Chinese or English under Settings → Reading → Language.
 
 ## Development
 
