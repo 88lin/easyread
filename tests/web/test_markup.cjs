@@ -61,6 +61,16 @@ test("math delimiter examples inside code remain literal and HTML stays escaped"
   assert.ok(!html.includes("<script>"));
 });
 
+test("paper paragraphs preserve nested backticks, indentation and literal code symbols", () => {
+  const code = 'def run():\n    print("```", "`value`", "$HOME", "<script>")\n';
+  const html = markup().md("````python\n" + code + "````\n\nListing 1: Agent loop.");
+  assert.equal((html.match(/<pre><code>/g) || []).length, 1);
+  assert.ok(html.includes('<pre><code>def run():\n    print(&quot;```&quot;, &quot;`value`&quot;, &quot;$HOME&quot;, &quot;&lt;script&gt;&quot;)\n</code></pre>'));
+  assert.ok(html.endsWith("Listing 1: Agent loop."));
+  assert.ok(!html.includes("<math>"));
+  assert.ok(!html.includes("<script>"));
+});
+
 test("unfinished streamed delimiters stay readable until the matching close arrives", () => {
   const PR = markup();
   const answer = "积分：\n\\[\n\\frac{1}{L}\\int_0^L e^{-(a+j\\beta)z}\\,dz\n\\]";

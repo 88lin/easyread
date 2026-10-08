@@ -9,7 +9,7 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from . import consistency, continuation, front_context, langs, prompts, prompts_en, segments, sentences, terms
+from . import codeblocks, consistency, continuation, front_context, langs, prompts, prompts_en, segments, sentences, terms
 from ..engines import engines, netcheck
 from ..pdf import figures, pdfwork, sources
 from ..library.checks import block_problems, tex_problems
@@ -91,6 +91,7 @@ def _normalize(data: dict, pages: list[int], taken: set[str]) -> dict:
     for b in data.get("blocks") or []:
         if not isinstance(b, dict) or not b.get("type"):
             continue
+        codeblocks.normalize(b)
         b.setdefault("page", pages[0])
         try:
             b["page"] = int(b["page"])
