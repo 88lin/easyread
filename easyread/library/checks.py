@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from ..app.config import WEB
+from ..translate.codeblocks import prose
 from .paperdata import BLOCK_TYPES, block_shape_problem
 from .store import Workspace
 
@@ -61,9 +62,10 @@ def block_problems(blocks: list[dict], refs: set[str] | None = None) -> tuple[li
         if b.get("type") == "math":
             tex.append((bid, b.get("tex", ""), True))
         for t in list(texts(b)) + [b.get("tex", "")]:
-            if _CTRL.search(t or ""):
+            if _CTRL.search(prose(t or "")):
                 problems.append(f"{bid}：含控制字符，多半是 JSON 里 TeX 命令（frac、text、bar、nu 这类）前的反斜杠只写了一个")  # i18n-ok
         for t in texts(b):
+            t = prose(t)
             if (t.count("$") - t.count("\\$")) % 2:
                 problems.append(f"{bid}：$ 不成对")  # i18n-ok
             tex += [(bid, m.group(1), False) for m in _INLINE_MATH.finditer(t)]

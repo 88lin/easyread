@@ -4,11 +4,11 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
 
-function reader(block, edits = {}) {
+function reader(block, edits = {}, meta) {
   let html = '';
   const node = { classList: { contains: () => false }, querySelector: () => null, replaceWith() {} };
   const PR = {
-    state: { reader: { edits }, paper: { blocks: [block] } },
+    state: { reader: { edits }, paper: { blocks: [block], meta } },
     on() {}, emit() {}, esc: String, md: String, t: s => s, imageUrl: s => '/p/test/' + s, hashText: s => s,
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../easyread/web/js/reader/render.js'), 'utf8'), {
@@ -44,4 +44,33 @@ test('legacy figure without image text retains its page fallback', () => {
   const { html } = reader({ id: 'fig1', type: 'figure', page: 2, caption_zh: 'caption' });
   assert.match(html, /fig-missing/);
   assert.doesNotMatch(html, /figure-translation/);
+});
+
+const LETTER = { pages: [{ n: 3, w: 612, h: 792, img: 'pages/page-003.webp' }] };
+
+test('figure with box renders at the original PDF physical size', () => {
+  const { html } = reader({ id: 'fig1', type: 'figure', page: 3, src: 'figures/a.webp', box: [0.1, 0.2, 0.9, 0.5], caption_zh: 'c' }, {}, LETTER);
+  // 0.8 页宽 × 612pt × 4/3 = 652.8 → 653px
+  assert.match(html, /width:\s*653px/);
+});
+
+test('abox from the actual crop wins over the model box', () => {
+  // 模型框偏紧（0.4 页宽），按 PDF 图形边界校正后的截图框是 0.8 页宽
+  const { html } = reader({ id: 'fig1', type: 'figure', page: 3, src: 'figures/a.webp', box: [0.3, 0.2, 0.7, 0.5], abox: [0.1, 0.2, 0.9, 0.5], caption_zh: 'c' }, {}, LETTER);
+  assert.match(html, /width:\s*653px/);
+});
+
+test('small figure keeps its small share of the page', () => {
+  const { html } = reader({ id: 'fig1', type: 'figure', page: 3, src: 'figures/a.webp', abox: [0.3, 0.2, 0.66, 0.5], caption_zh: 'c' }, {}, LETTER);
+  assert.match(html, /width:\s*294px/);
+});
+
+test('figure without box or page data stays unsized', () => {
+  const { html } = reader({ id: 'fig1', type: 'figure', src: 'figures/a.webp', caption_zh: 'c' });
+  assert.match(html, /<img src="\/p\/test\/figures\/a.webp" alt="" loading="lazy">/);
+});
+
+test('malformed box is ignored', () => {
+  const { html } = reader({ id: 'fig1', type: 'figure', src: 'figures/a.webp', box: [0.9, 0.5, 0.1, 0.2], caption_zh: 'c' });
+  assert.match(html, /<img src="\/p\/test\/figures\/a.webp" alt="" loading="lazy">/);
 });

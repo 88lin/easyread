@@ -64,7 +64,7 @@
     const status = [["unread", PR.t("未读")], ["reading", PR.t("在读")], ["done", PR.t("已读")]].map(([k, l]) =>
       '<button data-status="' + k + '" class="' + ((i.status || "unread") === k ? "on" : "") + '">' + l + "</button>").join("");
     // 分类：全部分类都列出来，点一下放进 / 拿出
-    const cats = L.cats().map((c) => '<button class="catchip' + ((i.tags || []).includes(c) ? " on" : "") + '" data-cattoggle="' + PR.esc(c) + '">' + PR.icon((i.tags || []).includes(c) ? "check" : "folder", "sm") + PR.esc(c) + "</button>").join("");
+    const cats = L.cats().map((c) => '<button class="catchip' + ((i.tags || []).includes(c) ? " on" : "") + '" data-cattoggle="' + PR.esc(c) + '">' + PR.icon((i.tags || []).includes(c) ? "check" : "folder", "sm") + PR.esc(PR.catTree.label(c)) + "</button>").join("");
     box.innerHTML = '<div class="detail-head"><span>' + PR.t("论文详情") + '</span><button class="detail-close" data-d="close" title="' + PR.t("收起（Esc）") + '">' + PR.icon("x", "sm") + "</button></div>" +
       '<div class="detail-inner">' +
       '<div class="cover">' + thumb + '<div class="actions">' +
@@ -178,6 +178,7 @@
       "-",
       { label: PR.t("复制 BibTeX"), icon: "copy", fn: () => copy(PR.cite(i, "bibtex"), " BibTeX") },
       { label: PR.t("导出离线 HTML（可发给别人）"), icon: "download", fn: () => { PR.toast(PR.t("正在打包…")); location.href = "/api/p/" + id + "/export"; } },
+      { label: PR.t("导出手机版（只读，体积小）"), icon: "download", fn: () => { PR.toast(PR.t("正在打包…")); location.href = "/api/p/" + id + "/export?mobile=1"; } },
       { label: PR.t("打开所在文件夹"), icon: "folder", fn: () => PR.api("/api/p/" + id + "/reveal", { method: "POST", body: {} }).catch((e) => PR.toast(PR.esc(e.message))) },
       { label: PR.t("全部重新翻译"), icon: "redo", fn: () => retranslateAll(i) },
       { label: PR.t("翻译记录"), icon: "log", fn: async () => { const r = await PR.api("/api/p/" + id + "/log"); PR.showText(PR.t("翻译记录"), r.text); } },

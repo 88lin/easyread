@@ -15,6 +15,7 @@ RULES_EN = """整理要求（不翻译）：
 - 行内数学一律写成 $TeX$（KaTeX 能渲染的 LaTeX），变量、下标、上标都要用 TeX，不要用 Unicode 拼。行间公式单独成 math 块，照原页重排，原编号放 tag。
 - 表格重排成 table 块，表头和单元格照原文。图用 figure 块，给出归一化裁剪框 box:[x0,y0,x1,y1]（0 到 1，框住图本身、不含题注），图内可读的标题、坐标轴、图例和标签原文放 image_en。没有原页图或看不清时不猜框和文字；src 留空由程序裁图。
 - 参考文献列表：输出一个 references 块，条目放进 references 数组（id 是编号，text 是原文）。
+- 代码和伪代码用 para 块，en 中用 Markdown 代码围栏包住代码，原样保留缩进、换行和符号；题注放在围栏外。不要输出 code 或 listing 类型，不要在代码里插句子分界 ‖。
 - 看不清的地方写“[unclear, see page N]”，不要猜。
 - 页眉、页脚、页码、arXiv 侧边水印不要输出。"""
 
@@ -82,7 +83,8 @@ def fill(ws: Workspace, pages: list[int], items: dict[str, object]) -> str:
             + (f"- 英文里的 ‖ 是句子分界：译文在对应的句子交界处也插 ‖，个数和这条英文的一样。两句英文在{name}里要合成一句时，也在合并后最接近的位置插上。\n"
                if any(isinstance(v, str) and "‖" in v for v in items.values()) else "") + "\n"
             "输出格式：只输出一个 JSON 对象，不要任何别的文字。\n{\n" + meta +
-            '  "glossary": [{"en": "standard error", "zh": "' + ("标准误差" if langs.chinese(target) else name + "译名") + '"}],   // 本批新出现的核心术语\n'
+            ('  "glossary": [{"en": "原文术语", "zh": "English term"}],' if target == "en" else
+             '  "glossary": [{"en": "standard error", "zh": "' + ("标准误差" if langs.chinese(target) else name + "译名") + '"}],') + '   // 本批新出现的核心术语\n'
             '  "checks": [{"anchor": "块 id", "quote": "译文里相关的几个字（可空）", "title": "一句话：哪里不对", "body": "具体说明和依据"}],   // 原文有问题时才写\n'
             '  "zh": {"键": "' + name + '译文", …}   // 下面每个键都要有，一个不漏\n}\n'
             "注意 JSON 里 TeX 的反斜杠要写两个（\\\\frac、\\\\text、\\\\bar）。" + ("字符串里的中文引号用“”或「」。" if langs.chinese(target) else "字符串里的英文双引号要转义。") + "\n\n"

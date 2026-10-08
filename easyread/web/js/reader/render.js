@@ -74,6 +74,14 @@
   function cell(c) { return PR.md(String(c), { xref: false, cite: false }).replace(/<br>(\([^<]*\))/g, '<br><span class="sub">$1</span>'); }
   function linkify(t) { return PR.esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
 
+  /* 图块的归一化裁剪框 [x0,y0,x1,y1]；不合格式就返回 null（渲染时按默认处理）。 */
+  function figureBox(value) {
+    if (!Array.isArray(value) || value.length !== 4) return null;
+    const v = value.map(Number);
+    if (v.some((x) => !isFinite(x))) return null;
+    return v.every((x, i) => x >= -0.01 && x <= 1.01 && (i < 2 ? true : x > v[i - 2])) ? v : null;
+  }
+
   const R = {
     heading(b) {
       const tag = (b.level || 1) === 1 ? "h2" : "h3";
@@ -98,7 +106,16 @@
       return b.caption_pos === "above" ? captionHtml(b) + table : table + captionHtml(b);
     },
     figure(b) {
-      const img = b.src ? '<img src="' + PR.imageUrl(b.src) + '" alt="" loading="lazy">'
+      // 图按原 PDF 的物理尺寸（1pt = 4/3 CSS px）显示，和原页一致；版心放不下时 max-width:100% 兜底。
+      // 优先用 abox（截图实际用的框，按 PDF 图形边界校正过）；模型给的 box 常偏紧，只在没有 abox 时退用。两个都没有维持浏览器默认。
+      let style = "";
+      const page = b.page && (S.paper.meta || {}).pages ? (S.paper.meta.pages.find((p) => p.n === b.page) || {}) : {};
+      const box = figureBox(b.abox) || figureBox(b.box);
+      if (box && page.w) {
+        const w = Math.round((box[2] - box[0]) * page.w * 4 / 3);
+        if (w >= 24) style = ' style="width:' + Math.min(w, Math.round(page.w * 4 / 3)) + 'px"';
+      }
+      const img = b.src ? '<img src="' + PR.imageUrl(b.src) + '" alt="" loading="lazy"' + style + '>'
         : '<button class="fig-missing" data-t="page">' + PR.t("图见原文第 {n} 页（点击查看）", { n: b.page }) + "</button>";
       const key = b.id + "#image";
       const imageText = b.image_zh || b.image_en ? '<div class="figure-translation"><div class="figure-translation-label">' + PR.t("图内文字") + '</div>' + zhDiv(key) + enIfZh(key, b.image_en) + '</div>' : "";
@@ -157,7 +174,7 @@
       '<br><span class="reading-language-description">' + (en ? PR.t("没译的地方正文是英文原文") : PR.t("正文是译文")) + '</span>' + PR.t('；<span class="legend-agent"></span>青色细线是 AI 的解释和回答，<span class="legend-mine"></span>赭色细线是我的笔记，都不属于原文。');
     return '<header class="paper-head" id="b-head" data-id="head">' + (kicker ? '<div class="kicker">' + kicker + "</div>" : "") +
       "<h1>" + PR.esc(m.title_zh || m.title_en || PR.t("（正在识别标题）")) + "</h1>" +
-      (m.title_zh && m.title_en ? '<p class="title-en" lang="en">' + PR.esc(m.title_en) + "</p>" : "") +
+      (m.title_zh && m.title_en && m.title_zh !== m.title_en ? '<p class="title-en" lang="' + (m.target === "en" ? "" : "en") + '">' + PR.esc(m.title_en) + "</p>" : "") +
       (by ? '<p class="byline">' + by + "</p>" : "") + '<p class="scope">' + scope + "</p>" + creditHtml() + "</header>";
   }
 

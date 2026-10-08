@@ -1,8 +1,9 @@
 """图块截图。两条路：
 
 - 翻译 / 只读原文整理时，模型给了图本身的裁剪框 box：等块 id 在合并锁里最终去重之后，
-  prepare_figures 按 box 截图（normalize_figure 只整理字段，不截图）。
-- 模型没给框、或是旧论文：打开阅读页时 fill_later 按原页定位（layout.json）补截或更新自动截图。
+  prepare_figures 先按 box 截一张（normalize_figure 只整理字段，不截图）。
+- 定位（layout.json）之后 fill 按原页定位补截或更新截图：PDF 图形边界认出了这张图就以它为准
+  （模型的框只用来认图，常常偏紧或偏松），认不出时 layout 里就是模型的框。
 
 截图文件名带上页码、框和 PDF 文件身份的哈希（figures/crop-<页>-<哈希>.webp）：
 重译改了框就换新文件，不会沿用旧图或浏览器缓存，同 id 的块在别的页上也不会撞到同一张。
@@ -67,32 +68,35 @@ def normalize_figure(block: dict) -> None:
 
 def prepare_figures(root, blocks: list[dict], total_pages: int) -> None:
     """在合并锁里、最后一次 id 去重之后调用：有 box 的图块重新截图。
-    截不了（页码不对、框无效、截图失败）就清掉 src 和 box，留给原页入口和 fill_later。没 box 的块不动。"""
+    截不了（页码不对、框无效、截图失败）就清掉 src 和 box，留给原页入口和 fill_later。没 box 的块不动。
+    abox 始终是当前 src 那张截图实际用的框，阅读页按它占原页的比例给图定宽。"""
     for block in blocks:
         if block.get("type") != "figure" or not block.get("box"):
             continue
         block["src"] = ""
+        block.pop("abox", None)
         page, box = block.get("page"), figure_box(block["box"])
         if not box or not isinstance(page, int) or not 1 <= page <= total_pages:
             block.pop("box", None)
             continue
         try:
             block["src"] = crop(root, page, box)
+            block["abox"] = box
         except Exception:  # noqa: BLE001
             block.pop("box", None)
             log.exception("截图失败 %s 第 %s 页", block.get("id"), page)
 
 
 def _pending(ws):
-    """没有截图或自动裁剪范围已变化的图块；保留显式 box 和自定义 src。"""
+    """没有截图、自动裁剪范围已变化或缺 abox 的图块；保留自定义 src。"""
     layout = ws.load("layout") or {}
     out = []
     for b in (ws.load("paper") or {}).get("blocks", []):
         src = b.get("src", "")
-        if b.get("type") != "figure" or src and (b.get("box") or not src.startswith("figures/crop-")):
+        if b.get("type") != "figure" or src and not src.startswith("figures/crop-"):
             continue
         loc = layout.get(b.get("id")) or {}
-        box = figure_box(loc.get("box"))
+        box = figure_box(loc.get("crop") or loc.get("box"))
         page = loc.get("page")
         if not box or not isinstance(page, int) or page < 1:
             continue
@@ -102,6 +106,9 @@ def _pending(ws):
         if src:
             try:
                 if src == _crop_path(ws.root, page, box) and (ws.root / src).is_file():
+                    if b.get("abox") == list(box):
+                        continue  # 截图和框都已是最新
+                    out.append((b, page, box))  # 只缺 abox：crop 命中缓存，零成本回填
                     continue
             except OSError:
                 continue  # PDF 不在时保留已经存在的截图。
@@ -119,16 +126,18 @@ def fill(ws) -> int:
     done = {}
     for block, page, box in _pending(ws):
         try:
-            done[block["id"]] = (block, crop(ws.root, page, box))
+            done[block["id"]] = (block, page, box, crop(ws.root, page, box))
         except Exception:  # noqa: BLE001
             log.exception("截图失败 %s %s", ws.root, block["id"])
     if done:
         def apply(paper):
             count = 0
             for b in paper.get("blocks", []):
-                previous, src = done.get(b.get("id"), (None, None))
-                if b == previous:
+                done_item = done.get(b.get("id"))
+                if done_item and b == done_item[0]:
+                    _, page, box, src = done_item
                     b["src"] = src
+                    b["abox"] = list(box)  # 截图实际用的框（不含题注），前端按它占原页的比例定宽；box 仍是模型给的框
                     count += 1
             return count
         return ws.update("paper", apply)

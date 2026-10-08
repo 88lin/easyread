@@ -15,6 +15,7 @@ RULES = """翻译要求：
 - 行内数学一律写成 $TeX$（KaTeX 能渲染的 LaTeX），变量、下标、上标都要用 TeX，不要用 Unicode 拼。行间公式单独成 math 块，照原页重排，原编号放 tag。
 - 表格重排成 table 块，表头译成中文，数字原样。图用 figure 块：尽量给出图在原页中的归一化裁剪框 `box:[x0,y0,x1,y1]`（左上和右下坐标，范围 0 到 1，框住图本身、不含题注），并翻译图内可读的标题、坐标轴、图例、流程框文字和标签到 `image_zh`（使用目标语言），原文写入 `image_en`；没有原页图时不猜裁剪框，看不清或没有文字就留空，不猜。`src` 留空，由程序按 `box` 从原 PDF 裁图。
 - 参考文献列表不翻译：输出一个 references 块，条目放进 references 数组（id 是编号，text 是原文）。
+- 代码和伪代码用 para 块，en/zh 中用 Markdown 代码围栏包住代码，保留缩进、换行、标识符和字符串；只翻译题注及自然语言注释。题注放在围栏外，不要输出 code 或 listing 类型，不要在代码里插句子分界 ‖。
 - 看不清的地方写“此处识别不清，请核对原文第 N 页”，不要猜。
 - 页眉、页脚、页码、arXiv 侧边水印不要输出。"""
 
@@ -64,11 +65,23 @@ _HANT = ("\n- 译文一律用繁体中文（正體字），用词按台湾学术
          "上面规则和示例里的简体字只是写法示范，输出时都换成繁体；术语表里已有的译法照意思改成繁体用字。")
 
 
+# 译成英文（#48）：原文多半不是英文（德语、法语、中文……），术语括注和示例反过来写；“英文原文”的说法统一解释成原文
+_EN_SWAP = {
+    "首次出现的核心术语写“中文（English）”。已有术语表必须遵守。统计学里 standard error 译“标准误差”。":
+        "首次出现的核心术语写“English term (原文术语)”。已有术语表必须遵守。",
+    '{"en": "standard error", "zh": "标准误差"}': '{"en": "原文术语", "zh": "English term"}',
+}
+_EN = ("\n- 原文不一定是英文，可能是德语、法语、西班牙语、中文、日语等任何语言。本提示词里说的“英文”“英文原文”“英文标题”都指原文："
+       "en、caption_en、image_en、title_en 这些字段照录原文的原语言，不要改写成英文；术语表的 en 也写原文术语。"
+       "\n- 原文本身就是英文时不用翻译：zh 这些字段照抄原文（‖ 两边插在同一处），不要改写、润色或缩写，glossary 留空。")
+
+
 def _swap(text: str, pairs, target: str) -> str:
     if langs.chinese(target):
         return text
     name = langs.prompt_name(target)
     for a, b in pairs:
+        b = _EN_SWAP.get(a, b) if target == "en" else b
         text = text.replace(a, b.replace("{L}", name))
     return text
 
@@ -78,7 +91,8 @@ def rules(target: str = "zh") -> str:
         return RULES + (_HANT if target == "zh-Hant" else "")
     name = langs.prompt_name(target)
     return (_swap(RULES, _RULES_SWAP, target) +
-            f"\n- 译文语言是{name}：zh、caption_zh、image_zh、title_zh 这些字段名是历史叫法，里面一律写{name}，不要写中文。")
+            f"\n- 译文语言是{name}：zh、caption_zh、image_zh、title_zh 这些字段名是历史叫法，里面一律写{name}，不要写中文。"
+            + (_EN if target == "en" else ""))
 
 
 def schema(target: str = "zh") -> str:
@@ -197,7 +211,7 @@ def consistency(items: list[dict], agree: dict[str, int], target_name: str) -> s
         for t in it["terms"]:
             terms[t["en"]] = {"术语表译法": t["want"], "全文用了术语表译法的段数": agree.get(t["en"], 0)}
     rows = [{"key": it["key"], "terms": [t["en"] for t in it["terms"]], "en": it["en"], "zh": it["zh"]} for it in items]
-    return (f"下面是一篇学术论文{target_name}译文里术语可能不统一的地方。terms 里是英文术语、术语表登记的译法、全文有几段用了这个译法；"
+    return (f"下面是一篇学术论文{target_name}译文里术语可能不统一的地方。terms 里是原文术语、术语表登记的译法、全文有几段用了这个译法；"
             "passages 是原文出现了这个术语、译文里却没用术语表译法的段落。只做判断，不要改写段落：\n"
             "1. use：给每个术语定一个全文统一用的译法。看全文多数段落怎么译、哪个说法在这个领域最通行，不一定是术语表登记的那个。\n"
             "2. fixes：逐段看，这段把术语译成了别的说法时，写出这段译文里那个说法的原样（from，必须是这段 zh 里一字不差的连续文字，"

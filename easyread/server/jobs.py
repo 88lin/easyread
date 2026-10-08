@@ -81,6 +81,32 @@ class Jobs:
             elif job.get("state") == "confirm":
                 self._write(ws, state="done", message=tr("已导入，未整理") if job.get("read") else tr("已导入，未翻译"))
 
+    def stop_model_work(self, ids: list[str] | None = None) -> int:
+        """一键停止：只停用模型的部分（翻译、整理原文、等确认页数的），原页照样渲染。
+        还在排队、原页没渲染的改成只渲染；ids 为空就是全部。返回停了几篇。"""
+        want = set(ids) if ids is not None else None
+        n = 0
+        with self.lock:
+            for ws in self.lib.all():
+                if want is not None and ws.id not in want:
+                    continue
+                job = ws.load("job") or {}
+                state = job.get("state")
+                if state not in ("queued", "running", "confirm") or not job.get("translate"):
+                    continue
+                n += 1
+                if state == "running":
+                    ev = self.cancels.get(ws.id)
+                    if ev:
+                        ev.set()
+                elif state == "confirm":
+                    self._write(ws, state="done", message=tr("已导入，未整理") if job.get("read") else tr("已导入，未翻译"))
+                elif (ws.load("paper") or {}).get("meta", {}).get("pages"):
+                    self._write(ws, state="cancelled", message=tr("已取消"))
+                else:  # 留在队里，轮到时只渲染原页
+                    self._write(ws, type="prepare", translate=False, read=False, message=tr("排队中"))
+        return n
+
     def _resume(self):
         for ws in self.lib.all():
             job = ws.load("job") or {}
@@ -105,6 +131,9 @@ class Jobs:
             except Cancelled:
                 self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
             except Exception as e:  # noqa: BLE001
+                if cancel.is_set():  # 点了停止后模型调用被打断而报错：算取消，不算出错
+                    self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
+                    continue
                 msg = str(e) if isinstance(e, (EngineError, KeyError, ValueError)) else f"{type(e).__name__}: {e}"
                 self._write(ws, state="error", message=tr("出错了"), error=msg[:800])
                 log.exception("后台任务出错 %s", pid)

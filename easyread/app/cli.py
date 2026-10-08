@@ -9,7 +9,7 @@
   easyread discuss ID --from 讨论.json | --delete 讨论ID
   easyread check ID                       检查块、引用、TeX
   easyread locate ID                      重新计算原页高亮位置
-  easyread export ID                      导出单文件离线 HTML
+  easyread export ID [--mobile]           导出单文件离线 HTML（--mobile：手机版）
   easyread demo ID --out docs/demo        做成网站上的在线演示（图片另存、带问 AI 记录）
   easyread merge ID --from 导出.json       把离线版页面导出的修改并回文献库
   easyread migrate 旧的“xxx-共读”目录      把旧版技能生成的目录搬进文献库
@@ -190,7 +190,7 @@ def cmd_locate(a):
 
 def cmd_export(a):
     from ..export.build import build
-    out(str(build(find(a.id))))
+    out(str(build(find(a.id), mobile=a.mobile)))
 
 
 def cmd_demo(a):
@@ -226,6 +226,7 @@ def main(argv=None):
     p = sub.add_parser("translate"); p.add_argument("id"); p.add_argument("--pages"); p.set_defaults(fn=cmd_translate)
     for name, fn in (("status", cmd_status), ("check", cmd_check), ("locate", cmd_locate), ("export", cmd_export)):
         p = sub.add_parser(name); p.add_argument("id"); p.set_defaults(fn=fn)
+        if name == "export": p.add_argument("--mobile", action="store_true", help="手机版：只读正文，不带 PDF 原页")
     p = sub.add_parser("blocks"); p.add_argument("id"); p.add_argument("--from", dest="from_file", required=True)
     p.add_argument("--done"); p.add_argument("--replace", action="store_true"); p.set_defaults(fn=cmd_blocks)
     p = sub.add_parser("discuss"); p.add_argument("id"); p.add_argument("--from", dest="from_file"); p.add_argument("--delete")

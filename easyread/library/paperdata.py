@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 
-from ..translate import sentences
+from ..translate import codeblocks, sentences
 from ..app.i18n import tr
 from .store import Workspace, now_iso
 
@@ -50,6 +50,9 @@ def merge_blocks(ws: Workspace, data: dict, done=None, replace_pages=None, en_on
     drop_ids：顺便删掉这几个别的页上的块（全文只留一个参考文献块时用），和合并在同一次写入里。"""
     if isinstance(data, list):
         data = {"blocks": data}
+    for b in data.get("blocks", []):
+        if isinstance(b, dict):
+            codeblocks.normalize(b)
     sentences.attach(data.get("blocks"))  # 去掉句子分界 ‖，记成 sents
     for b in data.get("blocks", []):
         if not isinstance(b, dict) or not b.get("id") or b.get("type") not in BLOCK_TYPES:
