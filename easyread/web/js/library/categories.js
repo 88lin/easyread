@@ -1,17 +1,19 @@
 /* 自建分类的数据操作：新建、改名 / 移动、删除、排序、放进 / 拿出论文，以及侧栏设置（顺序、隐藏、置顶、折叠）。
+   折叠：expanded 里的分类是展开的，其余默认收起；collapsed 是旧版记下的“收起”，一起维护，旧版打开也对得上。
    分类可以有层级：名字就是路径“父/子”（见 cat-tree.js）。改名或移动父分类时，子分类和论文上的路径一起改。
    侧栏设置存在 prefs.json 的 library 里，本机再存一份，打开时先用本机的不闪。 */
 (function (PR) {
   "use strict";
   const L = PR.lib, T = PR.catTree;
 
-  L.side = Object.assign({ cats: [], hidden: [], pinned: [], collapsed: [] }, PR.ls.get("easyread-lib-side", {}));
-  if (!Array.isArray(L.side.collapsed)) L.side.collapsed = [];
+  L.side = Object.assign({ cats: [], hidden: [], pinned: [], collapsed: [], expanded: [] }, PR.ls.get("easyread-lib-side", {}));
+  const fixLists = () => ["collapsed", "expanded"].forEach((k) => { if (!Array.isArray(L.side[k])) L.side[k] = []; });
+  fixLists();
   L.saveSide = function () {
     PR.ls.set("easyread-lib-side", L.side);
-    PR.savePrefs("library", { cats: L.side.cats, hidden: L.side.hidden, pinned: L.side.pinned, collapsed: L.side.collapsed });
+    PR.savePrefs("library", { cats: L.side.cats, hidden: L.side.hidden, pinned: L.side.pinned, collapsed: L.side.collapsed, expanded: L.side.expanded });
   };
-  L.useServerSide = (p) => { if (p && p.library) { Object.assign(L.side, p.library); PR.ls.set("easyread-lib-side", L.side); L.render(); } };
+  L.useServerSide = (p) => { if (p && p.library) { Object.assign(L.side, p.library); fixLists(); PR.ls.set("easyread-lib-side", L.side); L.render(); } };
 
   /* 全部自建分类，按树的顺序：设置里记下的顺序 + 论文上已有但没记下的（旧版的标签、导入带来的），祖先自动补上 */
   L.cats = function () {
@@ -39,7 +41,7 @@
     name = T.clean((parent ? parent + T.SEP : "") + (name || ""));
     if (!name || name === parent) return L.render();
     if (!L.cats().includes(name)) L.side.cats = L.cats().concat(name);
-    if (parent) L.side.collapsed = L.side.collapsed.filter((c) => !T.under(parent, c));  // 展开到能看见新分类
+    if (parent) L.openTo(parent);  // 展开到能看见新分类
     L.saveSide();
     const add = [].concat(paperId || []).map(L.byId).filter((it) => it && !(it.tags || []).includes(name));  // 一篇的 id，或多选拖过来的一组
     if (add.length) return patchMany(add.map((it) => [it.id, { tags: (it.tags || []).concat(name) }]));
@@ -58,6 +60,7 @@
     L.side.pinned = L.side.pinned.map(mvKey);
     L.side.hidden = L.side.hidden.map(mvKey);
     L.side.collapsed = L.side.collapsed.map(mv);
+    L.side.expanded = L.side.expanded.map(mv);
     if (L.tag && T.under(L.tag, from)) L.tag = mv(L.tag);
     L.saveSide();
     patchMany(L.items.filter((i) => L.inCat(i, from)).map((i) => [i.id, { tags: Array.from(new Set(i.tags.map(mv))) }]));
@@ -75,6 +78,7 @@
     L.side.pinned = L.side.pinned.filter((k) => !goneKey(k));
     L.side.hidden = L.side.hidden.filter((k) => !goneKey(k));
     L.side.collapsed = L.side.collapsed.filter((c) => !gone(c));
+    L.side.expanded = L.side.expanded.filter((c) => !gone(c));
     if (L.tag && gone(L.tag)) L.tag = null;
     L.saveSide();
     patchMany(L.items.filter((i) => L.inCat(i, name)).map((i) => [i.id, { tags: i.tags.filter((t) => !gone(t)) }]));
@@ -94,8 +98,15 @@
     L.side.cats = T.shift(L.cats(), name, d);
     L.saveSide(); L.render();
   };
+  L.isOpen = (c) => L.side.expanded.includes(c);
+  const setOpen = (c, open) => {
+    L.side.expanded = L.side.expanded.filter((x) => x !== c).concat(open ? c : []);
+    L.side.collapsed = L.side.collapsed.filter((x) => x !== c).concat(open ? [] : c);
+  };
   L.toggleFold = function (c) {
-    L.side.collapsed = L.side.collapsed.includes(c) ? L.side.collapsed.filter((x) => x !== c) : L.side.collapsed.concat(c);
+    setOpen(c, !L.isOpen(c));
     L.saveSide(); L.render();
   };
+  /* 展开 c 和它的祖先（不存，调用的地方自己存） */
+  L.openTo = (c) => T.parts(c).forEach((_, k, p) => setOpen(p.slice(0, k + 1).join(T.SEP), true));
 })(window.PR);

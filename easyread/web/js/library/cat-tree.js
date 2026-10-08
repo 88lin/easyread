@@ -36,6 +36,32 @@
   T.children = (list, c) => list.filter((x) => T.parent(x) === c && x !== c);
   T.hasChildren = (list, c) => list.some((x) => x !== c && T.under(x, c));
 
+  /* 直接放在 c 里的论文（tags 里有 c 本身，不算子分类里的） */
+  T.direct = (items, c) => items.filter((i) => (i.tags || []).includes(c));
+
+  /* 侧栏分类树要画的行，像资源管理器：展开一个分类，先列子分类，再列直接属于它的论文。
+     cats：T.ordered 排好的全部分类；items：论文（按想显示的顺序）。
+     o.open(c) 展开没有，o.skip(c) 不画（连子树），o.limit 每个分类先显示几篇，o.full(c) 这个分类显示全部。
+     返回 {type:"cat", c, depth, kids, open} / {type:"paper", item, cat, depth} / {type:"more", cat, n, depth} */
+  T.rows = function (cats, items, o) {
+    const open = o.open || (() => false), skip = o.skip || (() => false), full = o.full || (() => false);
+    const limit = o.limit || Infinity;
+    const out = [];
+    const walk = (par) => T.children(cats, par).forEach((c) => {
+      if (skip(c)) return;
+      const depth = T.depth(c), papers = T.direct(items, c);
+      const kids = T.hasChildren(cats, c) || papers.length > 0, isOpen = kids && open(c);
+      out.push({ type: "cat", c, depth, kids, open: isOpen });
+      if (!isOpen) return;
+      walk(c);
+      const shown = full(c) ? papers : papers.slice(0, limit);
+      shown.forEach((item) => out.push({ type: "paper", item, cat: c, depth: depth + 1 }));
+      if (shown.length < papers.length) out.push({ type: "more", cat: c, n: papers.length - shown.length, depth: depth + 1 });
+    });
+    walk("");
+    return out;
+  };
+
   /* 把 from 这棵子树整体换到 to 下面（改名、移动都用它） */
   T.move = (tag, from, to) => (T.under(tag, from) ? to + String(tag).slice(from.length) : tag);
 

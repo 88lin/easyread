@@ -1,7 +1,7 @@
 /* 文献库左侧栏，学 Claude / ChatGPT 的侧栏：
    - 置顶：单篇论文和分类都能置顶，放最上面。
    - 分类：“全部”固定；在读 / 未读 / 已读 / 星标是内置分类，可以隐藏；自己建的分类可以改名、删除，可以建子分类、移到别的分类下、折叠。
-     分类的增删改在 categories.js，层级的规则在 cat-tree.js。
+     分类的增删改在 categories.js，层级的规则在 cat-tree.js；分类树（展开后列出里面的论文）在 sidebar-tree.js。
      点“＋”新建；右键或“⋯”打开菜单；把论文拖到分类上就放进去（拖到在读 / 未读 / 已读是改状态，拖到星标是加星标）。一篇论文可以在好几个分类里（存在论文的 tags 里）。
    - 最近阅读：默认 5 篇，展开最多 10 篇；显示短标题。置顶了的论文、分类只出现在“置顶”里，不在下面重复。
    - 侧栏右边缘可以拖动调宽度。
@@ -29,34 +29,27 @@
   /* ---------- 画面 ---------- */
   const count = (fn) => L.items.filter(fn).length;
   const more = '<span class="more" data-more title="' + PR.t("更多") + '">' + PR.icon("more", "sm") + "</span>";
+  /* “分类”这一组的行（内置分类和自建分类树）左边都留箭头槽，图标对齐；置顶、最近阅读不留 */
   function viewRow(v, pinnedRow) {
     const [k, label, icon, fn] = v;
-    return '<div class="srow' + (L.view === k && !L.tag ? " on" : "") + '" data-view="' + k + '"' + (pinnedRow ? " data-pinrow" : "") + ">" + PR.icon(icon, "sm") + "<span class=\"t\">" + label +
+    return '<div class="srow' + (pinnedRow ? "" : " tree") + (L.view === k && !L.tag ? " on" : "") + '" data-view="' + k + '"' + (pinnedRow ? " data-pinrow" : "") + ">" + (pinnedRow ? "" : PR.foldSlot(false)) + PR.icon(icon, "sm") + "<span class=\"t\">" + label +
       '</span><span class="n">' + count(fn) + "</span>" + (k === "all" && !pinnedRow ? "" : more) + "</div>";
   }
   const lvl = (d) => (d ? ' style="--lvl:' + d + '"' : "");
-  function catRow(c, pinnedRow, kids) {
+  function catRow(c, pinnedRow, kids, open) {
     const d = pinnedRow ? 0 : T.depth(c);
-    if (ui.renaming === c && !pinnedRow) return '<div class="srow editing"' + lvl(d) + ">" + PR.icon("folder", "sm") + '<input class="side-input" data-rename="' + PR.esc(c) + '" value="' + PR.esc(T.leaf(c)) + '" maxlength="' + T.MAX_NAME + '"></div>';
-    const fold = kids ? '<span class="fold' + (L.side.collapsed.includes(c) ? "" : " open") + '" data-fold title="' + PR.t("展开 / 收起子分类") + '">' + PR.icon("chevron", "sm") + "</span>" : "";
-    return '<div class="srow' + (L.tag === c ? " on" : "") + (kids ? " has-kids" : "") + '" data-cat="' + PR.esc(c) + '"' + (pinnedRow ? " data-pinrow" : "") + lvl(d) + ' title="' + PR.esc(T.label(c)) + '">' + fold + PR.icon("folder", "sm") +
+    const slot = pinnedRow ? "" : PR.foldSlot(kids, open), tree = pinnedRow ? "" : " tree";
+    if (ui.renaming === c && !pinnedRow) return '<div class="srow tree editing"' + lvl(d) + ">" + slot + PR.icon("folder", "sm") + '<input class="side-input" data-rename="' + PR.esc(c) + '" value="' + PR.esc(T.leaf(c)) + '" maxlength="' + T.MAX_NAME + '"></div>';
+    return '<div class="srow' + tree + (L.tag === c ? " on" : "") + '" data-cat="' + PR.esc(c) + '"' + (pinnedRow ? " data-pinrow" : "") + lvl(d) + ' title="' + PR.esc(T.label(c)) + '">' + slot + PR.icon("folder", "sm") +
       '<span class="t">' + PR.esc(pinnedRow ? T.label(c) : T.leaf(c)) + '</span><span class="n">' + count((i) => L.inCat(i, c)) + "</span>" + more + "</div>";
   }
-  const addRow = (d) => '<div class="srow editing"' + lvl(d) + ">" + PR.icon("folder", "sm") + '<input class="side-input" data-new placeholder="' + (ui.addUnder ? PR.t("子分类名，回车") : PR.t("分类名，回车")) + '" maxlength="' + T.MAX_PATH + '"></div>';
-  /* 自建分类的树：隐藏或收起的分类，连同子分类都不画；置顶的只出现在“置顶”里 */
-  function catTree(cats) {
-    let h = "";
-    const skip = [];
-    for (const c of cats) {
-      if (skip.some((s) => T.under(c, s))) continue;
-      if (isPinned("c:" + c) || L.side.hidden.includes("c:" + c)) { skip.push(c); continue; }
-      const kids = T.hasChildren(cats, c);
-      h += catRow(c, false, kids);
-      if (ui.adding && ui.addUnder === c) h += addRow(T.depth(c) + 1);
-      if (kids && L.side.collapsed.includes(c) && ui.addUnder !== c) skip.push(c);
-    }
-    return h;
-  }
+  const addRow = (d) => '<div class="srow tree editing"' + lvl(d) + ">" + PR.foldSlot(false) + PR.icon("folder", "sm") + '<input class="side-input" data-new placeholder="' + (ui.addUnder ? PR.t("子分类名，回车") : PR.t("分类名，回车")) + '" maxlength="' + T.MAX_PATH + '"></div>';
+  /* 自建分类的树（sidebar-tree.js）：隐藏的分类连同子分类都不画；置顶的只出现在“置顶”里 */
+  const catTree = (cats) => PR.sideTreeHtml(cats, {
+    catRow: (c, kids, open) => catRow(c, false, kids, open), addRow,
+    skip: (c) => isPinned("c:" + c) || L.side.hidden.includes("c:" + c),
+    addUnder: ui.adding ? ui.addUnder : null,
+  });
   /* 侧栏放短标题（PR.titles 里定：翻译时起的短标题，或主标题冒号前那半句） */
   const shortTitle = (i) => PR.titles(i).short;
   function paperRow(i, pinnedRow) {
@@ -82,7 +75,7 @@
       AUTO.filter(([k, , , fn]) => count(fn) && !L.side.hidden.includes(k)).map((v) => viewRow(v)).join("") +
       catTree(cats) +
       (ui.adding && !ui.addUnder ? addRow(0) : "") +
-      (!ui.adding ? '<button class="srow hint-row" data-add>' + PR.icon("plus", "sm") + '<span class="t">' + (cats.length ? PR.t("新建分类") : PR.t("新建分类，把论文拖进来")) + "</span></button>" : "") + "</div>";
+      (!ui.adding ? '<button class="srow tree hint-row" data-add>' + PR.foldSlot(false) + PR.icon("plus", "sm") + '<span class="t">' + (cats.length ? PR.t("新建分类") : PR.t("新建分类，把论文拖进来")) + "</span></button>" : "") + "</div>";
     const recent = L.items.filter((i) => i.last_opened && !isPinned("p:" + i.id)).sort((a, b) => String(b.last_opened).localeCompare(String(a.last_opened)));
     if (recent.length) {
       const shown = recent.slice(0, ui.recentOpen ? RECENT_MAX : RECENT_SHORT);
@@ -149,13 +142,19 @@
     if (e.target.closest(".side-input")) return;
     const m = e.target.closest("[data-more]");
     const row = e.target.closest(".srow");
+    if (row && (row.dataset.leaf || row.dataset.allIn)) return;  // 树里的论文行、“还有 N 篇”归 sidebar-tree.js
     if (m && row) { e.preventDefault(); e.stopPropagation(); return rowMenu(row, m); }
     if (e.target.closest("[data-fold]") && row) return L.toggleFold(row.dataset.cat);
     if (e.target.closest("[data-add]")) return startAdd("");
     if (e.target.closest("[data-recent]")) { ui.recentOpen = !ui.recentOpen; return L.render(); }
     if (!row) return;
     if (row.dataset.view) { L.view = row.dataset.view; L.tag = null; L.render(); }
-    else if (row.dataset.cat) { L.tag = L.tag === row.dataset.cat ? null : row.dataset.cat; L.view = "all"; L.render(); }
+    else if (row.dataset.cat) {
+      L.tag = L.tag === row.dataset.cat ? null : row.dataset.cat; L.view = "all";
+      // 双击（第二下）：筛选回到双击前，切换折叠。第一下已经重画了侧栏，dblclick 落不到原来的行上，所以按 click 的 detail 认
+      if (e.detail === 2 && row.querySelector("[data-fold]")) return L.toggleFold(row.dataset.cat);
+      L.render();
+    }
     // 论文行是链接，直接打开
   });
   side.addEventListener("contextmenu", (e) => {
@@ -203,7 +202,7 @@
 
   /* 把论文从列表拖到侧栏的分类上 */
   let dragId = null;
-  document.addEventListener("dragstart", (e) => { const r = e.target.closest && e.target.closest(".row[data-id]"); if (r) { dragId = r.dataset.id; e.dataTransfer.setData("text/plain", dragId); e.dataTransfer.effectAllowed = "copy"; side.classList.add("dragging"); } });
+  document.addEventListener("dragstart", (e) => { const r = e.target.closest && e.target.closest(".row[data-id], .srow[data-leaf]"); if (r) { dragId = r.dataset.id || r.dataset.leaf; e.dataTransfer.setData("text/plain", dragId); e.dataTransfer.effectAllowed = "copy"; side.classList.add("dragging"); } });
   document.addEventListener("dragend", () => { dragId = null; side.classList.remove("dragging"); PR.$$(".srow.drop", side).forEach((x) => x.classList.remove("drop")); });
   /* 能放的地方：自建分类、在读 / 未读 / 已读（改状态）、星标、“新建分类” */
   const STATUS = { reading: PR.t("在读"), unread: PR.t("未读"), done: PR.t("已读") };

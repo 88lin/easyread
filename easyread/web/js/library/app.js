@@ -218,6 +218,7 @@
     L.selected = id;
     PR.$(".lib").classList.toggle("has-detail", !!id);
     PR.$$(".row").forEach((r) => r.classList.toggle("on", r.dataset.id === id));
+    PR.markSideLeaf && PR.markSideLeaf(id);
     PR.renderDetail && PR.renderDetail();
   };
 
@@ -252,7 +253,7 @@
   });
   /* 点列表空白处、侧栏、标题栏空白：收起右侧详情 */
   document.addEventListener("click", (e) => {
-    if (!L.selected || e.target.closest(".row, #detail, .dialog-backdrop, .menu, #toast, .topbar button, .topbar input, select")) return;
+    if (!L.selected || e.target.closest(".row, .srow[data-leaf], #detail, .dialog-backdrop, .menu, #toast, .topbar button, .topbar input, select")) return;
     if (e.target.closest(".main, .side, .topbar")) L.select(null);
   });
   PR.$("#list").addEventListener("dblclick", (e) => { const r = e.target.closest(".row"); if (r) L.openReader(r.dataset.id); });
