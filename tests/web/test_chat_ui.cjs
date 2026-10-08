@@ -19,10 +19,10 @@ async function reader(threads = [], options = {}) {
       const ta = { value: (html.match(/<textarea[^>]*>(.*?)<\/textarea>/s) || [])[1] || "", focus() {} };
       nodes.set("#chatInput", ta);
       nodes.set("#chatList", { scrollHeight: 100, scrollTop: 0, clientHeight: 100 });
-      // “简明回答”开关：亮着就是 ste100
+      // 回答方式按钮：按钮上的 data-style 就是当前选择（standard / ste100 / xray）
       nodes.set("#chatAnswerStyle", {
-        value: /class="ch-pill on"/.test(html) ? "ste100" : "standard",
-        disabled: /data-c="style" disabled/.test(html),
+        value: (html.match(/data-style="([a-z0-9]+)"/) || [])[1] || "standard",
+        disabled: /data-c="style"[^>]* disabled/.test(html),
       });
     },
   });
@@ -64,7 +64,7 @@ async function reader(threads = [], options = {}) {
     },
   });
   const dispatch = async (name, target) => { for (const fn of listeners.get(name) || []) await fn({ target }); };
-  const action = (name, card, row) => ({ dataset: { c: name, m: name === "model" ? "m2" : undefined }, closest: selector => {
+  const action = (name, card, row, data) => ({ dataset: Object.assign({ c: name, m: name === "model" ? "m2" : undefined }, data), closest: selector => {
     if (selector === "#chatpanel") return panel;
     if (selector === "[data-c]") return actionTarget;
     if (selector === ".cm.ai") return card;
@@ -72,17 +72,47 @@ async function reader(threads = [], options = {}) {
     return null;
   } });
   let actionTarget;
-  const click = (name, card, row) => { actionTarget = action(name, card, row); return dispatch("click", actionTarget); };
+  const click = (name, card, row, data) => { actionTarget = action(name, card, row, data); return dispatch("click", actionTarget); };
   const selectThread = id => {
     const row = { dataset: { t: id } };
     return dispatch("click", { closest: selector => selector.includes(".ch-thread[data-t]") ? row : selector === "#chatpanel" ? panel : null });
   };
   PR.toggleChat(true);
   await settled();
-  const setStyle = async value => { if (nodes.get("#chatAnswerStyle").value !== value) await click("style"); };
+  const setStyle = async value => {
+    if (nodes.get("#chatAnswerStyle").value === value) return;
+    await click("style");                                        // 打开回答方式菜单
+    await click("style-pick", null, null, { s: value });          // 选一档
+  };
   return { PR, panel, nodes, requests, copied, confirmations, dispatch, click, selectThread, setStyle,
     emit: async name => { await events.get(name)(); await settled(); }, finish: () => finish() };
 }
+
+test("the answer-style button opens a menu and every mode reaches the request", async () => {
+  const r = await reader();
+  assert.equal(r.nodes.get("#chatAnswerStyle").value, "standard");
+  const modes = [["ste100", "简明回答"], ["xray", "精读"], ["standard", "标准回答"]];
+  for (const [value, label] of modes) {
+    await r.setStyle(value);
+    assert.equal(r.nodes.get("#chatAnswerStyle").value, value);
+    assert.ok(r.panel.innerHTML.includes(">" + label + "</button>"), "按钮上应显示 " + label);
+  }
+  // 菜单里三档都在，选中的那档打勾
+  await r.click("style");
+  assert.equal(r.nodes.get("#chatAnswerStyle").value, "standard");
+  for (const [value, label] of modes) {
+    assert.ok(r.panel.innerHTML.includes('data-c="style-pick" data-s="' + value + '"'), "菜单里应有 " + label);
+  }
+  assert.ok(/class="ch-pill( on)?" data-c="style" data-style="standard"/.test(r.panel.innerHTML));
+  await r.setStyle("xray");
+  r.nodes.get("#chatInput").value = "这个设计为什么长这样";
+  const sending = r.click("send");
+  await settled();
+  assert.equal(r.requests[0].answer_style, "xray");
+  r.finish();
+  await sending;
+  assert.ok(r.panel.innerHTML.includes('class="cm-style">精读</span>'));
+});
 
 test("STE selection reaches the request, stays fixed during streaming, and copies the complete Chinese answer", async () => {
   const r = await reader();
