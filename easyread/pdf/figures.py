@@ -103,6 +103,9 @@ def _pending(ws):
         if src:
             try:
                 if src == _crop_path(ws.root, page, box) and (ws.root / src).is_file():
+                    if b.get("abox") == list(box):
+                        continue  # 截图和框都已是最新
+                    out.append((b, page, box))  # 只缺 abox：crop 命中缓存，零成本回填
                     continue
             except OSError:
                 continue  # PDF 不在时保留已经存在的截图。
@@ -120,16 +123,18 @@ def fill(ws) -> int:
     done = {}
     for block, page, box in _pending(ws):
         try:
-            done[block["id"]] = (block, crop(ws.root, page, box))
+            done[block["id"]] = (block, page, box, crop(ws.root, page, box))
         except Exception:  # noqa: BLE001
             log.exception("截图失败 %s %s", ws.root, block["id"])
     if done:
         def apply(paper):
             count = 0
             for b in paper.get("blocks", []):
-                previous, src = done.get(b.get("id"), (None, None))
-                if b == previous:
+                done_item = done.get(b.get("id"))
+                if done_item and b == done_item[0]:
+                    _, page, box, src = done_item
                     b["src"] = src
+                    b["abox"] = list(box)  # 自动定位的框写回 abox，前端按原页比例定宽；box 仍留给模型显式给框
                     count += 1
             return count
         return ws.update("paper", apply)

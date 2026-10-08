@@ -157,6 +157,14 @@ class FigureTest(unittest.TestCase):
             self.assertEqual(figures.fill(ws), 0)
         crop.assert_not_called()
 
+    def test_auto_fill_writes_abox_for_physical_width(self):
+        ws, _ = self.auto_figure()
+        self.assertEqual(figures.fill(ws), 1)
+        updated = ws.load("paper")["blocks"][0]
+        self.assertEqual(updated["abox"], [.1, .3, .9, .9])
+        # layout 没变时 fill 不再触发，abox 保持稳定
+        self.assertNotIn("box", updated)
+
     def test_custom_image_and_unrecognized_model_box_are_not_replaced(self):
         for manual, src in (({"src": "figures/custom.webp"}, "graphic"), ({"box": [.5, .4, .9, .7]}, "manual")):
             ws, old = self.auto_figure()
