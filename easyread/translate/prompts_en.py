@@ -83,7 +83,8 @@ def fill(ws: Workspace, pages: list[int], items: dict[str, object]) -> str:
             + (f"- 英文里的 ‖ 是句子分界：译文在对应的句子交界处也插 ‖，个数和这条英文的一样。两句英文在{name}里要合成一句时，也在合并后最接近的位置插上。\n"
                if any(isinstance(v, str) and "‖" in v for v in items.values()) else "") + "\n"
             "输出格式：只输出一个 JSON 对象，不要任何别的文字。\n{\n" + meta +
-            '  "glossary": [{"en": "standard error", "zh": "' + ("标准误差" if langs.chinese(target) else name + "译名") + '"}],   // 本批新出现的核心术语\n'
+            ('  "glossary": [{"en": "原文术语", "zh": "English term"}],' if target == "en" else
+             '  "glossary": [{"en": "standard error", "zh": "' + ("标准误差" if langs.chinese(target) else name + "译名") + '"}],') + '   // 本批新出现的核心术语\n'
             '  "checks": [{"anchor": "块 id", "quote": "译文里相关的几个字（可空）", "title": "一句话：哪里不对", "body": "具体说明和依据"}],   // 原文有问题时才写\n'
             '  "zh": {"键": "' + name + '译文", …}   // 下面每个键都要有，一个不漏\n}\n'
             "注意 JSON 里 TeX 的反斜杠要写两个（\\\\frac、\\\\text、\\\\bar）。" + ("字符串里的中文引号用“”或「」。" if langs.chinese(target) else "字符串里的英文双引号要转义。") + "\n\n"
