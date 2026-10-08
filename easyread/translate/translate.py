@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import consistency, continuation, front_context, langs, prompts, prompts_en, segments, sentences, terms
 from ..engines import engines, netcheck
-from ..pdf import pdfwork, sources
+from ..pdf import figures, pdfwork, sources
 from ..library.checks import block_problems, tex_problems
 from ..pdf.figures import normalize_figure, prepare_figures
 from ..app.i18n import tr
@@ -201,6 +201,7 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
         _save_checks(ws, data.get("checks"), batch)
         try:
             pdfwork.locate(ws.root)
+            figures.fill(ws)  # 按定位重截：PDF 图形边界认出了图就替换模型框截的图
         except Exception:  # noqa: BLE001 —— 定位失败不影响阅读
             log.exception("locate 失败 %s", ws.id)
 

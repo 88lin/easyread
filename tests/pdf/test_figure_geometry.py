@@ -315,6 +315,64 @@ class FigureGeometryTest(unittest.TestCase):
                     words=[("axis", .02, .625), ("more", .02, .655), ("text", .02, .685)])
         self.assertLess(layout["fig"]["box"][3], .67)
 
+    def test_crop_leaves_out_caption_below(self):
+        layout = {"fig": loc([.1, .62, .9, .66])}
+        self.extend([{"id": "fig", "type": "figure"}], layout, images=[[.1, .3, .9, .6]],
+                    words=[("Figure 1. Caption.", .1, .64)])
+        fig = layout["fig"]
+        self.assertGreater(fig["box"][3], .66)
+        self.assertLess(fig["crop"][3], .62)
+        self.assertGreater(fig["crop"][3], .6)
+
+    def test_crop_stops_at_caption_drawn_over_image_bottom(self):
+        # 图片底边的空白伸到了题注第一行下面（题注压在图片上画）：截图截到题注上沿。
+        layout = {"fig": loc([.1, .6, .9, .66])}
+        self.extend([{"id": "fig", "type": "figure"}], layout, images=[[.1, .3, .9, .63]])
+        self.assertLessEqual(layout["fig"]["crop"][3], .6)
+        self.assertGreater(layout["fig"]["box"][3], .66)
+
+    def test_tight_model_box_grows_to_the_drawing(self):
+        # Issue #45：模型只框到图的上半截，按 PDF 图形边界撑开到整张图。
+        layout = {"fig": loc([.1, .72, .9, .76])}
+        self.extend([{"id": "fig", "type": "figure", "page": 1, "box": [.15, .32, .85, .5]}], layout,
+                    images=[[.1, .3, .9, .7]])
+        fig = layout["fig"]
+        self.assertEqual(fig["src"], "graphic")
+        self.assertLess(fig["crop"][0], .1)
+        self.assertGreater(fig["crop"][3], .7)
+        self.assertLess(fig["crop"][3], .72)
+
+    def test_model_box_picks_the_drawing_the_caption_is_not_nearest_to(self):
+        # 题注离下面那张图更近，但模型框住的是上面那张：以模型认的为准，边界仍按 PDF。
+        layout = {"fig": loc([.1, .47, .9, .5])}
+        self.extend([{"id": "fig", "type": "figure", "page": 1, "box": [.12, .1, .88, .3]}], layout,
+                    images=[[.1, .08, .9, .32], [.1, .52, .9, .8]], words=[("body", .1, .4)])
+        fig = layout["fig"]
+        self.assertEqual(fig["src"], "graphic")
+        self.assertLess(fig["crop"][1], .08)
+        self.assertLess(fig["crop"][3], .34)
+
+    def test_model_box_is_used_when_no_drawing_is_found(self):
+        for hint_page in (1, 2):
+            with self.subTest(hint_page=hint_page):
+                layout = {"body": loc([.1, .1, .9, .35]), "fig": loc([.1, .7, .9, .75])}
+                box = [.2, .4, .8, .68]
+                self.extend([{"id": "fig", "type": "figure", "page": hint_page, "box": box}], layout,
+                            images=[[0, 0, 1, 1]])
+                self.assertEqual(layout["fig"], {"page": hint_page, "box": box, "src": "manual"})
+
+    def test_model_box_figure_is_still_located_by_caption(self):
+        make_pdf(self.root / "source.pdf", images=[[.1, .3, .9, .65]], words=[("Figure 1. A drawing.", .1, .7)])
+        box = [.15, .32, .85, .45]
+        blocks = [{"id": "fig", "type": "figure", "page": 1, "box": box, "caption_en": "Figure 1. A drawing."},
+                  {"id": "lone", "type": "figure", "page": 1, "box": box, "caption_en": "Not on the page."}]
+        write_json_atomic(self.root / "paper.json", {"blocks": blocks})
+        pdfwork.extract_text(self.root / "source.pdf", self.root / "extract")
+        layout = pdfwork.locate(self.root)
+        self.assertEqual(layout["fig"]["src"], "graphic")
+        self.assertGreater(layout["fig"]["crop"][3], .65)
+        self.assertEqual(layout["lone"], {"page": 1, "box": box, "src": "manual"})
+
     def test_rotated_pdf_uses_rendered_page_coordinates(self):
         for rotation, expected in ((90, [.35, .1, .7, .45]), (270, [.3, .55, .65, .9])):
             with self.subTest(rotation=rotation):

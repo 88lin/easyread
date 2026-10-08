@@ -14,6 +14,8 @@ from pathlib import Path
 from statistics import median
 
 from ..translate import float_order
+from .caption_extent import column as _column, overlap_x as _overlap_x, page_locs as _page_locs
+from .caption_extent import extend_captioned as _extend_captioned
 from ..library.store import Workspace, write_json_atomic
 
 # PDFium is not thread-safe, even when threads open separate documents.
@@ -118,7 +120,7 @@ def crop(root: Path, page: int, box: list[float], out_name: str, scale: float = 
 
 _MATH = re.compile(r"\$[^$]*\$")
 _ALNUM = re.compile(r"[a-z0-9]")
-LOCATE_VERSION = "7"  # 图表按原页位置重排；旧论文打开时重算一次。
+LOCATE_VERSION = "8"  # 模型给的图框改由 PDF 图形边界校正、截图不带题注；旧论文打开时重算一次。
 
 
 def _norm(s: str) -> str:
@@ -200,11 +202,14 @@ def _locate(root: Path) -> dict:
         bid, page = block.get("id"), block.get("page")
         if not bid or not page:
             continue
-        if block.get("box"):
-            layout[bid] = {"page": page, "box": block["box"], "src": "manual"}
+        manual = {"page": page, "box": block["box"], "src": "manual"} if block.get("box") else None
+        if manual and block.get("type") != "figure":
+            layout[bid] = manual
             continue
         head, tail = _anchors(block_english(block))
         if not head:
+            if manual:  # 没有题注可找：只能按模型给的框
+                layout[bid] = manual
             continue
         heads = [head]
         if block.get("type") == "heading" and block.get("num"):
@@ -231,6 +236,9 @@ def _locate(root: Path) -> dict:
                 layout[bid]["boxes"] = boxes
             cursor[pn] = end
             break
+        else:
+            if manual:
+                layout[bid] = manual
     _extend_captioned(paper.get("blocks", []), layout, root)
     _clamp_overlaps(layout)
     ids = float_order.order(paper.get("blocks", []), layout)
@@ -253,60 +261,6 @@ def refresh_layout(root: Path) -> None:
         if marker.exists() and marker.read_text(encoding="utf-8").strip() == LOCATE_VERSION:
             return
         locate(root)
-
-
-def _overlap_x(a: list, x0: float, x1: float) -> bool:
-    return max(a[0], x0) < min(a[2], x1) - 0.01
-
-
-def _column(locs: list[dict], box: list) -> tuple[float, float] | None:
-    """双栏页上 box 所在那一栏的左右边界；单栏页或 box 本身横跨两栏时返回 None。"""
-    left = [l["box"] for l in locs if l["box"][2] <= 0.55]
-    right = [l["box"] for l in locs if l["box"][0] >= 0.45]
-    if len(left) < 2 or len(right) < 2 or box[2] - box[0] > 0.5:
-        return None
-    col = right if (box[0] + box[2]) / 2 >= 0.5 else left
-    return min(b[0] for b in col), max(b[2] for b in col)
-
-
-def _page_locs(layout: dict, page: int) -> list[dict]:
-    return [{"page": page, "box": box, "src": loc["src"], "_parent": loc}
-            for loc in layout.values() if loc["page"] == page
-            for box in loc.get("boxes") or [loc["box"]]]
-
-
-def _extend_captioned(blocks: list[dict], layout: dict, root: Path | None = None):
-    """图优先用 PDF 图形边界；表格或无法识别的图按题注所在栏估算。"""
-    from .figure_geometry import locate_figures
-    visual = locate_figures(root, blocks, layout) if root else {}
-    for block in blocks:
-        loc = layout.get(block.get("id"))
-        if block.get("type") not in ("table", "figure") or not loc or block.get("box") or loc.get("src") == "manual":
-            continue
-        if block["id"] in visual:
-            loc["box"] = visual[block["id"]]
-            loc.pop("boxes", None)
-            loc["src"] = "graphic"
-            continue
-        x0, y0, x1, y1 = loc["box"]
-        others = [l for l in _page_locs(layout, loc["page"]) if l["_parent"] is not loc]
-        col = _column(others, loc["box"])
-        if col:
-            x0, x1 = col
-        elif x1 - x0 < 0.45 and abs((x0 + x1) / 2 - 0.5) > 0.1:  # 窄题注偏在一侧：正文绕排的小表/小图
-            x0, x1 = max(0.05, x0 - 0.02), min(0.95, x1 + 0.02)
-        else:
-            x0, x1 = min(x0, 0.15), max(x1, 0.85)
-        same_col = [l["box"] for l in others if _overlap_x(l["box"], x0, x1)]
-        if block.get("caption_pos", "below") == "below":
-            above = [b[3] for b in same_col if b[3] < y0]
-            y0 = max(above) + 0.005 if above else 0.08
-        else:
-            below = [b[1] for b in same_col if b[1] > y1]
-            y1 = min(below) - 0.005 if below else 0.92
-        loc["box"] = [x0, round(y0, 4), x1, round(y1, 4)]
-        loc.pop("boxes", None)  # 图表框要包含图像本身，按题注扩展后用整个区域。
-        loc["src"] = "caption"  # 撑过的框旁边常有绕排正文，后面截重叠时不能再截它
 
 
 def _clamp_overlaps(layout: dict):
