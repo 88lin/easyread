@@ -18,7 +18,7 @@
   ];
   const AUTO = [  // 有内容时才出现，不用管理
     ["questions", PR.t("有待回答的问题"), "question", (i) => i.open_questions > 0],
-    ["translating", PR.t("翻译中"), "sparkle", (i) => i.job && ["queued", "running"].includes(i.job.state)],
+    ["translating", PR.t("翻译中"), "sparkle", (i) => i.job && ["queued", "running"].includes(i.job.state) && i.job.type !== "prepare"],  // 只准备原页（导入不翻译、Zotero 迁移）不算
   ];
   L.VIEWS = BUILTIN.concat(AUTO);
   const RECENT_SHORT = 5, RECENT_MAX = 10;
