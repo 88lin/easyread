@@ -2,8 +2,8 @@
 
 ## 下一版
 
-- 翻译和问 AI 多了三个本机 CLI：**Grok Build、Antigravity CLI、Cursor CLI**（[#50](https://github.com/Edwardxlai/easyread/issues/50)，@gulubao）。和 Claude Code、Codex 一样，装好并登录后在设置 → 模型 → 添加模型里选它，用你已有的订阅，不用 Key。模型名自己填（比如 Grok 的 `grok-build-0.1`；Antigravity 的可以用 `agy models` 查），留空就用 CLI 自己的默认；Antigravity 还能选推理强度（low / medium / high）。三家都以只读方式调用：Grok 不自动批准工具，Cursor 用 ask 模式，Antigravity 要授权的操作在无头模式下一律拒绝；原页图让它们自己读文件去看。长提示词不走命令行（Grok 用临时文件，Antigravity 和 Cursor 走标准输入），不会撞上 Windows 命令行长度上限。Cursor 的输出里没有 token 用量，翻译进度里不显示它的用量。
-- 验收状态：本地 Python（414 项）、前端和桌面（140 项）测试全部通过；用假的 grok / agy / agent 命令在测试环境里实际添加卡片、设为翻译、点“试译一句”都通过，4 万字的提示词也能送进去。三个真实 CLI 还没在本机装过实测。
+- 翻译和问 AI 多了三个本机 CLI：**Grok Build、Antigravity CLI、Cursor CLI**（[#50](https://github.com/Edwardxlai/easyread/issues/50)，@gulubao）。和 Claude Code、Codex 一样，装好并登录后在设置 → 模型 → 添加模型里选它，用你已有的订阅，不用 Key。模型名自己填（比如 Grok 的 `grok-build-0.1`；Antigravity 的可以用 `agy models` 查），留空就用 CLI 自己的默认；Grok 和 Antigravity 还能选推理强度。三家都以只读方式调用：Grok 不自动批准工具，Cursor 用 ask 模式，Antigravity 要授权的操作在无头模式下一律拒绝；原页图让它们自己读文件去看。长提示词不走命令行（Grok 用临时文件，Antigravity 和 Cursor 走标准输入），不会撞上 Windows 命令行长度上限。Cursor 的输出里没有 token 用量，翻译进度里不显示它的用量。
+- 验收状态：本地 Python、前端和桌面测试全部通过；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测：翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。实测时发现并修好：两家工具全开时会去跑命令找文件，无头模式下被拒后直接交白卷，现在只让它们读文件；Grok 默认推理强度一页要想 10 分钟，没选推理强度时用 low；Grok 会顺带装一个叫 agent 的命令，和 Cursor 同名，不再被认成 Cursor。Cursor CLI 没有实测。
 
 
 ## v1.4

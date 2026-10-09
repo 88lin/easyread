@@ -48,12 +48,15 @@ class AgentCliTest(unittest.TestCase):
         meter = usage.Meter("grok")
         self.assertEqual(self.run_cli("grok", out, {"model": "grok-build-0.1"}, meter), "好")
         call = self.calls[0]
-        self.assertEqual(call["file"], "翻译这一页")
+        self.assertEqual(call["file"], "翻译这一页" + agent_cli.ONLY_READ)
         self.assertEqual(call["stdin"], "")
         self.assertNotIn("翻译这一页", call["args"])  # 提示词不进命令行
         self.assertEqual(call["args"][1], "--prompt-file")
         self.assertIn("--model", call["args"])
         self.assertNotIn("--always-approve", call["args"])  # 写文件、跑命令一律不放行
+        a = call["args"]
+        self.assertEqual(a[a.index("--tools") + 1], "read_file")  # 工具全开时它会乱跑、被拒后交白卷
+        self.assertEqual(a[a.index("--reasoning-effort") + 1], "low")  # 没选推理强度时用 low
         self.assertFalse(Path(call["args"][2]).exists())  # 临时文件用完删掉
         self.assertEqual((meter.data["input"], meter.data["cached"], meter.data["output"]), (1000, 900, 7))
 
@@ -75,13 +78,13 @@ class AgentCliTest(unittest.TestCase):
         meter = usage.Meter("agy")
         self.assertEqual(self.run_cli("agy", out, {"reasoning_effort": "high"}, meter), "全文")
         call = self.calls[0]
-        self.assertEqual(json.loads(call["stdin"]), {"event": "user", "message": {"content": "翻译这一页"}})
+        self.assertEqual(json.loads(call["stdin"]), {"event": "user", "message": {"content": "翻译这一页" + agent_cli.ONLY_READ}})
         self.assertNotIn("-p", call["args"])  # stream-json 输入时 -p 的提示词会被丢掉
         self.assertEqual(call["args"][call["args"].index("--effort") + 1], "high")
         self.assertEqual((meter.data["input"], meter.data["cached"], meter.data["output"]), (300, 200, 7))
 
     def test_agy_unsupported_effort_not_passed(self):
-        self.run_cli("agy", json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "x"}}), {"reasoning_effort": "max"})
+        self.run_cli("agy", json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "x"}}), {"reasoning_effort": "ultra"})
         self.assertNotIn("--effort", self.calls[0]["args"])
 
     def test_agy_error_status(self):
@@ -95,7 +98,7 @@ class AgentCliTest(unittest.TestCase):
         out = json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "译文"})
         self.assertEqual(self.run_cli("cursor", out), "译文")
         call = self.calls[0]
-        self.assertEqual(call["stdin"], "翻译这一页")
+        self.assertEqual(call["stdin"], "翻译这一页" + agent_cli.ONLY_READ)
         a = call["args"]
         self.assertEqual(a[a.index("--mode") + 1], "ask")
         self.assertIn("--trust", a)
@@ -117,6 +120,19 @@ class AgentCliTest(unittest.TestCase):
             self.assertEqual(agent_cli.path("cursor", {"command": ""}), "C:/x/cursor-agent.cmd")
             self.assertIsNone(agent_cli.path("cursor", {"command": "agent"}))
 
+    def test_grok_agent_not_mistaken_for_cursor(self):
+        grok_bin = self.dir / "grok-bin"
+        grok_bin.mkdir()
+        for n in ("grok.exe", "agent.exe"):
+            (grok_bin / n).write_bytes(b"")
+        found = {"agent": str(grok_bin / "agent.exe")}
+        with mock.patch("shutil.which", side_effect=found.get):
+            self.assertIsNone(agent_cli.path("cursor", {"command": ""}))
+            self.assertEqual(agent_cli.path("cursor", {"command": "agent"}), str(grok_bin / "agent.exe"))  # 自己填的照用
+        found["cursor-agent"] = "C:/cursor/cursor-agent.cmd"
+        with mock.patch("shutil.which", side_effect=found.get):
+            self.assertEqual(agent_cli.path("cursor", {"command": ""}), "C:/cursor/cursor-agent.cmd")
+
     def test_engines_dispatch_and_image_mode(self):
         cfg = config.DEFAULTS | {"engine": "agy"}
         self.assertEqual(engines.image_mode(cfg), "claude")  # 自己读原页图
@@ -137,7 +153,7 @@ class AgentCliTest(unittest.TestCase):
         ecfg = config.DEFAULTS | {"engine": "agy", "agy": dict(config.DEFAULTS["agy"])}
         chat_options.apply(ecfg, {"reasoning_effort": "low"})
         with self.assertRaises(ValueError):
-            chat_options.apply(ecfg, {"reasoning_effort": "max"})
+            chat_options.apply(ecfg, {"reasoning_effort": "ultra"})
         cur = config.DEFAULTS | {"engine": "cursor", "cursor": dict(config.DEFAULTS["cursor"])}
         with self.assertRaises(ValueError):
             chat_options.apply(cur, {"reasoning_effort": "low"})
@@ -157,7 +173,7 @@ class RealProcessTest(unittest.TestCase):
         with mock.patch.object(agent_cli, "path", return_value=sys.executable), \
                 mock.patch.object(agent_cli, "build_args", return_value=[str(script), "--mode", "ask"]):
             out = agent_cli.run("cursor", {"timeout": 60}, long_prompt, d)
-        self.assertEqual(out, "got:" + long_prompt + ":--mode ask")
+        self.assertEqual(out, "got:" + long_prompt + agent_cli.ONLY_READ + ":--mode ask")
 
 
 if __name__ == "__main__":
