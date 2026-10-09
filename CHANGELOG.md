@@ -1,5 +1,11 @@
 # 更新记录
 
+## 下一版
+
+- 翻译和问 AI 多了三个本机 CLI：**Grok Build、Antigravity CLI、Cursor CLI**（[#50](https://github.com/Edwardxlai/easyread/issues/50)，@gulubao）。和 Claude Code、Codex 一样，装好并登录后在设置 → 模型 → 添加模型里选它，用你已有的订阅，不用 Key。模型名自己填（比如 Grok 的 `grok-build-0.1`；Antigravity 的可以用 `agy models` 查），留空就用 CLI 自己的默认；Antigravity 还能选推理强度（low / medium / high）。三家都以只读方式调用：Grok 不自动批准工具，Cursor 用 ask 模式，Antigravity 要授权的操作在无头模式下一律拒绝；原页图让它们自己读文件去看。长提示词不走命令行（Grok 用临时文件，Antigravity 和 Cursor 走标准输入），不会撞上 Windows 命令行长度上限。Cursor 的输出里没有 token 用量，翻译进度里不显示它的用量。
+- 验收状态：本地 Python（414 项）、前端和桌面（140 项）测试全部通过；用假的 grok / agy / agent 命令在测试环境里实际添加卡片、设为翻译、点“试译一句”都通过，4 万字的提示词也能送进去。三个真实 CLI 还没在本机装过实测。
+
+
 ## v1.4
 
 - **Zotero 整库迁移**：导入对话框里点“从 Zotero 迁移整个文献库”，自动找到 Zotero 的数据文件夹（找不到可以自己选），先显示有多少篇有 PDF、多少个分类和标签，确认后在后台一篇篇导入，可以关掉窗口，也可以中途停止。会带过来：PDF、Zotero 的分类（多级的照样分层）、标题 / 作者 / 年份 / 期刊 / DOI / arXiv 编号 / 摘要、加入 Zotero 的时间；手动加的标签可选建成“Zotero 标签”下的分类，自动标签不要。群组文献库的分类放在群组名下面。没有 PDF 的条目默认跳过，有 DOI 或 arXiv 编号的可以勾选联网下载。导入后不翻译，只准备原页。只读 Zotero 的数据库副本，不改动 Zotero；Zotero 开着读不了时改读它的自动备份，并提示可能缺最近的改动。可以重复迁移，已经导入的只补分类。Zotero 里的笔记和 PDF 上的高亮下一步再做。这次大改动的思路来自 [#26](https://github.com/Edwardxlai/easyread/issues/26) 里 @apple5089 做的社区插件 [zotero-easyread](https://github.com/apple5089/zotero-easyread)，特别感谢。

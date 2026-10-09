@@ -125,6 +125,8 @@ def engine_label(cfg: dict) -> str:
         model = chat_models.pretty(actual) if actual else ("Claude " + m.capitalize() if m in ("opus", "sonnet", "haiku") else m) if m else claude_default()
     elif e == "codex":
         model = chat_models.label({"engine": "codex", "model": cfg["codex"].get("model") or ""})
+    elif e in engines.CLI_ENGINES:
+        model = cfg[e].get("model") or ""
     else:
         model = ""
     return f"{name} · {model}" if model and model != "GPT" else name

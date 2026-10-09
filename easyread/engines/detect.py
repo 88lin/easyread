@@ -1,4 +1,4 @@
-"""看看这台机器上有哪些现成能用的翻译引擎：Claude Code、Codex CLI、本机 Ollama。给设置页和首次引导用。"""
+"""看看这台机器上有哪些现成能用的翻译引擎：Claude Code、Codex CLI、Grok / Antigravity / Cursor CLI、本机 Ollama。给设置页和首次引导用。"""
 from __future__ import annotations
 
 import json
@@ -41,13 +41,12 @@ def warm(cfg: dict) -> None:
 def _refresh(cfg: dict) -> dict:
     out: dict = {}
 
-    def cli(name, finder):
-        exe = finder(cfg[name])
+    def cli(name):
+        exe = engines.cli_path(name, cfg[name])
         out[name] = {"found": bool(exe), "version": engines._version(exe) if exe else ""}
 
-    threads = [threading.Thread(target=cli, args=("claude", engines.claude_path)),
-               threading.Thread(target=cli, args=("codex", engines.codex_path)),
-               threading.Thread(target=lambda: out.__setitem__("ollama", _ollama()))]
+    threads = [threading.Thread(target=cli, args=(e,)) for e in engines.CLI_ENGINES]
+    threads.append(threading.Thread(target=lambda: out.__setitem__("ollama", _ollama())))
     for t in threads:
         t.start()
     for t in threads:
@@ -71,7 +70,7 @@ def needs_key(o: dict) -> bool:
 def ready(cfg: dict, found: dict) -> bool:
     """当前选的引擎看起来能用吗（首次引导据此提示）。"""
     e = cfg.get("engine")
-    if e in ("claude", "codex"):
+    if e in engines.CLI_ENGINES:
         return bool(found.get(e, {}).get("found"))
     if e == "openai":
         o = cfg["openai"]
