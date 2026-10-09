@@ -47,7 +47,12 @@ class Jobs:
         def apply(job):
             job.update(fields)
             job["updated"] = now_iso()
-        ws.update("job", apply)
+        try:
+            ws.update("job", apply)
+        except FileNotFoundError:
+            # 删除会把整篇目录移到回收站；收尾时不再向旧路径写状态，也不重建目录。
+            if ws.root.exists():
+                raise
 
     def enqueue(self, ws: Workspace, pages: list[int] | None = None, translate_after: bool = True, scope: str | None = None,
                 read: bool = False, model: str = "", confirmed: bool = False, target: str = "", cap_check: bool = False):
@@ -117,33 +122,40 @@ class Jobs:
     def _bulk_loop(self):
         while True:
             pid = self.bulk.get()
-            with self.lock:
-                ws = self.lib.ws(pid)
-                if not ws:
-                    continue
-                job = ws.load("job") or {}
-                if job.get("state") != "queued":
-                    continue
-                cancel = self.cancels[pid] = threading.Event()
-                self._write(ws, state="running", message=tr("正在开始任务"))
             try:
-                self._run_bulk(ws, job, cancel)
-            except Cancelled:
-                self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
-            except Exception as e:  # noqa: BLE001
-                if cancel.is_set():  # 点了停止后模型调用被打断而报错：算取消，不算出错
-                    self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
-                    continue
-                msg = str(e) if isinstance(e, (EngineError, KeyError, ValueError)) else f"{type(e).__name__}: {e}"
-                self._write(ws, state="error", message=tr("出错了"), error=msg[:800])
+                self._process_bulk(pid)
+            except Exception:  # noqa: BLE001
+                # 启动或收尾（包括写错误状态）也可能失败，不能让一篇论文停掉整条队列。
                 log.exception("后台任务出错 %s", pid)
-                try:
-                    translate.journal(ws, tr("出错停止：{msg}", msg=msg[:500]))
-                except OSError:
-                    pass
             finally:
                 with self.lock:
                     self.cancels.pop(pid, None)
+
+    def _process_bulk(self, pid: str):
+        with self.lock:
+            ws = self.lib.ws(pid)
+            if not ws:
+                return
+            job = ws.load("job") or {}
+            if job.get("state") != "queued":
+                return
+            cancel = self.cancels[pid] = threading.Event()
+            self._write(ws, state="running", message=tr("正在开始任务"))
+        try:
+            self._run_bulk(ws, job, cancel)
+        except Cancelled:
+            self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
+        except Exception as e:  # noqa: BLE001
+            if cancel.is_set():  # 点了停止后模型调用被打断而报错：算取消，不算出错
+                self._write(ws, state="cancelled", message=tr("已取消，已译的部分保留"))
+                return
+            msg = str(e) if isinstance(e, (EngineError, KeyError, ValueError)) else f"{type(e).__name__}: {e}"
+            self._write(ws, state="error", message=tr("出错了"), error=msg[:800])
+            log.exception("后台任务出错 %s", pid)
+            try:
+                translate.journal(ws, tr("出错停止：{msg}", msg=msg[:500]))
+            except OSError:
+                pass
 
     def _run_bulk(self, ws: Workspace, job: dict, cancel: threading.Event):
         cfg = engine_for(config.load(), job.get("model"))
