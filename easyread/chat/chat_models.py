@@ -1,6 +1,6 @@
 """“问 AI”用哪些模型：设置里一张短名单（默认 Claude Opus 5.5、Claude Sonnet 5.5、GPT），可以增删改。
 
-每一项：{"id", "name", "engine": "claude" | "codex" | "openai", "model", "preset"（API 服务商）, "base_url"（自定义地址时）,
+每一项：{"id", "name", "engine": "claude" | "codex" | "grok" | "agy" | "cursor" | "openai", "model", "preset"（API 服务商）, "base_url"（自定义地址时）,
          "api"（chat | responses，不填跟服务商默认）}
 API 的 Key 用翻译引擎那边按服务商存的同一份（openai.keys），不用填两次。
 """
@@ -94,7 +94,7 @@ def engine_cfg(cfg: dict, mid: str | None) -> tuple[dict, dict]:
     m = find(cfg, mid)
     out = copy.deepcopy(cfg)
     out["engine"] = m["engine"]
-    if m["engine"] in ("claude", "codex"):
+    if m["engine"] in engines.CLI_ENGINES:
         out[m["engine"]]["model"] = m.get("model") or ""
         for key in ("reasoning_effort", "service_tier"):
             out[m["engine"]][key] = m.get(key) or ""
@@ -118,7 +118,7 @@ def translation_id(cfg: dict) -> str:
             continue
         if any((m.get(k) or "") != (cfg.get(e, {}).get(k) or "") for k in ("reasoning_effort", "service_tier")):
             continue
-        if e in ("claude", "codex") and (m.get("model") or "") == (cfg.get(e, {}).get("model") or ""):
+        if e in engines.CLI_ENGINES and (m.get("model") or "") == (cfg.get(e, {}).get("model") or ""):
             return m["id"]
         if e == "openai":
             o = cfg.get("openai", {})
@@ -145,9 +145,9 @@ def listing(cfg: dict) -> dict:
     out = []
     for m in models(cfg):
         e = m.get("engine")
-        if e in ("claude", "codex"):
+        if e in engines.CLI_ENGINES:
             ready = bool(found.get(e, {}).get("found"))
-            source = "Claude Code" if e == "claude" else "Codex CLI"
+            source = engines.engine_name(e)
             hint = "" if ready else tr("本机没找到 {source}", source=source)
         else:
             p = next((x for x in PRESETS if x["id"] == m.get("preset")), None)
@@ -166,7 +166,7 @@ def sanitize(items: list[dict]) -> list[dict]:
     out, seen = [], set()
     for k, m in enumerate(items or []):
         e = m.get("engine")
-        if e not in ("claude", "codex", "openai") or (e == "openai" and not (m.get("preset") or m.get("base_url"))):
+        if e not in (*engines.CLI_ENGINES, "openai") or (e == "openai" and not (m.get("preset") or m.get("base_url"))):
             continue
         mid = re.sub(r"[^\w\-]", "-", str(m.get("id") or f"m{k}"))[:40] or f"m{k}"
         while mid in seen:

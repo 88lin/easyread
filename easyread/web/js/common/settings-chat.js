@@ -1,8 +1,8 @@
 /* 设置 → 模型：翻译和“问 AI”合在一页。
-   上面一排卡片是你能用的模型（Claude Code / Codex / 各家 API），每张卡片可以标“翻译”和“问 AI 默认”；
+   上面一排卡片是你能用的模型（Claude Code / Codex / Grok / Antigravity / Cursor CLI / 各家 API），每张卡片可以标“翻译”和“问 AI 默认”；
    点卡片弹出菜单：设为翻译、设为问 AI、改 Key 和地址（只有 API 卡片）、删除；拖动卡片排序。添加时下面出现来源卡片和模型选择，API 的表单见 settings-api.js。
    下面是翻译自己的设置（每批几页、同时译几段、导入后自动翻译、试译一句）。
-   存的时候：翻译用的那张卡片写进 config 的 engine / claude / codex / openai（后台翻译读这些），整份名单写进 chat.models。
+   存的时候：翻译用的那张卡片写进 config 的 engine / claude / codex / grok / agy / cursor / openai（后台翻译读这些），整份名单写进 chat.models。
    API 的 Key 每家只存一份，翻译和问 AI 共用。 */
 (function (PR) {
   "use strict";
@@ -17,7 +17,7 @@
     const c = s.cfg, e = c.engine;
     if (m.engine !== e) return false;
     if (["reasoning_effort", "service_tier"].some((k) => (m[k] || "") !== (c[e][k] || ""))) return false;
-    if (e === "claude" || e === "codex") return (m.model || "") === (c[e].model || "");
+    if (PR.isCli(e)) return (m.model || "") === (c[e].model || "");
     const o = c.openai, p = preset(s, m.preset);
     return (m.preset || "") === (o.preset || "") && (m.model || "") === (o.model || "") &&
       (m.base_url || (p ? p.base_url : "")) === (o.base_url || "");
@@ -96,8 +96,13 @@
     const f = s.form;
     const card = (k, title) => '<button data-cmk="' + k + '" class="' + (f.kind === k ? "on" : "") + '"><b>' + title + "</b></button>";
     let h = '<div class="mc-form"><h4 class="set-h">' + (s.editing === "new" ? PR.t("添加模型") : PR.t("修改")) + "</h4>" +
-      '<div class="engine-cards small">' + card("claude", "Claude Code") + card("codex", "Codex CLI") + card("api", PR.t("API 接口")) + "</div>";
-    if (f.kind === "claude" || f.kind === "codex") {
+      '<div class="engine-cards small">' + card("claude", "Claude Code") + card("codex", "Codex CLI") +
+      Object.keys(PR.agentClis).map((k) => card(k, PR.agentClis[k].name)).join("") + card("api", PR.t("API 接口")) + "</div>";
+    if (PR.isAgentCli(f.kind)) {  // 没有现成的模型名单：自己填，空着用 CLI 自己的默认
+      const found = (s.found || {})[f.kind], a = PR.agentClis[f.kind];
+      h += '<label class="field"><span>' + PR.t("模型") + '</span><input class="input" id="cmModel" value="' + PR.esc(f.model || "") + '" placeholder="' + PR.t("留空用它自己的默认模型") + '"></label>' +
+        (found && !found.found ? '<p class="hint">' + PR.t("本机没找到 {name}", { name: '<a href="' + a.url + '" target="_blank" rel="noopener">' + a.name + "</a>" }) + "</p>" : "");
+    } else if (f.kind === "claude" || f.kind === "codex") {
       const found = (s.found || {})[f.kind];
       h += '<label class="field"><span>' + PR.t("模型") + "</span>" + PR.cliModelSelect(s, f.kind, f.model, 'id="cmModel"') + "</label>" +
         (found && !found.found ? '<p class="hint">' + PR.t("本机没找到 {name}", { name: f.kind === "claude" ? '<a href="https://docs.claude.com/en/docs/claude-code/setup" target="_blank" rel="noopener">Claude Code</a>' : "Codex CLI" }) + "</p>" : "");
@@ -109,6 +114,7 @@
       '<button class="btn sm" data-cm="cancel">' + (s.editing === "new" ? PR.t("取消") : PR.t("关闭")) + '</button>' + (s.editing === "new" ? '<button class="btn sm accent" data-cm="ok">' + PR.t("添加") + "</button>" : "") + "</div></div>";
   }
   function autoName(s, f) {
+    if (PR.isAgentCli(f.kind)) return f.model || PR.agentClis[f.kind].name;
     if (f.kind === "claude" || f.kind === "codex") {  // 卡片名就是模型名
       const o = PR.cliModelOptions(s, f.kind, f.model).find(([v]) => v === (f.model || ""));
       return o ? o[1] : f.model || (f.kind === "claude" ? "Claude" : "GPT");
@@ -121,8 +127,8 @@
     return { engine: api ? "openai" : f.kind, preset: api ? f.preset : "",
       base_url: api && (!p || f.base_url !== p.base_url) ? f.base_url : "", api: api && (!p || f.api !== (p.api || "chat")) ? f.api : "", model: f.model, name, label: name,
       source: api ? (p ? p.name : "自定义地址") :  // i18n-ok 存进模型名单的来源名
-      f.kind === "claude" ? "Claude Code" : "Codex CLI",
-      reasoning_effort: f.reasoning_effort || "", service_tier: f.kind === "claude" ? "" : f.service_tier || "",
+      PR.cliName(f.kind),
+      reasoning_effort: f.reasoning_effort || "", service_tier: f.kind === "claude" || PR.isAgentCli(f.kind) ? "" : f.service_tier || "",
       detail: f.model, ready: true };
   }
   function readForm(s) {
@@ -151,8 +157,8 @@
     const c = s.cfg, ti = transIndex(s), m = s.chat.models[ti];
     const e = c.engine;
     let h = '<h4 class="set-h">' + (m ? PR.t("翻译：{name}", { name: PR.esc(m.label || m.name) }) : PR.t("翻译")) + "</h4>";
-    if (m) h += '<p class="hint">' + PR.t("推理强度") + ': ' + PR.esc(m.reasoning_effort || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "reasoning_effort")) +
-      (e === "claude" ? "" : ' · Fast: ' + PR.esc(m.service_tier || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "service_tier"))) + '</p>';
+    if (m && !(PR.isAgentCli(e) && !PR.agentClis[e].efforts.length)) h += '<p class="hint">' + PR.t("推理强度") + ': ' + PR.esc(m.reasoning_effort || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "reasoning_effort")) +
+      (e === "claude" || PR.isAgentCli(e) ? "" : ' · Fast: ' + PR.esc(m.service_tier || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "service_tier"))) + '</p>';
     if (e === "openai") h += '<label class="check" style="margin:0 0 10px"><input type="checkbox" data-k="openai.vision"' + (c.openai.vision ? " checked" : "") + ">" + PR.t("模型能看图") + "</label>";
     h += '<div class="grid2 translation-limits">' +
       '<label class="field"><span>' + PR.t("每批页数") + '</span><select class="input" data-k="batch_pages">' + PR.opt([[1, PR.t("1 页")], [2, PR.t("2 页")], [3, PR.t("3 页")], [4, PR.t("4 页")]], c.batch_pages) + "</select></label>" +
@@ -212,6 +218,7 @@
         autoSaveForm(s); return changed;
       }
       if (e.target.id === "cmModel" && e.target.tagName === "SELECT") { readForm(s); s.form.reasoning_effort = s.form.service_tier = ""; autoSaveForm(s); return true; }
+      if (e.target.id === "cmModel") { readForm(s); autoSaveForm(s); return false; }  // Grok / Antigravity / Cursor 自己填的模型名
       return false;
     },
     async click(e, s) {

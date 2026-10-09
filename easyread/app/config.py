@@ -25,7 +25,7 @@ SERVER_INFO = HOME / ".server.json"
 DEFAULTS = {
     "library_dir": str(HOME / "library"),
     "port": 8765,
-    "engine": "claude",          # claude | codex（本机 CLI 无头）| openai（任意 OpenAI 兼容接口）| none
+    "engine": "claude",          # claude | codex | grok | agy | cursor（本机 CLI 无头）| openai（任意 OpenAI 兼容接口）| none
     "auto_translate": True,      # 导入后自动开始翻译
     "target": "zh",              # 译文语言，见 langs.py
     "check_updates": True,       # 打开文献库时问 GitHub 有没有新版本（一天一次），见 updates.py
@@ -35,6 +35,10 @@ DEFAULTS = {
     "concurrency_v": 2,          # 1.3.1 起 concurrency 的意思变了，旧配置的 1 当成自动，见 load
     "claude": {"command": "claude", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
     "codex": {"command": "codex", "model": "", "reasoning_effort": "", "service_tier": "", "extra_args": [], "timeout": 1200},
+    # 另外三个本机 CLI（见 agent_cli.py）；command 空着按默认名找，model 空着用 CLI 自己的默认
+    "grok": {"command": "", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
+    "agy": {"command": "", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
+    "cursor": {"command": "", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
     # api：chat（/chat/completions）| responses（/responses），见 openai_api.py
     "openai": {"preset": "", "base_url": "", "api": "chat", "api_key": "", "model": "", "vision": False, "timeout": 600},
     # 阅读页右侧“问 AI”的模型名单和默认模型，见 chat_models.py

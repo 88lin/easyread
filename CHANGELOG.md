@@ -1,5 +1,11 @@
 # 更新记录
 
+## v1.4.1
+
+- 翻译和问 AI 多了三个本机 CLI：**Grok Build、Antigravity CLI、Cursor CLI**（[#50](https://github.com/Edwardxlai/easyread/issues/50)，@gulubao）。和 Claude Code、Codex 一样，本机装好并登录后，在设置 → 模型 → 添加模型里选它，用的是你已有的订阅（X / SuperGrok、Google 会员、Cursor），不用 Key。模型名自己填，留空就用 CLI 自己的默认模型（Grok 可以用 `grok models` 查，比如 `grok-4.7`；Antigravity 用 `agy models` 查，比如 `gemini-3.8-flash-high`）；Grok 和 Antigravity 还能选推理强度。三家都按只读方式调用，不会改你的文件：只让它们读文件看原页图，不跑命令、不联网搜索。Grok 没选推理强度时用 low，不然一页要想 10 分钟左右。长提示词不走命令行，不会撞上 Windows 命令行的长度上限。Cursor 的输出里没有 token 用量，翻译进度里看不到它花了多少。
+- 模型输出里找不到 JSON 时，报错信息本身会再崩一次（显示成 `TypeError: tr() got multiple values for argument 'text'`），把真正的原因盖住了；现在会正常显示“模型输出里没有 JSON”，并把模型的原始输出存下来方便排查。
+- 验收状态：本地 Python（415 项）、前端和桌面（140 项）测试全部通过；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测，翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。Cursor CLI 没有实测。
+
 ## v1.4
 
 - **Zotero 整库迁移**：导入对话框里点“从 Zotero 迁移整个文献库”，自动找到 Zotero 的数据文件夹（找不到可以自己选），先显示有多少篇有 PDF、多少个分类和标签，确认后在后台一篇篇导入，可以关掉窗口，也可以中途停止。会带过来：PDF、Zotero 的分类（多级的照样分层）、标题 / 作者 / 年份 / 期刊 / DOI / arXiv 编号 / 摘要、加入 Zotero 的时间；手动加的标签可选建成“Zotero 标签”下的分类，自动标签不要。群组文献库的分类放在群组名下面。没有 PDF 的条目默认跳过，有 DOI 或 arXiv 编号的可以勾选联网下载。导入后不翻译，只准备原页。只读 Zotero 的数据库副本，不改动 Zotero；Zotero 开着读不了时改读它的自动备份，并提示可能缺最近的改动。可以重复迁移，已经导入的只补分类。Zotero 里的笔记和 PDF 上的高亮下一步再做。这次大改动的思路来自 [#26](https://github.com/Edwardxlai/easyread/issues/26) 里 @apple5089 做的社区插件 [zotero-easyread](https://github.com/apple5089/zotero-easyread)，特别感谢。

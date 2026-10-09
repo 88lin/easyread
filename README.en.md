@@ -50,6 +50,7 @@ Runs locally. You choose the model service and whether to keep your library in a
 |---|---|---|
 | **Claude Code** (recommended) | [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and logged in | No API key, uses your subscription. Looks at the page image to check equations. Best quality |
 | **Codex CLI** | [Codex](https://github.com/openai/codex) installed and logged in | No API key, uses your ChatGPT account |
+| **Grok Build / Antigravity CLI / Cursor CLI** | [Grok Build](https://x.ai/cli), [Antigravity CLI](https://antigravity.google/docs/cli) or [Cursor CLI](https://cursor.com/docs/cli/installation) installed and logged in | No API key, uses that subscription. Type the model name, or leave it empty for the CLI's default |
 | **API · China**: DeepSeek / Zhipu / Alibaba Bailian (Qwen) / Kimi / SiliconFlow / ModelScope | API key | Zhipu GLM-4.7-Flash and SiliconFlow small models are free; DeepSeek costs cents per paper |
 | **API · International**: OpenAI / Anthropic / Gemini / OpenRouter / Groq / Cerebras | API key | Gemini, OpenRouter, Groq, Cerebras have free tiers |
 | **API · Local**: Ollama / LM Studio | [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) | Fully offline. qwen3.5:9b recommended (4b for small GPUs) |
