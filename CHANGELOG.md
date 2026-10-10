@@ -8,7 +8,8 @@
 - 可以自己挑几页翻译（[#55](https://github.com/Edwardxlai/easyread/issues/55)）：文献库详情的“翻译”一栏多了“选页翻译…”，只列出还没译的页，点页码选中再点“翻译这 N 页”。已经译好的页不在里面，不会误点重译；整篇重来照旧用“全部重新翻译”。
 - 点“检查更新”没连上 GitHub 时，不再显示“已经是最新版”（[#54](https://github.com/Edwardxlai/easyread/issues/54)）：以前没连上（网络、代理或 GitHub 限流）会沿用上次查到的版本号，看起来像已经最新。现在圆点变红，写“没连上 GitHub，稍后再试”，之后打开面板也一样，3 小时后自动再试。
 - 文献库放在 OneDrive 等同步盘里时，清空回收站不再时好时坏地报“拒绝访问”（[#52](https://github.com/Edwardxlai/easyread/issues/52)）：同步客户端会短暂占住刚写入的文件，只读文件也会让删除失败。现在先去掉只读，被占住时等一会儿再试，最多三次。
-- 验收状态：本地 Python（425 项）、前端和桌面（140 项）测试全部通过；#54、#55 在测试环境实测（GitHub 连不上时面板标红；假模型固定漏掉一页时，其余页译完、漏的那页报失败；选页翻译只列没译的页）；#52 没在真实 OneDrive 上实测；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测，翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。Cursor CLI 没有实测。
+- 删除正在翻译的论文后，后台队列不再卡住（[PR #56](https://github.com/Edwardxlai/easyread/pull/56)，@02Ychase）：以前删掉正在处理的那篇，整条后台队列就停了，后面的论文一直显示“排队中”，要重启程序才动。现在删掉的论文直接跳过，接着处理下一篇。
+- 验收状态：本地 Python（434 项）、前端和桌面（140 项）测试全部通过；#54、#55 在测试环境实测（GitHub 连不上时面板标红；假模型固定漏掉一页时，其余页译完、漏的那页报失败；选页翻译只列没译的页）；#52 没在真实 OneDrive 上实测；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测，翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。Cursor CLI 没有实测。
 
 ## v1.4
 

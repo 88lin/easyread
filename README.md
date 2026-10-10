@@ -198,5 +198,5 @@ MIT。公式渲染用 [KaTeX](https://katex.org)（MIT）。
 - [@TWwWT1](https://github.com/TWwWT1) — 裁切分页 PDF 导入时内存暴涨（[#28](https://github.com/Edwardxlai/easyread/issues/28)）、打开时卡在加载中（[#35](https://github.com/Edwardxlai/easyread/issues/35)）的补丁
 - [@kevin9327](https://github.com/kevin9327) — 网页元数据里的撇号不再截断标题和作者名（[#37](https://github.com/Edwardxlai/easyread/pull/37)）
 - [@Zhoushuren12](https://github.com/Zhoushuren12) — 文献库后台刷新时列表不再上下跳动（[#43](https://github.com/Edwardxlai/easyread/pull/43)）
-- [@02Ychase](https://github.com/02Ychase) — 论文里有代码时翻译不再整批失败（[#44](https://github.com/Edwardxlai/easyread/pull/44)）
+- [@02Ychase](https://github.com/02Ychase) — 论文里有代码时翻译不再整批失败（[#44](https://github.com/Edwardxlai/easyread/pull/44)）；删除正在翻译的论文后后台队列不再卡住（[#56](https://github.com/Edwardxlai/easyread/pull/56)）
 - [@88lin](https://github.com/88lin) — 图按原页大小显示，不再一律撑满版心（[#47](https://github.com/Edwardxlai/easyread/pull/47)）
