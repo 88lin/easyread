@@ -1,0 +1,75 @@
+"""一批几页里模型整页漏掉一页（#55）：漏的页不算译完，单独再译一次。  python -m unittest tests.translate.test_page_check"""
+import json
+import shutil
+import threading
+import unittest
+from unittest import mock
+
+from easyread.engines import engines
+from easyread.translate import page_check, translate
+from tests.translate.test_translate import make_ws
+
+PAGE2 = ("Install the filter cartridge before turning on the water supply. Rotate the housing clockwise until it locks, "
+         "then flush the system for five minutes and check every joint for leaks before regular use.")
+
+
+def block(page, en="x"):
+    return {"id": f"p{page}-1", "type": "para", "page": page, "en": en, "zh": "译文"}
+
+
+class MissingPagesTest(unittest.TestCase):
+    def setUp(self):
+        self.ws = make_ws(2)
+        self.addCleanup(shutil.rmtree, self.ws.root, ignore_errors=True)
+        (self.ws.root / "extract" / "page-002.txt").write_text(PAGE2 + "\n\n2\n", encoding="utf-8")
+
+    def test_page_with_text_but_no_blocks_is_missing(self):
+        self.assertEqual(page_check.missing_pages(self.ws, [1, 2], {"blocks": [block(1)]}), [2])
+
+    def test_continuation_or_wrong_page_number_is_not_missing(self):
+        # 上一页那段接着写到这页，或者模型把块标成了第 1 页：原文在块里能找到
+        en = "Some text on page one. " + PAGE2.replace("clockwise", "clock-\nwise")
+        self.assertEqual(page_check.missing_pages(self.ws, [1, 2], {"blocks": [block(1, en)]}), [])
+
+    def test_blank_or_reference_pages_are_not_checked(self):
+        self.assertEqual(page_check.missing_pages(self.ws, [1, 2], {"blocks": [block(1)], "references": [{"n": 1}]}), [])
+        (self.ws.root / "extract" / "page-002.txt").write_text("Figure 3\n\n2\n", encoding="utf-8")
+        self.assertEqual(page_check.missing_pages(self.ws, [1, 2], {"blocks": [block(1)]}), [])
+
+
+class RetryMissingPageTest(unittest.TestCase):
+    def setUp(self):
+        self.ws = make_ws(2)
+        self.addCleanup(shutil.rmtree, self.ws.root, ignore_errors=True)
+        (self.ws.root / "extract" / "page-002.txt").write_text(PAGE2, encoding="utf-8")
+        self.cfg = {"engine": "openai", "batch_pages": 2, "concurrency": 1, "openai": {"vision": False}}
+        for p in (mock.patch.object(translate.pdfwork, "locate"), mock.patch.object(translate, "tex_problems", return_value=[]),
+                  mock.patch.object(translate.netcheck, "problem", return_value=None)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def run_pages(self, replies):
+        calls = []
+
+        def run(cfg, prompt, cwd, images=None, cancel=None, meter=None):
+            calls.append(prompt)
+            return json.dumps({"blocks": replies[len(calls) - 1]})
+        with mock.patch.object(engines, "run", side_effect=run):
+            failed = translate.translate_pages(self.ws, self.cfg, [1, 2], threading.Event(), lambda *a: None)
+        return failed, calls, self.ws.load("paper")["translation"]["done_pages"]
+
+    def test_missing_page_is_translated_again_alone(self):
+        failed, calls, done = self.run_pages([[block(1)], [block(2)]])
+        self.assertEqual(failed, {})
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(sorted(done), [1, 2])
+        self.assertEqual(sorted(b["page"] for b in self.ws.load("paper")["blocks"]), [1, 2])
+
+    def test_still_missing_is_reported_not_marked_done(self):
+        failed, calls, done = self.run_pages([[block(1)], []])
+        self.assertEqual(list(failed), [2])
+        self.assertEqual(done, [1])
+
+
+if __name__ == "__main__":
+    unittest.main()

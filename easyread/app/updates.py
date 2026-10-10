@@ -46,23 +46,27 @@ def _fetch() -> dict:
 
 
 def check(force: bool = False) -> dict:
-    """{"current", "latest", "newer", "url", "notes", "published", "enabled"}。force：手动点“检查更新”，关掉自动检查也照样问。"""
-    out = {"current": __version__, "latest": "", "newer": False, "enabled": bool(config.load().get("check_updates", True))}
+    """{"current", "latest", "newer", "url", "notes", "published", "enabled", "failed"}。force：手动点“检查更新”，关掉自动检查也照样问。
+
+    failed：最近一次去问 GitHub 没问到（记在缓存里，没到重试时间也一直算失败）。latest 仍是上次问到的版本，页面不能据此说“已经是最新版”。
+    """
+    out = {"current": __version__, "latest": "", "newer": False, "enabled": bool(config.load().get("check_updates", True)), "failed": False}
     if not out["enabled"] and not force:
         return out
     with _lock:  # 两个页面同时打开只问一次
         cache = read_json(_path(), {}) or {}
         age = time.time() - cache.get("checked", 0)
-        if force or age > (EVERY if cache.get("latest") else RETRY):
+        if force or age > (EVERY if cache.get("latest") and not cache.get("failed") else RETRY):  # 上次没问到：按没网的间隔再试
             try:
                 cache = {**_fetch(), "checked": time.time()}
             except Exception as e:  # noqa: BLE001  没网、限流、GitHub 改了格式：都当没有新版本
                 log.info("检查新版本没成功：%s", e)
-                cache = {**cache, "checked": time.time()}
+                cache = {**cache, "checked": time.time(), "failed": True}
             try:
                 write_json_atomic(_path(), cache)
             except OSError:
                 pass
+    out["failed"] = bool(cache.get("failed"))
     if cache.get("latest"):
         out.update(latest=cache["latest"], url=cache.get("url", ""), notes=cache.get("notes", ""),
                    published=cache.get("published", ""), newer=newer(cache["latest"]))
