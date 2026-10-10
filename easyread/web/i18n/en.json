@@ -1208,5 +1208,12 @@
   "不认识的来源：{source}": "Unknown source: {source}",
  "找不到这个文件夹：{path}": "Folder not found: {path}",
  "这个文件夹里的 PDF 超过 {n} 个，请分几次导入，每次选一个子文件夹": "This folder has more than {n} PDFs. Import it in parts, one subfolder at a time",
- "成批导入": "Bulk import"
+ "成批导入": "Bulk import",
+ "全不选": "Clear all",
+ "翻译这 {n} 页": "Translate {n} pages",
+ "这里只列还没译的 {n} 页，点页码选中。": "Only the {n} untranslated pages are listed. Click page numbers to select them.",
+ "选几页翻译": "Translate selected pages",
+ "选页翻译…": "Pick pages…",
+ "模型漏译了这一页": "The model skipped this page",
+ "{pages} 模型整页漏译，单独再译一次": "{pages}: the model skipped the whole page, translating it again on its own"
 }
