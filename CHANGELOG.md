@@ -4,11 +4,11 @@
 
 - 翻译和问 AI 多了三个本机 CLI：**Grok Build、Antigravity CLI、Cursor CLI**（[#50](https://github.com/Edwardxlai/easyread/issues/50)，@gulubao）。和 Claude Code、Codex 一样，本机装好并登录后，在设置 → 模型 → 添加模型里选它，用的是你已有的订阅（X / SuperGrok、Google 会员、Cursor），不用 Key。模型名自己填，留空就用 CLI 自己的默认模型（Grok 可以用 `grok models` 查，比如 `grok-4.7`；Antigravity 用 `agy models` 查，比如 `gemini-3.8-flash-high`）；Grok 和 Antigravity 还能选推理强度。三家都按只读方式调用，不会改你的文件：只让它们读文件看原页图，不跑命令、不联网搜索。Grok 没选推理强度时用 low，不然一页要想 10 分钟左右。长提示词不走命令行，不会撞上 Windows 命令行的长度上限。Cursor 的输出里没有 token 用量，翻译进度里看不到它花了多少。
 - 模型输出里找不到 JSON 时，报错信息本身会再崩一次（显示成 `TypeError: tr() got multiple values for argument 'text'`），把真正的原因盖住了；现在会正常显示“模型输出里没有 JSON”，并把模型的原始输出存下来方便排查。
-- 翻译时整页漏掉不再悄悄算译完（[#55](https://github.com/Edwardxlai/easyread/issues/55)）：每批 2 页时，模型有时只译了其中一页，另一页也被记成已译，界面上看不出来。现在逐页核对：原页有正文、在译文里却找不到，就单独再译一次这一页，还不行就显示“第 X 页没译成功”，可以点“重试这 N 页”。跨页接着写的段落、模型标错页码的段落不算漏。
+- 翻译时整页漏掉不再悄悄算译完（[#55](https://github.com/Edwardxlai/easyread/issues/55)）：每批 2 页时，模型有时只译了其中一页，另一页也被记成已译，界面上看不出来。现在逐页核对：原页有正文、在译文里却找不到，就单独再译一次这一页，还不行就显示“第 X 页没译成功”，可以点“重试这 N 页”。跨页接着写的段落、模型标错页码的段落不算漏。以前已经被误记成已译的空页，升级后第一次打开文献库时会自动改回没译，可以用下面的“选页翻译”补上。
 - 可以自己挑几页翻译（[#55](https://github.com/Edwardxlai/easyread/issues/55)）：文献库详情的“翻译”一栏多了“选页翻译…”，只列出还没译的页，点页码选中再点“翻译这 N 页”。已经译好的页不在里面，不会误点重译；整篇重来照旧用“全部重新翻译”。
 - 点“检查更新”没连上 GitHub 时，不再显示“已经是最新版”（[#54](https://github.com/Edwardxlai/easyread/issues/54)）：以前没连上（网络、代理或 GitHub 限流）会沿用上次查到的版本号，看起来像已经最新。现在圆点变红，写“没连上 GitHub，稍后再试”，之后打开面板也一样，3 小时后自动再试。
 - 文献库放在 OneDrive 等同步盘里时，清空回收站不再时好时坏地报“拒绝访问”（[#52](https://github.com/Edwardxlai/easyread/issues/52)）：同步客户端会短暂占住刚写入的文件，只读文件也会让删除失败。现在先去掉只读，被占住时等一会儿再试，最多三次。
-- 验收状态：本地 Python（424 项）、前端和桌面（140 项）测试全部通过；#54、#55 在测试环境实测（GitHub 连不上时面板标红；假模型固定漏掉一页时，其余页译完、漏的那页报失败；选页翻译只列没译的页）；#52 没在真实 OneDrive 上实测；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测，翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。Cursor CLI 没有实测。
+- 验收状态：本地 Python（425 项）、前端和桌面（140 项）测试全部通过；#54、#55 在测试环境实测（GitHub 连不上时面板标红；假模型固定漏掉一页时，其余页译完、漏的那页报失败；选页翻译只列没译的页）；#52 没在真实 OneDrive 上实测；本机装了真实的 Grok Build 1.0.50 和 Antigravity CLI 1.3.2 实测，翻译 Attention Is All You Need 第 2、3 页各一次成功（Grok 约 1.5 分钟一页，Antigravity 约 2.5 分钟一页），问 AI 两边都正常（15–30 秒）。Cursor CLI 没有实测。
 
 ## v1.4
 
