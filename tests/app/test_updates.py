@@ -59,6 +59,9 @@ class UpdatesTest(unittest.TestCase):
             u = updates.check(force=True)
         self.assertTrue(u["failed"])
         self.assertEqual(u["latest"], "0.0.1")
+        self.assertTrue(updates.check()["failed"])  # 没到重试时间、用缓存时也还算失败
+        with self.fake(tag="v0.0.2"):
+            self.assertFalse(updates.check(force=True)["failed"])  # 问到了就清掉
 
     def test_disabled_does_not_ask(self):
         config.save({"check_updates": False})

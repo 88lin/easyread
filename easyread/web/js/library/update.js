@@ -154,11 +154,13 @@
   };
 
   /* 问号面板最上面（help.js）：版本、检查更新、自动检查开关。有新版本时主按钮换成“看看更新了什么” */
-  function panelInner(msg) {
+  // bad：这次没查成（没连上 GitHub 或接口报错），圆点和小字都标红，不能看着像“已经是最新版”
+  function panelInner(msg, bad) {
     const u = PR.update, newer = !!(u && u.newer);
-    const line = msg || (newer ? PR.t("新版本 {v} 可以更新", { v: PR.esc(u.latest) }) : u && u.latest ? PR.t("已经是最新版") : "");
-    return '<div class="hu-row"><span class="hu-dot' + (newer ? " new" : "") + '"></span><div class="hu-text"><b>' + PR.t("版本 {v}", { v: PR.esc(PR.lib.version || "") }) +
-      '</b><span class="hint" id="helpUpdateMsg">' + line + "</span></div>" +
+    bad = bad || (!msg && !newer && !!(u && u.failed));
+    const line = msg || (bad ? PR.t("没连上 GitHub，稍后再试") : newer ? PR.t("新版本 {v} 可以更新", { v: PR.esc(u.latest) }) : u && u.latest ? PR.t("已经是最新版") : "");
+    return '<div class="hu-row"><span class="hu-dot' + (bad ? " fail" : newer ? " new" : "") + '"></span><div class="hu-text"><b>' + PR.t("版本 {v}", { v: PR.esc(PR.lib.version || "") }) +
+      '</b><span class="hint' + (bad ? " hu-fail" : "") + '" id="helpUpdateMsg">' + line + "</span></div>" +
       (newer ? '<button class="btn sm accent" data-help="open">' + PR.t("看看更新了什么") + "</button>"
         : '<button class="btn sm line" data-help="check">' + PR.t("检查更新") + "</button>") + "</div>" +
       '<label class="check"><input type="checkbox" data-help="auto"' + (!u || u.enabled !== false ? " checked" : "") + ">" + PR.t("自动检查新版本（一天一次）") + "</label>";
@@ -171,12 +173,13 @@
     if (b.dataset.help === "open") return PR.openUpdate();
     const box = PR.$("#helpUpdate");
     b.disabled = true; PR.$("#helpUpdateMsg").textContent = PR.t("正在检查…");
+    PR.$("#helpUpdateMsg").classList.remove("hu-fail"); box.querySelector(".hu-dot").className = "hu-dot busy";
     let msg = "";
     try {
       const u = await PR.checkUpdate(true);
       if (!u.latest || u.failed) msg = PR.t("没连上 GitHub，稍后再试");  // failed 时 latest 是旧缓存，不能说“已经是最新版”
     } catch (err) { msg = PR.t("检查失败：") + PR.esc(err.message); }
-    if (box.isConnected) box.innerHTML = panelInner(msg);
+    if (box.isConnected) box.innerHTML = panelInner(msg, !!msg);
   });
   document.addEventListener("change", (e) => {
     if (e.target.dataset.help === "auto") PR.setAutoUpdate(e.target.checked).catch((err) => PR.toast(PR.t("保存失败：") + PR.esc(err.message)));
