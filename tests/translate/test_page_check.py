@@ -37,6 +37,31 @@ class MissingPagesTest(unittest.TestCase):
         self.assertEqual(page_check.missing_pages(self.ws, [1, 2], {"blocks": [block(1)]}), [])
 
 
+class RepairOldPapersTest(unittest.TestCase):
+    """旧版本按批记完成，漏掉的页也在 done_pages 里：文献库列表里查一次，改回没译。"""
+
+    def setUp(self):
+        self.ws = make_ws(3)
+        self.addCleanup(shutil.rmtree, self.ws.root, ignore_errors=True)
+        other = ("Store the device in a dry place away from direct sunlight. Clean the outer surface with a soft cloth "
+                 "and never use solvents, because they damage the coating and void the warranty.")
+        (self.ws.root / "extract" / "page-002.txt").write_text(other, encoding="utf-8")
+        (self.ws.root / "extract" / "page-003.txt").write_text(PAGE2, encoding="utf-8")
+        # 第 3 页的原文其实在第 1 页那段里（续文），不算漏
+        cont = "Intro. " + PAGE2
+        self.ws.update("paper", lambda p: p.update(blocks=[block(1, cont)], translation={"done_pages": [1, 2, 3]}))
+
+    def test_unmarks_only_empty_pages_once(self):
+        from easyread.library.library import Library
+        lib = Library(self.ws.root.parent)
+        item = lib.summary(self.ws)
+        self.assertEqual(sorted(self.ws.load("paper")["translation"]["done_pages"]), [1, 3])
+        self.assertEqual((item["done_pages"], item["todo"]), (2, "2"))
+        self.ws.update("paper", lambda p: p["translation"].update(done_pages=[1, 2, 3]))
+        lib.summary(self.ws)  # 已经查过，不再动
+        self.assertEqual(sorted(self.ws.load("paper")["translation"]["done_pages"]), [1, 2, 3])
+
+
 class RetryMissingPageTest(unittest.TestCase):
     def setUp(self):
         self.ws = make_ws(2)

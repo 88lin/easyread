@@ -3,6 +3,7 @@
 以前整批只要有块就整批记“已译”，漏掉的那页在文献库里也算译完，用户看不出来。
 现在逐页核对：原页正文在这批任何块的英文里都找不到，才算漏了。
 跨页续文（上一页那段接着写到这页）、模型把页码标错的块，原文都能在别的块里找到，不算漏。
+旧版本已经误记成“已译”的页，repair_done 在文献库列表里每篇查一次，把它们改回没译。
 """
 from __future__ import annotations
 
@@ -49,6 +50,39 @@ def missing_pages(ws: Workspace, batch: list[int], data: dict) -> list[int]:
         if len(page) >= MIN_LETTERS and not _found(page, have):
             out.append(n)
     return out
+
+
+def stale_done(ws: Workspace, paper: dict) -> list[int]:
+    """记成已译、却一个块都没有、原文又有正文且在全文哪个块里都找不到的页（旧版本按批记完成留下的）。"""
+    blocks = paper.get("blocks") or []
+    on = {b.get("page") for b in blocks}
+    refs = [b.get("page") or 0 for b in blocks if b.get("type") == "references"]
+    have, out = None, []
+    for n in sorted((paper.get("translation") or {}).get("done_pages", [])):
+        if n in on or (refs and n >= min(refs)):
+            continue
+        page = _letters(_source(ws, n))
+        if len(page) < MIN_LETTERS:
+            continue
+        if have is None:
+            have = _letters(json.dumps(blocks, ensure_ascii=False))
+        if not _found(page, have):
+            out.append(n)
+    return out
+
+
+def repair_done(ws: Workspace) -> list[int]:
+    """每篇只查一次（记 translation.gaps_checked）；新的翻译已经逐页核对，不会再留下这种页。返回改回没译的页。"""
+    def apply(paper):
+        tr = paper.setdefault("translation", {})
+        if tr.get("gaps_checked"):
+            return []
+        bad = stale_done(ws, paper)
+        if bad:
+            tr["done_pages"] = [n for n in tr.get("done_pages", []) if n not in bad]
+        tr["gaps_checked"] = 1
+        return bad
+    return ws.update("paper", apply)
 
 
 class MissingPages(Exception):
