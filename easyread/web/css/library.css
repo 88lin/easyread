@@ -176,6 +176,9 @@
 .hu-row { display: flex; align-items: center; gap: 12px; }
 .hu-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
 .hu-dot.new { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.hu-dot.fail { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 22%, transparent); }
+.hu-dot.busy { background: var(--ink-3); }
+.hu-text .hu-fail { color: var(--danger); }
 .hu-text { display: flex; flex-direction: column; gap: 2px; margin-right: auto; min-width: 0; }
 .hu-text b { font-weight: 600; }
 .hu-text .hint { font-size: 12.5px; }

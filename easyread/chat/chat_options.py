@@ -1,5 +1,6 @@
 """Conversation-local overrides, independent of translation/model-card defaults."""
 from ..app import cli_models
+from ..engines import agent_cli
 
 
 def apply(ecfg: dict, options: dict | None) -> dict:
@@ -18,6 +19,8 @@ def apply(ecfg: dict, options: dict | None) -> dict:
             match = next((m for m in listing["models"] if m["id"] == model), {})
             if match.get("reasoning_levels"):
                 allowed = ["", *match["reasoning_levels"]]
+        elif engine in agent_cli.ENGINES:
+            allowed = ["", *agent_cli.SPECS[engine]["efforts"]]
         if effort not in allowed:
             raise ValueError("Unsupported reasoning effort")
         ecfg[engine]["reasoning_effort"] = effort

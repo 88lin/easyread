@@ -50,6 +50,7 @@ Runs locally. You choose the model service and whether to keep your library in a
 |---|---|---|
 | **Claude Code** (recommended) | [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and logged in | No API key, uses your subscription. Looks at the page image to check equations. Best quality |
 | **Codex CLI** | [Codex](https://github.com/openai/codex) installed and logged in | No API key, uses your ChatGPT account |
+| **Grok Build / Antigravity CLI / Cursor CLI** | [Grok Build](https://x.ai/cli), [Antigravity CLI](https://antigravity.google/docs/cli) or [Cursor CLI](https://cursor.com/docs/cli/installation) installed and logged in | No API key, uses that subscription. Type the model name, or leave it empty for the CLI's default |
 | **API · China**: DeepSeek / Zhipu / Alibaba Bailian (Qwen) / Kimi / SiliconFlow / ModelScope | API key | Zhipu GLM-4.7-Flash and SiliconFlow small models are free; DeepSeek costs cents per paper |
 | **API · International**: OpenAI / Anthropic / Gemini / OpenRouter / Groq / Cerebras | API key | Gemini, OpenRouter, Groq, Cerebras have free tiers |
 | **API · Local**: Ollama / LM Studio | [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) | Fully offline. qwen3.5:9b recommended (4b for small GPUs) |
@@ -169,5 +170,5 @@ Screenshots use a demonstration library. The Japanese sample translates the abst
 - [@TWwWT1](https://github.com/TWwWT1) — patches for memory blow-up when importing cropped-page PDFs ([#28](https://github.com/Edwardxlai/easyread/issues/28)) and for papers stuck loading on open ([#35](https://github.com/Edwardxlai/easyread/issues/35))
 - [@kevin9327](https://github.com/kevin9327) — apostrophes in page metadata no longer truncate titles and author names ([#37](https://github.com/Edwardxlai/easyread/pull/37))
 - [@Zhoushuren12](https://github.com/Zhoushuren12) — the library list no longer jumps while refreshing in the background ([#43](https://github.com/Edwardxlai/easyread/pull/43))
-- [@02Ychase](https://github.com/02Ychase) — translating papers with code listings no longer fails whole batches ([#44](https://github.com/Edwardxlai/easyread/pull/44))
+- [@02Ychase](https://github.com/02Ychase) — translating papers with code listings no longer fails whole batches ([#44](https://github.com/Edwardxlai/easyread/pull/44)); deleting a paper mid-translation no longer stalls the background queue ([#56](https://github.com/Edwardxlai/easyread/pull/56))
 - [@88lin](https://github.com/88lin) — figures display at their size on the original page instead of always filling the column ([#47](https://github.com/Edwardxlai/easyread/pull/47))

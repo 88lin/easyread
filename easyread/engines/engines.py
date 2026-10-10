@@ -2,6 +2,7 @@
 
 - claude：本机的 Claude Code 无头模式（claude -p），用你已有的登录，不需要 Key；能自己读原页图核对公式和表格。
 - codex：本机的 Codex CLI（codex exec），同样用已有登录，原页图作为附件发过去。
+- grok / agy / cursor：Grok Build、Antigravity CLI、Cursor CLI，同样用已有登录，自己读原页图（见 agent_cli.py）。
 - openai：任何 OpenAI 兼容接口（Ollama、智谱、硅基流动、DeepSeek、Gemini……），在设置里填地址、模型和 Key；
   Chat Completions 和 Responses 两种格式都行（见 openai_api.py）。
 """
@@ -17,7 +18,7 @@ import threading
 from pathlib import Path
 
 from ..app.i18n import tr
-from . import codex_lean, netcheck, usage
+from . import agent_cli, codex_lean, netcheck, usage
 from ..app.log import log
 
 
@@ -31,7 +32,9 @@ class Cancelled(RuntimeError):
     pass
 
 
-ENGINE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI", "openai": "API", "none": "不翻译"}  # i18n-ok 显示时用 engine_name()
+ENGINE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI", **{k: v["name"] for k, v in agent_cli.SPECS.items()},
+                "openai": "API", "none": "不翻译"}  # i18n-ok 显示时用 engine_name()
+CLI_ENGINES = ("claude", "codex", *agent_cli.ENGINES)  # 本机 CLI：起子进程、用已登录的订阅
 
 
 def engine_name(engine: str | None) -> str:
@@ -58,13 +61,15 @@ def _run(cfg: dict, prompt: str, cwd: Path, images: list[Path] | None, cancel: t
         return run_codex(cfg["codex"], prompt, cwd, images or [], cancel, meter)
     if engine == "openai":
         return run_openai(cfg["openai"], prompt, images or [], cancel, meter)
+    if engine in agent_cli.ENGINES:
+        return agent_cli.run(engine, cfg[engine], prompt, cwd, cancel, meter)
     raise EngineError(tr("没有配置翻译引擎（设置 → 模型）"))
 
 
 def image_mode(cfg: dict) -> str:
-    """提示词里怎么说原页图：claude 自己用 Read 读；codex 和能看图的接口作为附件；其余没有图。"""
+    """提示词里怎么说原页图：claude（和 grok / agy / cursor）自己用读文件的工具读；codex 和能看图的接口作为附件；其余没有图。"""
     engine = cfg.get("engine")
-    if engine == "claude":
+    if engine == "claude" or engine in agent_cli.ENGINES:
         return "claude"
     if engine == "codex" or (engine == "openai" and cfg["openai"].get("vision")):
         return "attached"
@@ -75,7 +80,7 @@ def who(cfg: dict) -> str:
     engine = cfg.get("engine")
     if engine == "openai":
         return cfg["openai"].get("model") or "API"
-    return {"claude": "claude", "codex": "codex"}.get(engine, "")
+    return engine if engine in CLI_ENGINES else ""
 
 
 # ---------- 本机 CLI ----------
@@ -91,6 +96,15 @@ def claude_path(c: dict) -> str | None:
 
 def codex_path(c: dict) -> str | None:
     return shutil.which(c.get("command") or "codex")
+
+
+def cli_path(engine: str, c: dict) -> str | None:
+    """本机 CLI 的可执行文件；没装返回 None。"""
+    if engine == "claude":
+        return claude_path(c)
+    if engine == "codex":
+        return codex_path(c)
+    return agent_cli.path(engine, c)
 
 
 def _popen(args: list[str], cwd: Path):
@@ -252,7 +266,7 @@ def parse_json(text: str):
         if start >= 0:
             bodies.append(s[start:max(s.rfind("}"), s.rfind("]")) + 1])
     if not bodies:
-        raise EngineError(tr("模型输出里没有 JSON：{text}", text=text[:200]))
+        raise EngineError(tr("模型输出里没有 JSON：{out}", out=text[:200]))
     first = None
     for body in bodies:
         try:
@@ -279,8 +293,8 @@ def _version(exe: str) -> str:
 def test(cfg: dict) -> dict:
     """设置页“测试”按钮：真的让模型回一句，确认引擎能用。"""
     engine = cfg.get("engine")
-    if engine in ("claude", "codex"):
-        exe = (claude_path if engine == "claude" else codex_path)(cfg[engine])
+    if engine in CLI_ENGINES:
+        exe = cli_path(engine, cfg[engine])
         if not exe:
             return {"ok": False, "message": tr("找不到 {engine} 命令，先安装并登录", engine=engine)}
     if engine == "none":

@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..pdf import sources
+from ..translate import page_check
 from ..app.i18n import tr
 from ..app.log import log
 from .store import SCHEMA, Workspace, empty_discussion, empty_reader, now_iso, read_json, write_json_atomic
@@ -44,6 +45,12 @@ class Library:
         disc = ws.load("discussion") or {}
         job = ws.load("job") or {}
         tr = paper.get("translation", {})
+        if tr.get("done_pages") and not tr.get("gaps_checked"):  # 旧版本误记成已译的空页改回没译（#55），每篇只查一次
+            try:
+                if page_check.repair_done(ws):
+                    tr = (ws.load("paper") or {}).get("translation", {})
+            except OSError:
+                log.exception("核对已译页失败 %s", ws.id)
         notes = [n for n in reader.get("notes", {}).values() if not n.get("deleted")]
         replied = {e.get("reply_to") for e in disc.get("entries", []) if e.get("reply_to")}
         abstract = next((b.get("zh") or b.get("en") for b in paper.get("blocks", []) if b.get("role") == "abstract"), "") or meta.get("abstract_en", "")
@@ -54,6 +61,7 @@ class Library:
             "year": meta.get("year") or _year(meta.get("date", "")), "date": meta.get("date", ""),
             "venue": meta.get("venue", ""), "arxiv": meta.get("arxiv", ""), "url": _link(meta), "doi": meta.get("doi", ""),
             "pages": meta.get("page_count", 0), "done_pages": len(tr.get("done_pages", [])), "en_pages": len(tr.get("en_pages", [])),
+            "todo": _todo(meta.get("page_count", 0), tr),
             "abstract": abstract,
             "meta_override": item.get("meta_override") or {},
             "tags": item.get("tags", []), "status": item.get("status", "unread"), "starred": bool(item.get("starred")),
@@ -125,6 +133,20 @@ class Library:
 
     def find_by_sha(self, digest: str) -> Workspace | None:
         return self.ws(digest[:12])
+
+
+def _todo(total: int, tr: dict) -> str:
+    """还没译的页，写成 "3-5,9"（选页翻译用）。只读原文整理过、没译的页也算没译。"""
+    done = set(tr.get("done_pages", [])) - set(tr.get("en_pages", []))
+    out = []
+    for n in range(1, (total or 0) + 1):
+        if n in done:
+            continue
+        if out and out[-1][1] == n - 1:
+            out[-1][1] = n
+        else:
+            out.append([n, n])
+    return ",".join(str(a) if a == b else f"{a}-{b}" for a, b in out)
 
 
 def _year(date: str) -> str:

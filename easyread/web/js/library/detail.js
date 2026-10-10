@@ -42,6 +42,7 @@
         (en ? '<button class="btn sm accent" data-d="translate-en">' + PR.t("翻译成{lang}", { lang: PR.targetName(PR.target) }) + "</button>" : "") +
         (!full && !(j.state === "partial" && failed.length) ? '<button class="btn sm ' + (en ? "line" : "accent") + '" data-d="' + (read ? "read-rest" : "translate") + '">' + (read ? (j.state === "error" ? PR.t("重试整理原文") : PR.t("继续整理剩下的页")) : i.done_pages ? PR.t("继续翻译剩下的页") : PR.t("开始翻译")) + "</button>" : "") +
         (!full && j.state === "partial" && failed.length && i.pages - i.done_pages > failed.length ? '<button class="btn sm line" data-d="' + (read ? "read-rest" : "translate") + '">' + (read ? PR.t("继续整理剩下的页") : PR.t("继续翻译剩下的页")) + "</button>" : "") +
+        (!full && i.todo ? '<button class="btn sm line" data-d="pick-pages">' + PR.t("选页翻译…") + "</button>" : "") +
         (j.state ? '<button class="btn sm" data-d="log">' + PR.icon("log", "sm") + PR.t("翻译记录") + "</button>" : "") + "</div>" +
         (L.engine === "none" ? '<div class="hint" style="margin-top:6px">' + PR.t("当前没有开启翻译引擎，去设置里选一个。") + "</div>" : "");
     }
@@ -148,6 +149,7 @@
     else if (act === "cancel") { await PR.api("/api/p/" + i.id + "/cancel", { method: "POST", body: {} }); L.load(); }
     else if (act === "retry-failed") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { failed: true } }); PR.toast(PR.t("正在重试")); L.load(); }
     else if (act === "log") { const r = await PR.api("/api/p/" + i.id + "/log"); PR.showText(PR.t("翻译记录"), r.text); }
+    else if (act === "pick-pages") PR.pickPages(i, d);
     else if (act === "translate") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: {} }); PR.toast(PR.t("已开始翻译")); L.load(); }
     else if (act === "translate-en") { await PR.api("/api/p/" + i.id + "/translate", { method: "POST", body: { en: true } }); PR.toast(PR.t("已开始翻译，笔记和划线都保留")); L.load(); }
     else if (act === "read-rest") {
