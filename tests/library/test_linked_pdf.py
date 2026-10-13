@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import tempfile
 import threading
@@ -150,7 +151,7 @@ class LinkedPDFTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             urllib.request.urlopen(url)
         self.assertEqual(error.exception.code, 409)
-        self.assertIn(str(self.pdf), error.exception.read().decode())
+        self.assertIn(str(self.pdf), json.loads(error.exception.read())["error"])
 
 
 if __name__ == "__main__":
