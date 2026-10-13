@@ -166,6 +166,24 @@ async function stopBackendGracefully() {
   });
 }
 
+/* 退出前先让页面把没落盘的东西写回去（阅读位置、改到一半的笔记），再停后端：
+   页面走光之后请求就发不出去了。页面没应（比如卡住了）就照常退出。 */
+function savePageState() {
+  const wc = mainWindow && mainWindow.webContents;
+  if (!wc || wc.isDestroyed()) return Promise.resolve();
+  return new Promise(resolve => {
+    let timer;
+    function done() {
+      clearTimeout(timer);
+      ipcMain.removeListener("easyread:page-saved", done);
+      resolve();
+    }
+    timer = setTimeout(done, 1200);
+    ipcMain.once("easyread:page-saved", done);
+    wc.send("easyread:before-quit");
+  });
+}
+
 function trustedWindow(event) {
   if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame ||
       !backendUrl || new URL(event.senderFrame.url).origin !== backendUrl) {
@@ -318,7 +336,7 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true;
     if (!backend) return;
     event.preventDefault();
-    stopBackendGracefully().catch(stopBackend).finally(() => app.quit());
+    savePageState().then(stopBackendGracefully).catch(stopBackend).finally(() => app.quit());
   });
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();

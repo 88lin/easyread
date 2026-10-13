@@ -117,6 +117,10 @@ window.PR = window.PR || {};
     } else PR.api("/api/prefs", { method: "POST", body }).catch(() => { /* 下次改动再存 */ });
   }
   window.addEventListener("pagehide", () => flushPrefs(true));
+  /* 桌面版退出前会来问一句（见 electron/main.cjs）：先把偏好和页面上的补存写回去，再让它停后端 */
+  if (window.easyreadDesktop && window.easyreadDesktop.onBeforeQuit) {
+    window.easyreadDesktop.onBeforeQuit(async () => { flushPrefs(true); if (PR.flushPage) await PR.flushPage(); });
+  }
   PR.loadPrefs = async function () {
     if (location.protocol === "file:") return {};
     try {
