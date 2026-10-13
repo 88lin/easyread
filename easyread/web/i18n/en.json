@@ -1,4 +1,13 @@
 {
+ "转换为链接需要明确允许删除文献库中的 PDF 副本": "Converting to a link requires explicit permission to remove the PDF copy in the library",
+ "链接本地 PDF，不复制原文件": "Link local PDFs without copying the originals",
+ "链接仅在能访问原路径的电脑上使用。请保留原 PDF；已有论文保留原来的存储方式、笔记和进度。": "Links work only on computers that can access the original paths. Keep the original PDFs; existing papers keep their storage mode, notes and progress.",
+ "链接的 PDF 不存在或不可读：{path}；请恢复原文件到此位置": "The linked PDF is missing or unreadable: {path}; restore the original file to this location",
+ "链接导入只支持本地 PDF 文件": "Linked imports support local PDF files only",
+ "链接的 PDF 必须在 EasyRead 文献库之外": "The linked PDF must be outside the EasyRead library",
+ "PDF 不存在或不可读：{path}": "PDF is missing or unreadable: {path}",
+ "PDF 内容不同，不能转换为链接": "The PDF contents differ; cannot convert to a link",
+ "只支持转换文献库中的普通 PDF 副本": "Only regular PDF copies in the library can be converted",
  "每篇同时译几段": "Parallel segments per paper",
  "同时翻译几篇": "Concurrent papers",
  "1 篇（默认，逐篇处理）": "1 paper (default, sequential)",

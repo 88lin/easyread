@@ -290,7 +290,8 @@ class Handler(BaseHTTPRequestHandler):
                 variant = pdfwork.page_variant(ws.root, rel, w)
                 return self._file(variant or _safe(ws.root, rel), cache=True)
             if ws and (rel.split("/", 1)[0] in ("pages", "figures") or rel == "source.pdf"):
-                return self._file(_safe(ws.root, rel), cache=rel != "source.pdf")
+                source = ws.source_pdf if rel == "source.pdf" else _safe(ws.root, rel)
+                return self._file(source if source and source.is_file() else None, cache=rel != "source.pdf")
         return self._json(404, {"error": "not found"})
 
     # ---------- POST ----------
