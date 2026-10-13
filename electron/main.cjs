@@ -166,8 +166,7 @@ async function stopBackendGracefully() {
   });
 }
 
-/* 退出前先让页面把没落盘的东西写回去（阅读位置、改到一半的笔记），再停后端：
-   页面走光之后请求就发不出去了。页面没应（比如卡住了）就照常退出。 */
+/* 退出前先让页面把没落盘的东西写回去再停后端；页面没应就照常退出 */
 function savePageState() {
   const wc = mainWindow && mainWindow.webContents;
   if (!wc || wc.isDestroyed()) return Promise.resolve();

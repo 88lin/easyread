@@ -158,7 +158,7 @@
         setTimeout(() => PR.toast(tip, null, 9000), 800);
       }
     }
-    PR.watchProgress();  // 位置定了（回到了上次读到的地方，或者本来就在开头），之后滚动才记
+    PR.watchProgress();  // 位置定了才开始记新的
   }
   boot();
 })(window.PR);

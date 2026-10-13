@@ -21,7 +21,7 @@ async function desktop(platform = "darwin", lock = true, ready = true, argv = []
   class Window extends EventEmitter {
     constructor() {
       super(); this.webContents = new EventEmitter(); this.webContents.setWindowOpenHandler = () => {}; this.webContents.mainFrame = { url: "http://127.0.0.1:9876/" }; this.webContents.isDestroyed = () => false;
-      // 页面收到消息就把没落盘的东西写回去，写完回一声（真页面见 preload.cjs）
+      // 页面收到消息就写完回一声（见 preload.cjs）
       this.webContents.send = channel => { requests.push("asked:" + channel); queueMicrotask(() => ipcMain.emit("easyread:page-saved")); };
       windows.push(this);
     }

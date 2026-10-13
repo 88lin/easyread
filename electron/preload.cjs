@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld("easyreadDesktop", {
     ipcRenderer.on("easyread:update-state", listener);
     return () => ipcRenderer.removeListener("easyread:update-state", listener);
   },
-  /* 退出软件前来一下：页面把没落盘的东西写回去，写完了回一声，主进程才停后端（见 main.cjs） */
+  /* 退出软件前来一下：页面写完回一声，主进程才停后端（见 main.cjs） */
   onBeforeQuit: (callback) => {
     const listener = async () => {
       try { await callback(); } finally { ipcRenderer.send("easyread:page-saved"); }

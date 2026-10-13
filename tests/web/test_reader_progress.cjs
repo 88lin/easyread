@@ -4,11 +4,10 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { test } = require("node:test");
 
-/* 版面用 document 坐标下的 top / height 表示，读到哪一块由 readingBlock 决定：
-   视口 800 高，记的是 240（30%）那条线。 */
+/* 版面用 document 坐标的 top / height 表示；视口 800 高，记的是 240（30%）那条线 */
 function reader({ mode = "server", progress = {}, scrollY = 0 } = {}) {
   const layout = new Map([["head", { top: 0, height: 200 }]]);
-  const timers = [], toasts = [], scrolls = [], on = new Map();
+  const timers = [], toasts = [], scrolls = [], on = new Map(), classes = new Set();
   const sandbox = {
     scrollY, innerHeight: 800,
     document: {
@@ -33,6 +32,7 @@ function reader({ mode = "server", progress = {}, scrollY = 0 } = {}) {
     plain: s => s, textFor: id => "正文 " + id, readingLine: () => 240,
     throttle: fn => fn,  // 多久记一次由 util.js 的节流管，这里只看记了什么
     readingBlock: () => "head",
+    $: (sel) => (sel === "#paper" ? { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) } } : null),
     blockById: {}, store: { mode },
     commit: op => { PR.committed.push(op); PR.state.reader.progress = { block: op.block, off: op.off, ratio: op.ratio }; },
     committed: [],
@@ -42,10 +42,10 @@ function reader({ mode = "server", progress = {}, scrollY = 0 } = {}) {
   sandbox.PR = sandbox.window.PR = PR;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../../easyread/web/js/reader/progress.js"), "utf8"), sandbox);
   return {
-    PR, sandbox, toasts, scrolls, on,
+    PR, sandbox, toasts, scrolls, on, classes,
     block(id, top, height) { layout.set(id, { top, height }); },
     read(id) { PR.readingBlock = () => id; },
-    settle: async () => { timers.splice(0).forEach(fn => fn()); await new Promise(r => setImmediate(r)); },
+    settle: async (n = 0) => { timers.splice(0, n || timers.length).forEach(fn => fn()); await new Promise(r => setImmediate(r)); },
   };
 }
 
@@ -108,6 +108,49 @@ test("the jump is corrected once the page has laid out", async () => {
   assert.deepEqual(r.scrolls, [1400, 2000], "排好版后再对一次");
 });
 
+test("the jump keeps up while the page is still laying out", async () => {
+  const r = reader({ progress: { block: "p2", off: 0.32, ratio: 0.33 } });
+  r.block("p2", 1000, 2000);
+  r.PR.restoreProgress();
+  r.block("p2", 1600, 2000);  // 字体排好，上面的段落比占位高度高
+  await r.settle(1);
+  assert.deepEqual(r.scrolls, [1400, 2000]);
+  r.block("p2", 1900, 2000);  // 图片又排进来，接着把它挤走
+  await r.settle(1);
+  assert.deepEqual(r.scrolls, [1400, 2000, 2300], "版面还在变就继续跟，别只在最后对一次");
+});
+
+test("the estimated landing is never written over the recorded spot", async () => {
+  const r = reader({ progress: { block: "p2", off: 0.32, ratio: 0.33 } });
+  r.block("p2", 1000, 2000);
+  r.PR.restoreProgress();
+  r.PR.watchProgress();          // 启动流程末尾会调它，但此刻位置还没对准
+  r.block("p2", 1300, 2000);     // 字体还没排好，这时候量出来的是估的位置
+  await r.PR.flushProgress();
+  assert.deepEqual(r.PR.committed, [], "没对准就记下来，下次打开就会回到错的地方");
+  await r.settle();              // 对准、亮出来
+  r.block("p2", 2000, 2000);     // 之后真的往下读了
+  await r.PR.flushProgress();
+  assert.equal(r.PR.committed.length, 1, "对准之后照常记");
+});
+
+test("the paper stays hidden until the position is right", async () => {
+  const r = reader({ progress: { block: "p2", off: 0.32, ratio: 0.33 } });
+  r.block("p2", 1000, 2000);
+  r.PR.restoreProgress();
+  assert.ok(r.classes.has("landing"), "落定之前先把正文藏起来，别让人看见估出来的位置");
+  await r.settle();
+  assert.ok(!r.classes.has("landing"), "对准了就亮出来");
+});
+
+test("the paper is shown at once when the user starts reading it", () => {
+  const r = reader({ progress: { block: "p2", off: 0.32, ratio: 0.33 } });
+  r.block("p2", 1000, 2000);
+  r.PR.restoreProgress();
+  r.on.get("wheel")();
+  assert.ok(!r.classes.has("landing"), "用户自己动了就立刻显示，不能留个空白");
+});
+
 test("the correction is skipped once the user has scrolled", async () => {
   const r = reader({ progress: { block: "p2", off: 0.32, ratio: 0.33 } });
   r.block("p2", 1000, 2000);
@@ -123,6 +166,13 @@ test("a paper left at the top is left alone", () => {
   assert.equal(r.PR.restoreProgress(), false);
   assert.deepEqual(r.scrolls, []);
   assert.deepEqual(r.toasts, []);
+});
+
+test("an old record without a position inside the block starts at that block", () => {
+  const r = reader({ progress: { block: "p2", ratio: 0.5 } });  // 1.4.2 及以前记的只有 ratio
+  r.block("p2", 1000, 2000);
+  assert.equal(r.PR.restoreProgress(), true);
+  assert.deepEqual(r.scrolls, [760], "有块就按块落位：全文比例是拿当时的估算高度算的，能差好几段");
 });
 
 test("a block that is gone falls back to the document ratio", () => {
