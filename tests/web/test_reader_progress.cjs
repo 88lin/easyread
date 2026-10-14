@@ -56,6 +56,15 @@ test("progress records the block, the position inside it, and the document ratio
   assert.deepEqual({ ...r.PR.progressOp() }, { op: "progress", block: "p2", off: 0.32, ratio: 0.33 });
 });
 
+test("leaving captures the final scroll before sending pending operations", () => {
+  const r = reader({ scrollY: 1400 });
+  r.block("p2", 1000, 2000); r.read("p2"); r.PR.watchProgress();
+  r.on.get("pagehide")();
+  assert.equal(r.PR.committed[0].block, "p2");
+  assert.equal(r.PR.committed[0].off, 0.32);
+  assert.equal(r.PR.flushed, true);
+});
+
 test("nothing is recorded until the saved spot has been restored", async () => {
   const r = reader({ scrollY: 1400, progress: { block: "p2", off: 0.32, ratio: 0.33 } });
   r.block("p2", 1000, 2000);

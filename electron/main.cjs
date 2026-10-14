@@ -174,11 +174,14 @@ function savePageState() {
     let timer;
     function done() {
       clearTimeout(timer);
-      ipcMain.removeListener("easyread:page-saved", done);
+      ipcMain.removeListener("easyread:page-saved", saved);
       resolve();
     }
+    function saved(event) {
+      if (event.sender === wc && event.senderFrame === wc.mainFrame) done();
+    }
     timer = setTimeout(done, 1200);
-    ipcMain.once("easyread:page-saved", done);
+    ipcMain.on("easyread:page-saved", saved);
     wc.send("easyread:before-quit");
   });
 }
@@ -275,6 +278,12 @@ async function createWindow() {
     if (mainWindow !== openingWindow) return;
     if (state.maximized) openingWindow.maximize();
     openingWindow.show();
+  });
+  mainWindow.on("close", event => {
+    if (process.platform !== "darwin" && !quitting && backend) {
+      event.preventDefault();
+      app.quit();  // before-quit saves while the renderer is still alive.
+    }
   });
   mainWindow.on("closed", () => { mainWindow = undefined; });
   try {
