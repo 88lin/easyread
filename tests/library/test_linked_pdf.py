@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pypdf import PdfWriter
 
-from easyread.library import cloudlib, reader_files, trash
+from easyread.library import cloudlib, paperdata, reader_files, trash
 from easyread.library.library import Library
 from easyread.pdf import figures, pdfwork
 from easyread.server.server import Handler, _safe
@@ -99,7 +99,20 @@ class LinkedPDFTest(unittest.TestCase):
         ws = self.linked()
         self.assertFalse((ws.root / "pages").exists())
         finished = threading.Event()
-        gate = types.SimpleNamespace(begin=lambda: None, end=finished.set)
+        lock = threading.Lock()
+        active = 0
+        def begin():
+            nonlocal active
+            with lock:
+                active += 1
+                finished.clear()
+        def end():
+            nonlocal active
+            with lock:
+                active -= 1
+                if active == 0:
+                    finished.set()
+        gate = types.SimpleNamespace(begin=begin, end=end)
         reader_files.prepare_later(ws, gate)
         self.assertTrue(finished.wait(10))
         self.assertEqual(ws.load("paper")["meta"]["page_count"], 1)
@@ -133,6 +146,9 @@ class LinkedPDFTest(unittest.TestCase):
             self.lib.import_pdf_path(invalid, link=True)
 
     def test_source_http_serves_external_pdf_and_keeps_other_paths_scoped(self):
+        renamed = self.pdf.with_suffix(".html")
+        self.pdf.rename(renamed)
+        self.pdf = renamed  # PDF response type must not depend on the source filename.
         ws = self.linked()
         app = types.SimpleNamespace(lib=self.lib,
                                     location=types.SimpleNamespace(request=lambda *a: nullcontext(), status="idle"))
@@ -152,6 +168,15 @@ class LinkedPDFTest(unittest.TestCase):
             urllib.request.urlopen(url)
         self.assertEqual(error.exception.code, 409)
         self.assertIn(str(self.pdf), json.loads(error.exception.read())["error"])
+
+    def test_model_metadata_cannot_change_pdf_source(self):
+        for link in (False, True):
+            with self.subTest(link=link):
+                lib = Library(self.root / f"library-{link}")
+                ws, _ = lib.import_pdf_path(self.pdf, link=link)
+                original = ws.source_pdf
+                paperdata.merge_blocks(ws, {"meta": {"source_pdf_path": str(self.root / "other.pdf")}, "blocks": []})
+                self.assertEqual(ws.source_pdf, original)
 
 
 if __name__ == "__main__":

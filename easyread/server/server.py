@@ -69,10 +69,10 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, code: int, obj):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _file(self, path: Path | None, cache=False):
+    def _file(self, path: Path | None, cache=False, ctype=None):
         if not path:
             return self._json(404, {"error": "not found"})
-        ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        ctype = ctype or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype.endswith("javascript"):
             ctype += "; charset=utf-8"
         self._send(200, path.read_bytes(), ctype, cache)
@@ -291,7 +291,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._file(variant or _safe(ws.root, rel), cache=True)
             if ws and (rel.split("/", 1)[0] in ("pages", "figures") or rel == "source.pdf"):
                 source = ws.source_pdf if rel == "source.pdf" else _safe(ws.root, rel)
-                return self._file(source if source and source.is_file() else None, cache=rel != "source.pdf")
+                return self._file(source if source and source.is_file() else None, cache=rel != "source.pdf",
+                                  ctype="application/pdf" if rel == "source.pdf" else None)
         return self._json(404, {"error": "not found"})
 
     # ---------- POST ----------
