@@ -44,7 +44,10 @@
         const cur = reader.paper_note || {};
         if (at >= (cur.at || "")) reader.paper_note = { body: op.body || "", at };
       } else if (op.op === "progress") {
-        if (at >= (reader.progress.at || "")) Object.assign(reader.progress, { block: op.block, at }, op.ratio != null ? { ratio: op.ratio } : {});
+        if (at >= (reader.progress.at || "")) {
+          Object.assign(reader.progress, { block: op.block, at });
+          for (const key of ["ratio", "off"]) if (op[key] != null) reader.progress[key] = op[key];
+        }
       }
     }
     return reader;
@@ -75,7 +78,7 @@
 
   function scheduleFlush(ms) { clearTimeout(flushT); flushT = setTimeout(flush, ms); }
 
-  async function flush() {
+  async function flush(opts) {
     if (mode !== "server" || flushing || !outbox.length) return;
     flushing = true;
     const batch = outbox.slice();
@@ -83,6 +86,7 @@
       const r = await fetch(base() + "/ops", {
         method: "POST", headers: { "Content-Type": "application/json", "X-Token": PR.token || "" },
         body: JSON.stringify({ ops: batch, client }),
+        keepalive: !!(opts && opts.keepalive),  // 页面正在关：请求要能比页面活得久
       });
       if (r.status === 403) { await reloadToken(); throw new Error("token"); }
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
@@ -106,6 +110,8 @@
     }
   }
   PR.flush = flush;
+  /* 待发的操作立刻发出去（关页面、退出软件前用） */
+  PR.flushPending = () => flush({ keepalive: true });
 
   async function reloadToken() {
     try { PR.token = (await (await fetch(base() + "/state", { cache: "no-store" })).json()).token; } catch (e) { /* 下次重试 */ }
@@ -176,7 +182,9 @@
   };
 
   window.addEventListener("beforeunload", (e) => {
-    if (mode === "server" && outbox.some((o) => o.op !== "progress")) { flush(); e.preventDefault(); e.returnValue = ""; }
+    if (mode !== "server" || !outbox.length) return;
+    if (outbox.some((o) => o.op !== "progress")) { flush(); e.preventDefault(); e.returnValue = ""; return; }
+    flush({ keepalive: true });  // 只有读到哪儿没存：不拦着人走，但别丢
   });
 
   /* 让模型做事（回答问题、重译一段）：交给服务的小任务队列 */

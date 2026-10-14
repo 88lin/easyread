@@ -1,4 +1,8 @@
 {
+ "已回到上次读到「{sec}」": "Back to last read: “{sec}”",
+ "已回到上次读到第 {page} 页": "Back to last read: page {page}",
+ "已回到上次读到的地方": "Back to where you left off",
+ "回到顶部": "Back to top",
  "每篇同时译几段": "Parallel segments per paper",
  "同时翻译几篇": "Concurrent papers",
  "1 篇（默认，逐篇处理）": "1 paper (default, sequential)",

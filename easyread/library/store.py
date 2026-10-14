@@ -160,8 +160,9 @@ def apply_ops(reader: dict, ops: list[dict]) -> list[str]:
         elif kind == "progress":
             if _newer(at, progress.get("at")):
                 progress.update({"block": op.get("block"), "at": at})
-                if op.get("ratio") is not None:
-                    progress["ratio"] = op["ratio"]
+                for key in ("ratio", "off"):  # off：线在块里的位置，长段落靠它落回原处
+                    if op.get(key) is not None:
+                        progress[key] = op[key]
             applied.append("progress")
     if applied:
         reader["rev"] = int(reader.get("rev", 0)) + 1

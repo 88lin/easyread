@@ -20,6 +20,17 @@ async function offlineReader() {
   return PR;
 }
 
+test("progress keeps the block, the position inside it and the ratio", async () => {
+  const PR = await offlineReader();
+  PR.commit({ op: "progress", block: "p2", off: 0.32, ratio: 0.43 });
+  assert.equal(PR.state.reader.progress.block, "p2");
+  assert.equal(PR.state.reader.progress.off, 0.32);
+  assert.equal(PR.state.reader.progress.ratio, 0.43);
+  PR.commit({ op: "progress", block: "p9", off: 0.1, ratio: 0.8 });  // 后到的位置说了算
+  assert.equal(PR.state.reader.progress.block, "p9");
+  assert.equal(PR.state.reader.progress.off, 0.1);
+});
+
 test("offline deletes survive delayed note creation and export/import", async () => {
   const note = { op: "note", note: { id: "n1", body: "old", updated: "2026-10-01T00:01:00Z" } };
   const remove = { op: "note_del", id: "n1", at: "2026-10-01T00:02:00Z" };
