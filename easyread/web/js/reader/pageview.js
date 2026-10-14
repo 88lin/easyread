@@ -49,11 +49,16 @@
     if (!p) return "";
     const base = PR.imageUrl(p.img);
     if (PR.store.mode !== "server") return base;
-    const need = (PR.$(".pv-scroll").clientWidth || 480) * (devicePixelRatio || 1);
+    const need = (PR.$(".pv-scroll").clientWidth || 480) * zoom.value * (devicePixelRatio || 1);
     return need <= 1000 ? base + "?w=1000" : need <= 1600 ? base + "?w=1600" : base;  // 1000 宽的服务端已提前生成好
   }
   let pageNodes = [], pageSource = null;
   const scroller = PR.$(".pv-scroll");
+  const zoom = PR.initPageZoom({
+    scroller,
+    beforeZoom: () => { panelInput = false; programmaticUntil = Date.now() + 1500; holdUntil = Date.now() + 1500; },
+    afterZoom: () => loadNearby(pvPage),
+  });
   function loadPage(n) {
     const entry = pageNodes[n - 1];
     if (!entry) return;

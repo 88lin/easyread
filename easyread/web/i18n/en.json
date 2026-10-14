@@ -1,4 +1,9 @@
 {
+ "PDF 缩放": "PDF zoom",
+ "缩小 PDF": "Zoom out PDF",
+ "放大 PDF": "Zoom in PDF",
+ "恢复适合宽度": "Reset to fit width",
+ "适合宽度": "Fit width",
  "已回到上次读到「{sec}」": "Back to last read: “{sec}”",
  "已回到上次读到第 {page} 页": "Back to last read: page {page}",
  "已回到上次读到的地方": "Back to where you left off",
