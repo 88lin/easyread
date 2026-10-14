@@ -29,7 +29,7 @@ window.PR = window.PR || {};
      译成英文时原标题可能是别的语言，不标 lang；原文本来就是英文、标题照抄的，第二行不重复 */
   PR.titles = function (i) {
     const tr = i.title_zh || "", en = i.title_en || "", lang = i.target || "zh";
-    if (tr && (PR.lang === lang.split("-")[0] || !en)) return { main: tr, sub: tr === en ? "" : en, subLang: lang === "en" ? "" : "en", short: i.short_zh || tr.split(/[：:]/)[0] };
+    if (tr && (PR.lang.split("-")[0] === lang.split("-")[0] || !en)) return { main: tr, sub: tr === en ? "" : en, subLang: lang === "en" ? "" : "en", short: i.short_zh || tr.split(/[：:]/)[0] };
     return { main: en || PR.t("（未命名）"), sub: tr, subLang: lang, short: en.split(/:\s/)[0] || PR.t("（未命名）") };
   };
 
@@ -67,7 +67,7 @@ window.PR = window.PR || {};
     if (s < 3600) return PR.t("{n} 分钟前", { n: Math.floor(s / 60) });
     if (s < 86400) return PR.t("{n} 小时前", { n: Math.floor(s / 3600) });
     if (s < 86400 * 30) return PR.t("{n} 天前", { n: Math.floor(s / 86400) });
-    return new Date(iso).toLocaleDateString(PR.lang === "en" ? "en-US" : "zh-CN");
+    return new Date(iso).toLocaleDateString(PR.lang === "en" ? "en-US" : PR.lang === "zh-Hant" ? "zh-TW" : "zh-CN");
   };
 
   PR.uid = (p) => (p || "n") + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
