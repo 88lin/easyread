@@ -8,7 +8,7 @@
 
   PR.$("#importBtn").innerHTML = PR.icon("plus", "sm") + "<span>" + PR.t("导入论文") + "</span>";
   PR.$("#settingsBtn").innerHTML = PR.icon("gear");
-  PR.$(".search .si").outerHTML = PR.icon("search", "sm");
+  PR.$(".search .si").outerHTML = PR.icon("search");
   PR.$("#sort").value = L.sort;
 
   L.byId = (id) => L.items.find((i) => i.id === id);
