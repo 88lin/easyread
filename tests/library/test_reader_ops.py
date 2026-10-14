@@ -32,3 +32,4 @@ class ReaderOpsTest(unittest.TestCase):
             # 1.4.2 及以前的操作只带 ratio，照旧能落盘
             ws.apply_reader_ops([{"op": "progress", "block": "p5", "ratio": 0.6, "at": "2026-10-01T00:02:00Z"}])
             self.assertEqual(ws.load("reader")["progress"]["ratio"], 0.6)
+            self.assertNotIn("off", ws.load("reader")["progress"])

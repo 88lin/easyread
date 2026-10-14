@@ -37,11 +37,13 @@
   PR.watchProgress = () => { watching = true; };
 
   PR.saveProgress = PR.throttle(save, EVERY);
+  PR.captureProgress = save;
   /* 离开页面、退出软件前补记一次并立刻发出去 */
-  PR.flushProgress = function () {
+  PR.flushProgress = function (opts) {
     save();
-    return PR.flushPending ? PR.flushPending() : Promise.resolve();
+    return PR.flushPending ? PR.flushPending(opts) : Promise.resolve();
   };
+  window.addEventListener("pagehide", () => PR.flushProgress({ leaving: true }));
 
   /* 记下的位置换算成 scrollTop：以块为准，没有 off 就按块顶对线 */
   function target(p) {

@@ -22,7 +22,7 @@ async function desktop(platform = "darwin", lock = true, ready = true, argv = []
     constructor() {
       super(); this.webContents = new EventEmitter(); this.webContents.setWindowOpenHandler = () => {}; this.webContents.mainFrame = { url: "http://127.0.0.1:9876/" }; this.webContents.isDestroyed = () => false;
       // 页面收到消息就写完回一声（见 preload.cjs）
-      this.webContents.send = channel => { requests.push("asked:" + channel); queueMicrotask(() => ipcMain.emit("easyread:page-saved")); };
+      this.webContents.send = channel => { requests.push("asked:" + channel); queueMicrotask(() => ipcMain.emit("easyread:page-saved", { sender: this.webContents, senderFrame: this.webContents.mainFrame })); };
       windows.push(this);
     }
     static getAllWindows() { return windows.filter(w => !w.closed); }
@@ -30,7 +30,11 @@ async function desktop(platform = "darwin", lock = true, ready = true, argv = []
     show() { this.shown = true; }
     focus() { this.focused = true; }
     isMinimized() { return false; }
-    close() { this.closed = true; this.emit("closed"); }
+    close() {
+      let prevented = false;
+      this.emit("close", { preventDefault() { prevented = true; } });
+      if (!prevented) { this.closed = true; this.emit("closed"); }
+    }
   }
   const Menu = {
     buildFromTemplate(items) { return { items, popup() { menus.push(items); } }; },
@@ -119,6 +123,15 @@ test("quitting asks the page to save before stopping the backend", async () => {
   const d = await desktop("win32");
   d.app.quit();
   await new Promise(resolve => setTimeout(resolve, 200));
+  const order = d.requests.filter(x => x.startsWith("asked:") || x === "/api/shutdown");
+  assert.deepEqual(Array.from(order), ["asked:easyread:before-quit", "/api/shutdown"]);
+});
+
+test("Windows close button saves before the renderer is destroyed", async () => {
+  const d = await desktop("win32");
+  d.windows[0].close();
+  assert.notEqual(d.windows[0].closed, true);
+  await d.settled();
   const order = d.requests.filter(x => x.startsWith("asked:") || x === "/api/shutdown");
   assert.deepEqual(Array.from(order), ["asked:easyread:before-quit", "/api/shutdown"]);
 });
