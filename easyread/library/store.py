@@ -187,6 +187,26 @@ class Workspace:
     item_path = property(lambda s: s.root / "item.json")
     journal_path = property(lambda s: s.root / "history" / "reader.log.jsonl")
 
+    @property
+    def source_pdf(self) -> Path:
+        """Original PDF only: generated files remain inside this workspace."""
+        meta = (self.load("paper") or {}).get("meta", {})
+        linked = meta.get("source_pdf_path")
+        if not linked:
+            return self.root / "source.pdf"
+        path = Path(linked)
+        if not path.is_absolute() or not path.is_file():
+            from ..app.i18n import tr
+            raise ValueError(tr("链接的 PDF 不存在或不可读：{path}；请恢复原文件到此位置", path=str(path)))
+        try:
+            with path.open("rb") as stream:
+                if not stream.read(4).startswith(b"%PDF"):
+                    raise ValueError
+        except (OSError, ValueError):
+            from ..app.i18n import tr
+            raise ValueError(tr("链接的 PDF 不存在或不可读：{path}；请恢复原文件到此位置", path=str(path))) from None
+        return path
+
     def load(self, name: str):
         defaults = {"reader": empty_reader(), "discussion": empty_discussion(), "layout": {}, "item": {}, "job": {}, "chat": {"messages": []}}
         path = self.root / f"{name}.json"

@@ -42,6 +42,11 @@ def prepare_later(ws, gate=None) -> None:
                 # Translation may have started while this paper was waiting.
                 if (ws.load("job") or {}).get("state") in ("queued", "running"):
                     return
+                meta = (ws.load("paper") or {}).get("meta", {})
+                if meta.get("source_pdf_path") and not meta.get("pages"):
+                    # Prepare catalog-only entries on first open.
+                    from ..translate.translate import prepare
+                    prepare(ws)
                 refresh_layout(ws)
                 if (ws.load("job") or {}).get("state") in ("queued", "running"):
                     return
