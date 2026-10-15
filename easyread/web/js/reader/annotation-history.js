@@ -9,7 +9,9 @@
   const content = n => {
     if (!n || n.deleted) return "deleted";
     const value = { ...n }; delete value.updated;
-    return JSON.stringify(value);
+    // Server JSON may reorder keys, including keys inside cross-block parts.
+    return JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
   };
 
   PR.commit = function (op) {
@@ -36,7 +38,8 @@
       return false;
     }
     const value = copy(reverse ? entry.before : entry.after);
-    const at = new Date(Math.max(Date.now(), Date.parse(now?.updated || "") || 0)).toISOString();
+    // The store compares timestamps as strings; keep the writer's local-offset format.
+    const at = [PR.nowIso(), now?.updated || ""].sort().pop();
     replaying = true;
     try {
       if (!value || value.deleted) PR.commit({ op: "note_del", id: entry.id, at });

@@ -63,3 +63,17 @@ test("undo does not overwrite an annotation modified remotely", async () => {
   assert.equal(PR.undoAnnotation(), false);
   assert.equal(PR.state.reader.notes.n.body, "Changed on another device");
 });
+
+test("server key ordering does not prevent undo of a formula spanning annotation", async () => {
+  const { PR, put } = await reader();
+  PR.nowIso = () => "2099-10-15T16:00:00.000+08:00";
+  put({ id: "n", anchor: "p1", quote: "text formula", kind: "highlight", color: "blue", style: "underline",
+    parts: [{ anchor: "p1", key: "p1", quote: "text" }, { anchor: "eq1", key: "eq1", quote: "formula", math: true }] });
+  PR.state.reader.notes.n = JSON.parse(JSON.stringify(PR.state.reader.notes.n, (_key, item) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item));
+  assert.equal(PR.undoAnnotation(), true);
+  assert.equal(PR.state.reader.notes.n.deleted, true);
+  assert.equal(PR.redoAnnotation(), true);
+  assert.equal(PR.state.reader.notes.n.parts[1].anchor, "eq1");
+});

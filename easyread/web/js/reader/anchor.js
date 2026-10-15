@@ -68,6 +68,11 @@
   /* 标注挂在原文（side: "en"）还是译文上；找不到原话再到另一边找一次：
      只读原文时划在英文上的旧划线没有 side，翻译后英文挪到了 .en 里 */
   function locate(n) {
+    const math = document.getElementById("b-" + n.anchor)?.querySelector(".math-body");
+    if (math) {
+      const i = findQuote(fullText(math), n.quote, n.prefix, n.suffix);
+      return i >= 0 ? { el: math, i } : null;
+    }
     const zh = zhFor(n);
     const first = PR.noteEl(zh, n.side), second = PR.noteEl(zh, n.side === "en" ? "zh" : "en");
     for (const el of [first, second]) {
@@ -114,14 +119,15 @@
   const MAX_PARTS = 20;
   /* 选区落在某个元素里的那一截；起点在它前面的从 0 算，终点在它后面的算到末尾 */
   function partOf(el, range) {
-    const zh = PR.zhOfEl(el), blk = el.closest(".blk");
-    if (!zh || !zh.dataset.key || !blk || el.querySelector("textarea")) return null;
+    const math = el.classList.contains("math-body"), zh = math ? null : PR.zhOfEl(el), blk = el.closest(".blk");
+    if (!blk || (!math && !zh?.dataset.key) || el.querySelector("textarea")) return null;
     const text = fullText(el);
     const s = el.contains(range.startContainer) ? offsetOf(el, range.startContainer, range.startOffset) : 0;
     const e = el.contains(range.endContainer) ? offsetOf(el, range.endContainer, range.endOffset) : text.length;
     const quote = text.slice(s, e);
     if (!quote.trim()) return null;
-    const out = { anchor: blk.dataset.id, key: zh.dataset.key, quote, prefix: text.slice(Math.max(0, s - 32), s), suffix: text.slice(e, e + 32) };
+    const out = { anchor: blk.dataset.id, key: math ? blk.dataset.id : zh.dataset.key, quote, prefix: text.slice(Math.max(0, s - 32), s), suffix: text.slice(e, e + 32) };
+    if (math) out.math = true;
     if (PR.isEnEl(el)) out.side = "en";
     return out;
   }
@@ -132,12 +138,14 @@
     const range = sel.getRangeAt(0);
     const startEl = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
     // 译文 .zh 和原文 .en 都能划：原文的记 side: "en"（只读原文没译的块，.zh 里排的就是英文）
-    const el = startEl && startEl.closest("#paper .zh, #paper .en");
+    const el = startEl && startEl.closest("#paper .zh, #paper .en, #paper .math-body");
     if (!el) return null;
     let parts;
     if (el.contains(range.endContainer)) parts = [partOf(el, range)];
     else {  // 跨段（#46）：起点在译文就取选中的每段译文，在原文就取原文，夹在中间的另一边不算
-      const same = el.classList.contains("zh") ? "#paper .zh" : "#paper .en";
+      const endEl = range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement;
+      const textSide = el.classList.contains("math-body") ? endEl?.closest(".zh, .en") : el;
+      const same = (textSide?.classList.contains("en") ? "#paper .en" : "#paper .zh") + ", #paper .math-body";
       parts = PR.$$(same).filter((x) => range.intersectsNode(x)).map((x) => partOf(x, range));
     }
     parts = parts.filter(Boolean);
@@ -175,7 +183,7 @@
       '<button data-s="note" title="' + PR.t("写笔记（N）") + '">' + PR.icon("note", "sm") + PR.t("笔记") + "</button>" +
       '<button data-s="question" title="' + PR.t("提问（Q）") + '">' + PR.icon("question", "sm") + PR.t("提问") + "</button>" +
       (PR.canChat && PR.canChat() && PR.feature("chat") ? '<button data-s="chat" title="' + PR.t("把这句引用到问 AI（可以引用多段）") + '">' + PR.icon("sparkle", "sm") + (PR.chatOpen && PR.chatOpen() ? PR.t("引用到对话") : PR.t("问 AI")) + "</button>" : "") +
-      (pendingSel.side || pendingSel.parts ? "" : '<button data-s="en" title="' + PR.t("看这段英文") + '">' + PR.icon("en", "sm") + PR.t("原文") + "</button>") +
+      (pendingSel.side || pendingSel.parts || pendingSel.math ? "" : '<button data-s="en" title="' + PR.t("看这段英文") + '">' + PR.icon("en", "sm") + PR.t("原文") + "</button>") +
       '<button data-s="copy" title="' + PR.t("复制") + '">' + PR.icon("copy", "sm") + "</button>";
     bar.classList.add("open");
     const r = pendingSel.rect, w = bar.offsetWidth;
