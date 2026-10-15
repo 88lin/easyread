@@ -241,6 +241,15 @@
     showPage(loc ? loc.page : b.page, id);
   };
 
+  PR.$(".pv-follow input").addEventListener("change", (e) => {
+    if (!PR.$(".pv-follow input").checked) return;
+    // Reclaim control from a manually scrolled PDF, including the same text block.
+    panelInput = false;
+    holdUntil = 0;
+    pvBlock = null;
+    PR.syncPage(false);
+  });
+
   PR.$("#pageview").addEventListener("click", (e) => {
     const b = e.target.closest("[data-pv]");
     if (!b) return;

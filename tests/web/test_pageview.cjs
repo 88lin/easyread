@@ -71,6 +71,21 @@ test("turning off follow retains the manually selected original page", () => {
   assert.equal(r.node(".pv-page img").src, "/p/paper/pages/two.webp?w=1000");
 });
 
+test("reenabling follow immediately resumes at the viewport instead of a stale selection", () => {
+  const r = reader();
+  r.select("second"); r.read("first"); r.PR.togglePages(true);
+  const follow = r.node(".pv-follow input"), scroller = r.node(".pv-scroll");
+  follow.checked = false;
+  scroller.listeners.pointerdown();
+  scroller.scrollTop = 1018; scroller.listeners.scroll();
+  assert.equal(r.node(".pv-label").textContent, "第 2 / 2 页");
+  follow.checked = true;
+  follow.listeners.change?.();
+  assert.equal(r.node(".pv-label").textContent, "第 1 / 2 页");
+  r.read("second"); r.PR.syncPage(false);
+  assert.equal(r.node(".pv-label").textContent, "第 2 / 2 页");
+});
+
 const crossing = () => ({ page: 1, box: [0.08, 0.10, 0.92, 0.90], boxes: [[0.08, 0.60, 0.48, 0.90], [0.52, 0.10, 0.92, 0.30]] });
 
 test("server and offline readers draw separate regions and scroll to the first column", () => {
