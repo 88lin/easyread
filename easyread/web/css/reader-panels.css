@@ -114,6 +114,7 @@ body.pv-open .blk.pv-pair::before { background: rgba(214, 160, 40, .8); opacity:
 #blockbar button:hover, #selbar > button:hover { background: var(--accent-soft); color: var(--ink); }
 #selbar .dots { padding: 0 6px 0 4px; margin: 0 2px 0 0; border-right: 1px solid var(--rule); height: 22px; }
 #selbar .dots button { width: 17px; height: 17px; }
+#selbar .dots.pen-underline button { height: 5px; }
 #selbar .dots button:hover { transform: scale(1.15); }
 
 /* 悬浮卡 */
