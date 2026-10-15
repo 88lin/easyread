@@ -10,7 +10,7 @@
 - **返回阅读位置的提示可以关闭**（[#80](https://github.com/Edwardxlai/easyread/issues/80)）：“返回刚才读的地方”提示新增 ×，关闭后保留浏览器后退能力；下一次跳转时重新显示
 - **恢复正文里的原文超链接**（[#85](https://github.com/Edwardxlai/easyread/issues/85)）：从 PDF 链接批注提取地址，按文字及上下文回补到原文对应位置，支持安全的 HTTP、HTTPS 和邮件链接；已翻译论文的原文也会自动回补，保留原有笔记和逐句对齐。新翻译提示要求保留文内链接；旧译文已丢失对应关系的段落仍需重译，无法可靠匹配的链接不强行插入
 - **远距离图表跳转落点校正**（[#78](https://github.com/Edwardxlai/easyread/issues/78)）：屏幕外段落和图片展开后，重新校正目标位置，避免点到附录图表却停在前面的页面；用户手动滚动或开始下一次跳转时停止旧目标的校正
-- **底线色块显示修正**（[#82](https://github.com/Edwardxlai/easyread/issues/82)）：选区工具栏中的底线颜色恢复为居中的细线，不再被覆盖成方块
+- **统一标记色块**（[#82](https://github.com/Edwardxlai/easyread/issues/82)）：荧光笔和下划线都使用相同的浅色圆形色块，选区工具栏和标记改色菜单保持一致；实际标记仍按所选笔型绘制
 - **中文输入法下的选区快捷键**（[#83](https://github.com/Edwardxlai/easyread/issues/83)）：选中文字后，1–4、N、Q 可按物理键位识别，避免输入法将按键报告为 Process 时无响应；保留当前笔型和原有快捷键含义，不拦截编辑框内的输入。已通过事件模拟，真实 macOS 注音输入法仍待验证
 - **记住阅读位置**（[PR #70](https://github.com/Edwardxlai/easyread/pull/70)，@Cyllevantie）：滚动时持续记录进度，离开阅读页或退出软件前补存；再次打开时直接回到上次的段落及段内位置，兼容旧版记录。补齐保存请求尚未完成时的退出等待、Windows 关闭窗口时的保存，以及旧格式记录的段内偏移处理
 - **PDF 原页缩放**（[#75](https://github.com/Edwardxlai/easyread/issues/75)）：右侧 PDF 区域新增 50%–300% 缩放和“适合宽度”按钮，也可按住 Ctrl / ⌘ 滚轮缩放；调整时尽量保持正在查看的页面位置，正文的字号不受影响
