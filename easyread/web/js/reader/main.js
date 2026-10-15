@@ -44,9 +44,13 @@
     if (e.target.closest("textarea, input, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (PR.hasPendingSelection() && PR.keysOn) {
-      const m = { 1: "yellow", 2: "green", 3: "blue", 4: "pink" }[k];
+      // An active IME can report "Process" outside editors. Resolve physical
+      // keys only here; keep the selected pen and existing modifier behavior.
+      const digit = !e.shiftKey && { Digit1: "1", Digit2: "2", Digit3: "3", Digit4: "4" }[e.code];
+      const selectionKey = digit || { KeyN: "n", KeyQ: "q" }[e.code] || k;
+      const m = { 1: "yellow", 2: "green", 3: "blue", 4: "pink" }[selectionKey];
       if (m) { e.preventDefault(); return PR.selectionAction("highlight", m); }
-      if (k === "n" || k === "q") { e.preventDefault(); return PR.selectionAction(k === "n" ? "note" : "question"); }
+      if (selectionKey === "n" || selectionKey === "q") { e.preventDefault(); return PR.selectionAction(selectionKey === "n" ? "note" : "question"); }
     }
     if (k === "escape") {
       if (PR.$("#settings").classList.contains("open") || PR.$("#popover").classList.contains("open") || body.classList.contains("drawer-open")) {
