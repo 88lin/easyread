@@ -42,6 +42,7 @@ body { font-size: 15px; }
 
 }
 #paper { grid-column: 2; min-width: 0; font-family: var(--serif-zh); line-height: var(--lh); letter-spacing: .012em; font-variant-numeric: lining-nums; }
+#paper.landing { visibility: hidden; }  /* 回到上次读到的地方期间先不显示正文 */
 #margin { grid-column: 4; position: relative; font-size: 15px; }
 :root[data-theme="dark"] #paper { font-weight: 330; }
 :root[data-theme="dark"] #paper :is(h1, h2, h3, strong, th, .label) { font-weight: 600; }
