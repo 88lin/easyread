@@ -23,7 +23,7 @@ class LinkedPDFTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
+        self.root = Path(tmp.name).resolve()
         self.pdf = self.root / "original.pdf"
         writer = PdfWriter()
         writer.add_blank_page(width=60, height=80)
