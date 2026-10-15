@@ -2,12 +2,16 @@
 
 ## v1.4.3（待发布）
 
+- **远距离图表跳转落点校正**（[#78](https://github.com/Edwardxlai/easyread/issues/78)）：屏幕外段落和图片展开后，重新校正目标位置，避免点到附录图表却停在前面的页面；用户手动滚动或开始下一次跳转时停止旧目标的校正
+- **底线色块显示修正**（[#82](https://github.com/Edwardxlai/easyread/issues/82)）：选区工具栏中的底线颜色恢复为居中的细线，不再被覆盖成方块
+- **中文输入法下的选区快捷键**（[#83](https://github.com/Edwardxlai/easyread/issues/83)）：选中文字后，1–4、N、Q 可按物理键位识别，避免输入法将按键报告为 Process 时无响应；保留当前笔型和原有快捷键含义，不拦截编辑框内的输入。已通过事件模拟，真实 macOS 注音输入法仍待验证
 - **记住阅读位置**（[PR #70](https://github.com/Edwardxlai/easyread/pull/70)，@Cyllevantie）：滚动时持续记录进度，离开阅读页或退出软件前补存；再次打开时直接回到上次的段落及段内位置，兼容旧版记录。补齐保存请求尚未完成时的退出等待、Windows 关闭窗口时的保存，以及旧格式记录的段内偏移处理
 - **PDF 原页缩放**（[#75](https://github.com/Edwardxlai/easyread/issues/75)）：右侧 PDF 区域新增 50%–300% 缩放和“适合宽度”按钮，也可按住 Ctrl / ⌘ 滚轮缩放；调整时尽量保持正在查看的页面位置，正文的字号不受影响
 - **繁体中文界面**（[#72](https://github.com/Edwardxlai/easyread/issues/72)）：设置 → 阅读 → 界面语言新增“繁体中文”；跟随系统时识别 zh-TW、zh-HK、zh-MO 和 zh-Hant，界面优先使用繁体字形。补充繁体词典和常用用语，论文已有译文保持原样
 - **链接本地 PDF**（[PR #74](https://github.com/Edwardxlai/easyread/pull/74)，@JulianZJN）：Zotero 和文件夹批量导入新增“链接本地 PDF”选项，命令行支持 `--link`，默认仍复制文件。链接模式只记录原 PDF 路径，缓存和阅读数据保存在 EasyRead 文献库；重复导入保留原存储方式、笔记和进度，删除库内条目不会删除外部原 PDF。原路径必须保持可访问，此功能不负责跨设备同步原文件；同时保护源文件路径不被翻译元数据改写，并固定原 PDF 的响应类型
 - **文献库图标修正**（[#71](https://github.com/Edwardxlai/easyread/issues/71)、[PR #73](https://github.com/Edwardxlai/easyread/pull/73)，@02Ychase）：设置图标换成对称八齿齿轮，增大搜索图标
 - 验证记录：本地 28 项 Python、43 项前端和桌面针对性测试通过；浏览器已确认繁体界面和 PDF 150% 缩放。安装包升级、真实桌面退出流程及繁体用语完整校对仍待验证
+- 本轮 bug 验证：阅读跳转、选区快捷键、进度存储及桌面保存相关的 40 项测试通过；真实论文已验证跨页图表跳转、底线色块居中和数字键沿用当前底线笔型。未重复运行全套测试，macOS 注音及安装包退出流程仍需在对应设备验收
 
 ## v1.4.2（2026-10-13）
 
