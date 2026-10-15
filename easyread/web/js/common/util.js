@@ -113,10 +113,14 @@ window.PR = window.PR || {};
     if (!PR.token || location.protocol === "file:" || !Object.keys(prefQueue).length) return;
     const body = prefQueue; prefQueue = {};
     if (leaving) {  // 关页面、刷新时：keepalive 让请求在页面走掉后也能发完
-      fetch("/api/prefs", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", "X-Token": PR.token }, body: JSON.stringify(body) }).catch(() => {});
-    } else PR.api("/api/prefs", { method: "POST", body }).catch(() => { /* 下次改动再存 */ });
+      return fetch("/api/prefs", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", "X-Token": PR.token }, body: JSON.stringify(body) }).catch(() => {});
+    } else return PR.api("/api/prefs", { method: "POST", body }).catch(() => { /* 下次改动再存 */ });
   }
   window.addEventListener("pagehide", () => flushPrefs(true));
+  /* 桌面版退出前会来问一句：把偏好和补存写回去再停后端（见 electron/main.cjs） */
+  if (window.easyreadDesktop && window.easyreadDesktop.onBeforeQuit) {
+    window.easyreadDesktop.onBeforeQuit(() => Promise.all([flushPrefs(true), PR.flushProgress?.()]));
+  }
   PR.loadPrefs = async function () {
     if (location.protocol === "file:") return {};
     try {
