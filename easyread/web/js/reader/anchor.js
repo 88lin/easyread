@@ -168,8 +168,8 @@
     if (!pendingSel) { bar.classList.remove("open"); return; }
     PR.hideBlockbar && PR.hideBlockbar();
     const pen = PR.prefs.pen === "underline" ? "underline" : "marker";
-    bar.innerHTML = '<span class="pens"><button data-pen="marker" class="' + (pen === "marker" ? "on" : "") + '" title="' + PR.t("荧光笔：涂底色") + '">' + PR.icon("marker", "sm") + "</button>" +
-      '<button data-pen="underline" class="' + (pen === "underline" ? "on" : "") + '" title="' + PR.t("下划线") + '">' + PR.icon("underline", "sm") + "</button></span>" +
+    bar.innerHTML = '<span class="pens"><button data-pen="marker" class="' + (pen === "marker" ? "on" : "") + '" title="' + PR.t("荧光笔：用上次颜色划线") + '">' + PR.icon("marker", "sm") + "</button>" +
+      '<button data-pen="underline" class="' + (pen === "underline" ? "on" : "") + '" title="' + PR.t("下划线：用上次颜色划线") + '">' + PR.icon("underline", "sm") + "</button></span>" +
       '<span class="dots pen-' + pen + '">' + PR.HL_COLORS.map(([c, name], i) =>
       '<button data-s="highlight" data-color="' + c + '" class="dot-' + c + '" title="' + (pen === "underline" ? PR.t("{color}色下划线", { color: name }) : PR.t("{color}色荧光笔", { color: name })) + (PR.keysOn ? PR.t("（{k}）", { k: i + 1 }) : "") + '"></button>').join("") + "</span>" +
       '<button data-s="note" title="' + PR.t("写笔记（N）") + '">' + PR.icon("note", "sm") + PR.t("笔记") + "</button>" +
@@ -196,25 +196,27 @@
     if (kind === "en") { PR.toggleEn(anchor, true); return; }
     if (kind === "copy") { navigator.clipboard.writeText(quote).then(() => PR.toast(PR.t("已复制"))); return; }
     if (kind === "chat") { PR.chatAsk({ anchor, quote }); return; }
-    const note = { anchor, key, quote, prefix, suffix, kind, color: color || "yellow" };
+    const pen = PR.prefs.pen === "underline" ? "underline" : "marker";
+    color = color || (PR.prefs.penColors || {})[pen] || "yellow";
+    const note = { anchor, key, quote, prefix, suffix, kind, color };
     if (side) note.side = side;
     if (parts) note.parts = parts;
     if (PR.prefs.pen === "underline") note.style = "underline";
     if (kind === "highlight") {
+      PR.prefs.penColors = { ...PR.prefs.penColors, [pen]: color };
+      PR.applyPrefs();
       Object.assign(note, { id: PR.uid("n"), body: "", created: PR.nowIso() });
       PR.saveNote(note);
       PR.markNote(note);
-      PR.toast(PR.t("已划线　点划线可以写笔记或改颜色"), { label: PR.t("撤销"), fn: () => { PR.commit({ op: "note_del", id: note.id }); PR.markNote(note); } }, 2600);
+      PR.toast(PR.t("已划线　点划线可以写笔记或改颜色"), { label: PR.t("撤销"), fn: () => PR.undoAnnotation(note.id) }, 2600);
     } else PR.startNote(note);
   };
   selbar().addEventListener("mousedown", (e) => e.preventDefault()); // 点按钮时别丢掉选区
   selbar().addEventListener("click", (e) => {
     const p = e.target.closest("[data-pen]");
-    if (p) {  // 换笔：荧光笔 / 下划线，记住上次用的
-      PR.prefs.pen = p.dataset.pen; PR.applyPrefs();
-      PR.$$("[data-pen]", selbar()).forEach((x) => x.classList.toggle("on", x === p));
-      PR.$(".dots", selbar()).className = "dots pen-" + p.dataset.pen;
-      return;
+    if (p) {  // 点笔直接用这支笔上次的颜色划线，色块仍可直接指定颜色。
+      PR.prefs.pen = p.dataset.pen;
+      return PR.selectionAction("highlight");
     }
     const b = e.target.closest("button[data-s]"); if (b) PR.selectionAction(b.dataset.s, b.dataset.color);
   });
@@ -238,7 +240,11 @@
       '<div style="display:flex;gap:6px"><button class="btn sm line" data-hl="note">' + PR.t("写笔记") + '</button><button class="btn sm line" data-hl="question">' + PR.t("提问") + '</button><button class="btn sm danger" data-hl="del">' + PR.t("删除划线") + '</button></div>', { sticky: true });
     PR.$("#popover").onclick = (ev) => {
       const c = ev.target.closest("[data-hl-color]"), b = ev.target.closest("[data-hl]");
-      if (c) { PR.saveNote(Object.assign({}, n, { color: c.dataset.hlColor })); PR.markNote(n); PR.hidePopover(); return; }
+      if (c) {
+        const pen = n.style === "underline" ? "underline" : "marker";
+        PR.prefs.penColors = { ...PR.prefs.penColors, [pen]: c.dataset.hlColor }; PR.applyPrefs();
+        PR.saveNote(Object.assign({}, n, { color: c.dataset.hlColor })); PR.markNote(n); PR.hidePopover(); return;
+      }
       const sty = ev.target.closest("[data-hl-style]");
       if (sty) { const x = Object.assign({}, n); if (sty.dataset.hlStyle === "underline") x.style = "underline"; else delete x.style; PR.saveNote(x); PR.markNote(n); PR.hidePopover(); return; }
       if (!b) return;

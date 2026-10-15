@@ -135,5 +135,9 @@ body.pv-open .blk.pv-pair::before { background: rgba(214, 160, 40, .8); opacity:
 .jump-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jump-back em { font-style: normal; font-size: 11px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: rgba(255,255,255,.25); text-align: center; }
 .jump-back:hover { filter: brightness(1.08); }
+.jump-back[hidden] { display: none; }
+.jump-back-go { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 100%; color: inherit; }
+.jump-back-close { flex: 0 0 26px; height: 26px; border-radius: 50%; color: inherit; font-size: 20px; line-height: 1; }
+.jump-back-close:hover { background: rgba(255,255,255,.2); }
 :root[data-theme="dark"] .jump-back { color: #10201f; }
 @media (max-width: 760px) { .jump-back { left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }

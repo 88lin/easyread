@@ -8,10 +8,12 @@ import json
 from . import langs
 from .prompts import _context, _page_texts, peek_note, rules
 from ..library.store import Workspace
+from ..pdf import links
 
 RULES_EN = """整理要求（不翻译）：
 - 材料是用户提供的论文，本任务用于用户本人的学术阅读、学习与引用。按要求完整整理提供的内容并保留结构，不要用摘要或概述代替逐块原文。
 - 只把原文整理好，不翻译、不解释、不总结，不加原文没有的内容。原文的笔误照录。
+- 保留材料中的 Markdown 链接 [文字](URL)，文字和 URL 原样保留，不猜网址，不把链接移到段落外。
 - 保留原文的阅读顺序、章节编号、引用号 [n]。双栏论文按栏读，断在行尾的连字符单词拼回去。
 - 行内数学一律写成 $TeX$（KaTeX 能渲染的 LaTeX），变量、下标、上标都要用 TeX，不要用 Unicode 拼。行间公式单独成 math 块，照原页重排，原编号放 tag。
 - 表格重排成 table 块，表头和单元格照原文。图用 figure 块，给出归一化裁剪框 box:[x0,y0,x1,y1]（0 到 1，框住图本身、不含题注），图内可读的标题、坐标轴、图例和标签原文放 image_en。没有原页图或看不清时不猜框和文字；src 留空由程序裁图。
@@ -73,6 +75,9 @@ def todo(blocks: list[dict]) -> dict[str, object]:
 
 def fill(ws: Workspace, pages: list[int], items: dict[str, object]) -> str:
     """给已经整理好的原文块补译文。"""
+    urls = links.ensure(ws)
+    records = [link for page in pages for link in urls.get(str(page), [])]
+    items = {key: links.insert(value, records) if isinstance(value, str) else value for key, value in items.items()}
     first = 1 in pages
     target = langs.of_paper(ws.load("paper").get("meta"))
     name = langs.prompt_name(target)
