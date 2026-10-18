@@ -121,6 +121,14 @@ def _problems(data: dict) -> list[str]:
     return problems + tex_problems(tex)
 
 
+def _fill_problems(zh: dict) -> list[str]:
+    # Fill responses use keys instead of blocks; table heads still need math checks.
+    blocks = [{"id": k, "type": "table", "head": v} if k.endswith("#head") else
+              {"id": k, "type": "para", "zh": v}
+              for k, v in zh.items() if isinstance(v, str) or k.endswith("#head")]
+    return _problems({"blocks": blocks})
+
+
 def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=None, wait=False) -> None:
     """只读原文整理过的页：不重排，只给已有的块补译文。漏译的键抛错，重试时只译剩下的。
     没有块的页（整页是上一段的续文）要等那段有了译文才算译完；wait：上一页还在别的段里译，先放着等全部译完再核对。"""
@@ -137,13 +145,14 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
     data = engines.parse_json(text)
     if not isinstance(data, dict) or not isinstance(data.get("zh"), dict):
         raise engines.EngineError(tr("模型输出的格式不对（缺 zh）"))
-    fake = [{"id": k, "type": "para", "zh": v} for k, v in data["zh"].items() if isinstance(v, str)]
-    problems = _problems({"blocks": fake})
+    problems = _fill_problems(data["zh"])
     if problems:
         say(tr("第 {page} 页起有 {n} 处公式或格式问题，正在让模型修正", page=batch[0], n=len(problems)))
         try:
             fixed = engines.parse_json(engines.run(cfg, prompts.repair(prompts.dump(data), problems), ws.root, None, cancel, meter))
-            if isinstance(fixed, dict) and isinstance(fixed.get("zh"), dict) and len(fixed["zh"]) >= len(data["zh"]):
+            if (isinstance(fixed, dict) and isinstance(fixed.get("zh"), dict)
+                    and data["zh"].keys() <= fixed["zh"].keys()
+                    and len(_fill_problems(fixed["zh"])) < len(problems)):
                 data = fixed
         except engines.EngineError as e:
             journal(ws, tr("第 {pages} 页修正失败，保留原译：{err}", pages=batch, err=e))
