@@ -116,8 +116,8 @@
     const title = PR.$("#paper .paper-head h1"), meta = S.paper.meta;
     const secondary = PR.$("#paper .title-en");
     if (title && secondary && meta && meta.title_zh && meta.title_en) {
-      title.textContent = first ? meta.title_en : meta.title_zh;
-      secondary.textContent = first ? meta.title_zh : meta.title_en;
+      title.innerHTML = PR.md(first ? meta.title_en : meta.title_zh, { cite: false, xref: false });
+      secondary.innerHTML = PR.md(first ? meta.title_zh : meta.title_en, { cite: false, xref: false });
       const orig = meta.target === "en" ? "" : "en";  // 译成英文时原标题不一定是英文
       title.lang = first ? orig : "";
       secondary.lang = first ? "" : orig;
