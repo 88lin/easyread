@@ -1,4 +1,7 @@
 {
+  "这一页没有可选文字，可能是扫描页": "This page has no selectable text; it may be a scanned page.",
+  "这一页的文字暂未提取，可先阅读原图": "Text is not available for this page yet. You can still read the original image.",
+  "第 {page} 页文字，可选择和复制": "Page {page} text: select and copy",
   "翻译补充要求": "Additional translation instructions",
   "例如：KV cache 保留英文，不翻译专业术语": "For example: keep KV cache and technical terms in English",
   "自动保存，应用于之后的翻译和重译；不改变已有译文。": "Saved automatically for future translations and retranslations; existing translations stay unchanged.",

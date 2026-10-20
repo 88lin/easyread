@@ -179,7 +179,7 @@
   }
 
   /* 还没译的页：放原页图，边译边读 */
-  const origFig = (p) => '<figure class="orig-page" id="orig-' + p.n + '"><figcaption>' + PR.t("原文第 {n} 页", { n: p.n }) + '</figcaption><img loading="lazy" src="' + PR.imageUrl(p.img) + '" alt="' + PR.t("原文第 {n} 页", { n: p.n }) + '"></figure>';
+  const origFig = (p) => '<figure class="orig-page" id="orig-' + p.n + '"><figcaption>' + PR.t("原文第 {n} 页", { n: p.n }) + '</figcaption><img loading="lazy" style="aspect-ratio:' + (Number(p.w) > 0 ? Number(p.w) : 612) + '/' + (Number(p.h) > 0 ? Number(p.h) : 792) + '" src="' + PR.imageUrl(p.img) + '" alt="' + PR.t("原文第 {n} 页", { n: p.n }) + '"></figure>';
   const failedOf = () => ((S.job || {}).state === "partial" && S.job.failed) || {};
   const jobRunning = () => ["queued", "running"].includes((S.job || {}).state);
   const reading = () => !!((S.job || {}).read || ((S.paper.translation || {}).en_pages || []).length);  // 这篇是只读原文

@@ -229,6 +229,8 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/p/"):
             _, _, pid, rel = path.split("/", 3)
             ws = lib.ws(pid)
+            if ws and re.fullmatch(r"extract/page-[0-9]{3,6}\.chars\.json", rel):
+                return self._file(_safe(ws.root, rel), cache=True)
             if ws and app.location.status == "idle" and rel.startswith("pages/") and "w=" in url.query:  # 原页面板用的小一号图，第一次请求时生成
                 try:
                     w = int(parse_qs(url.query)["w"][0])
