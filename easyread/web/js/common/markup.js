@@ -54,6 +54,15 @@
     return html;
   };
 
+  // Titles allow math, but preserve literal Markdown punctuation and links.
+  PR.titleHtml = function (text) {
+    const saved = tokens(String(text == null ? "" : text), false);
+    return PR.esc(saved.text).replace(saved.inline, (match, index) => {
+      const token = saved.values[index];
+      return token.code || token.link ? PR.esc(token.raw) : PR.tex(token.text, false);
+    });
+  };
+
   function citeLinks(s) {
     return s.replace(/\[(\d+(?:\s*[,，–-]\s*\d+)*)\]/g, (m, inner) => {
       const parts = inner.split(/(\s*[,，–-]\s*)/);
