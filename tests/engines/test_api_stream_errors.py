@@ -93,7 +93,8 @@ class APIStreamErrorsTest(unittest.TestCase):
         first = {"choices": [{"delta": {"content": "部分回答"}}]}
         for end, message in [({"choices": [{"finish_reason": "length"}]}, "截断"), (None, "提前结束")]:
             response = sse([first] + ([end] if end else []), done=bool(end))
-            with self.subTest(end=end), patch.object(openai_api, "_open", return_value=response), \
+            with self.subTest(end=end), patch.object(openai_api, "_open", side_effect=[response, sse([first])]), \
+                    patch.object(openai_api, "_sleep"), \
                     self.assertRaisesRegex(EngineError, message):
                 openai_api.complete({"model": "fake"}, "q", [])
             self.assertTrue(response.closed)

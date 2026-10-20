@@ -16,6 +16,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from http.client import IncompleteRead
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Iterator
@@ -24,6 +25,7 @@ from .. import __version__
 from ..server import http
 from . import usage
 from .engines import Cancelled, EngineError
+from .stream_recovery import StreamInterrupted, non_stream_body, unsupported_stream
 from ..app.i18n import tr
 
 def api_kinds() -> list[tuple[str, str]]:
@@ -114,7 +116,7 @@ _BACKOFF = (10, 20, 40, 60, 60)
 
 def complete(o: dict, prompt: str, images: list[Path], cancel=None, meter=None) -> str:
     # 也用流式请求，收齐了再整段交出去：一次性返回要等整批译完才有第一个字节，推理模型一批常要好几分钟，
-    # 中转站前面的 Cloudflare 等不了这么久（约 100 秒没有回包就断开，报 524）；流式一直有数据在传，不会被断开
+    # 持续收到片段可减少网关的空闲超时；首包迟到或网关总时限仍可能导致超时。
     body = _body(o, prompt, images, True, None if kind(o) == "responses" else 0.2)
     text, used = "", {}
     for attempt in range(len(_BACKOFF) + 1):  # 限流、服务端错误、网络抖动：等一会儿再试
@@ -124,10 +126,15 @@ def complete(o: dict, prompt: str, images: list[Path], cancel=None, meter=None) 
             text, used = _fetch(o, body, cancel)
             break
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 504) and attempt < len(_BACKOFF):
+            if e.code in (429, 500, 502, 503, 504, 524) and attempt < len(_BACKOFF):
                 _sleep(_retry_after(e.headers.get("Retry-After"), _BACKOFF[attempt] * random.uniform(.8, 1.2)), cancel)
                 continue
             raise _http_error(e)
+        except (StreamInterrupted, IncompleteRead):
+            if attempt < 1:
+                _sleep(2, cancel)
+                continue
+            raise
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
             if attempt < 2:
                 _sleep(5, cancel)
@@ -162,8 +169,20 @@ def _fetch(o: dict, body: dict, cancel) -> tuple[str, dict]:
 
 
 def _read(o: dict, body: dict, cancel) -> tuple[str, dict]:
-    with _open(o, body, True) as r:
-        if "json" in r.headers.get("Content-Type", ""):  # 接口不认 stream，照旧一次性返回了整段
+    try:
+        response = _open(o, body, bool(body.get("stream")))
+    except urllib.error.HTTPError as e:
+        if not body.get("stream") or not unsupported_stream(e):
+            raise
+        if cancel.is_set():
+            raise Cancelled()
+        # Remember fallback within this call, including subsequent transport retries.
+        plain = non_stream_body(body)
+        body.clear()
+        body.update(plain)
+        response = _open(o, body, False)
+    with response as r:
+        if not body.get("stream") or "json" in r.headers.get("Content-Type", ""):  # 接口不认 stream，照旧一次性返回了整段
             res = json.loads(r.read())
             return (_responses_text(res) if kind(o) == "responses" else _chat_text(res)), usage.from_openai(res)
         last = _LastUsage()
@@ -329,7 +348,7 @@ def _chat_pieces(r, cancel, meter=None) -> Iterator[str]:
         finished = finished or bool(choice.get("finish_reason"))
         yield (choice.get("delta") or {}).get("content") or ""
     if not finished:
-        raise EngineError(tr("接口连接提前结束，回答未完成，请重试。"))
+        raise StreamInterrupted(tr("接口连接提前结束，回答未完成，请重试。"))
 
 
 def _responses_pieces(r, cancel, meter=None) -> Iterator[str]:
@@ -348,7 +367,7 @@ def _responses_pieces(r, cancel, meter=None) -> Iterator[str]:
         elif t == "error":
             err = (ev.get("response") or {}).get("error") or ev.get("error") or ev.get("message")
             raise EngineError(tr("接口返回出错：{err}", err=err))
-    raise EngineError(tr("接口连接提前结束，回答未完成，请重试。"))
+    raise StreamInterrupted(tr("接口连接提前结束，回答未完成，请重试。"))
 
 
 def _strip_think(pieces: Iterator[str]) -> Iterator[str]:
