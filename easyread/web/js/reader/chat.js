@@ -18,15 +18,8 @@
     : s === "xray" ? PR.t("精读：还原作者的出发点，分清承重和装饰，把关键公式落到能手算的例子，核对数字和对照条件；论文没有报告的就写没有报告。会把全文一起发给模型作依据，用量更多。")
     : PR.t("标准回答：直接、具体，能举例就举例。");
   Object.assign(st, { chatOptions: {}, effortOpen: false, catalog: null });
-  Object.assign(st, { images: [], imageError: "", imageLoading: false });
-  const imageUrl = (value) => /^chat-media\/[0-9a-f]{32}\.png$/.test(value) ? PR.imageUrl(value) : /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value) ? value : "";
-  function imagesHtml(images, draft) {
-    if (!images.length) return "";
-    return '<div class="ch-images">' + images.map((image, index) => {
-      const url = imageUrl(draft ? image.data : image);
-      return url ? '<div class="ch-image"><img src="' + PR.esc(url) + '" alt="' + PR.t("提问附图 {n}", {n:index + 1}) + '">' + (draft ? '<button type="button" data-c="unimage" data-i="' + index + '" aria-label="' + PR.t("移除图片 {n}", {n:index + 1}) + '">×</button>' : '') + '</div>' : '';
-    }).join('') + '</div>';
-  }
+  const imageDraft = PR.createChatImages(st, panel, render, () => focusInput());
+  const imagesHtml = imageDraft.html;
 
   PR.canChat = () => PR.store.mode === "server";
   /* 在线演示 / 离线版：带着对话记录时可以看，不能问 */
@@ -282,7 +275,7 @@
     if (c === "close") return PR.toggleChat(false);
     if (c === "unimage") { st.images.splice(Number(b.dataset.i), 1); st.imageError = ""; render(); return focusInput(); }
     if (c === "list") { st.listOpen = !st.listOpen; st.menuOpen = st.styleOpen = false; return render(); }
-    if (c === "new") { if (st.streaming) return; st.chatOptions = {}; st.effortOpen = false; st.cur = null; st.listOpen = false; st.model = st.def; st.answerStyle = "standard"; st.styleOpen = false; st.refs = []; st.noAuto = false; st.images = []; st.imageError = ""; st.draft = ""; if (PR.$("#chatInput")) PR.$("#chatInput").value = ""; autoContext(); render(); return focusInput(); }
+    if (c === "new") { if (st.streaming) return; st.chatOptions = {}; st.effortOpen = false; st.cur = null; st.listOpen = false; st.model = st.def; st.answerStyle = "standard"; st.styleOpen = false; st.refs = []; st.noAuto = false; imageDraft.reset(); st.draft = ""; if (PR.$("#chatInput")) PR.$("#chatInput").value = ""; autoContext(); render(); return focusInput(); }
     if (c === "style") { if (st.streaming) return; st.styleOpen = !st.styleOpen; st.menuOpen = st.listOpen = st.usageOpen = false; return render(); }
     if (c === "style-pick") {
       if (st.streaming) return;
@@ -317,7 +310,7 @@
       if (!(await PR.confirm({ title: PR.t("删除这个对话？"), body: PR.t("「{title}」。已经放到页边的讨论不受影响。", { title: t.title }), ok: PR.t("删除"), danger: true, at: row }))) return;
       if (!t.local) await PR.api("/api/p/" + PR.pid + "/chat/delete", { method: "POST", body: { thread: t.id } });
       st.threads = st.threads.filter((x) => x !== t);
-      if (st.cur === t.id) { st.cur = null; st.answerStyle = "standard"; }
+      if (st.cur === t.id) { imageDraft.reset(); st.cur = null; st.answerStyle = "standard"; }
       return render();
     }
     const card = b.closest(".cm.ai");
@@ -333,6 +326,7 @@
   document.addEventListener("click", (e) => {  // 点对话列表里的一行：切过去
     const row = e.target.closest("#chatpanel .ch-thread[data-t]");
     if (!row || e.target.closest("[data-c]") || st.streaming) return;
+    if (st.cur !== row.dataset.t) imageDraft.reset();
     st.cur = row.dataset.t; st.listOpen = false;
     const t = thread();
     if (t && t.model && st.models.some((m) => m.id === t.model)) st.model = t.model;
@@ -347,27 +341,7 @@
     if (e.key === "Escape") e.target.blur();
   });
   document.addEventListener("input", (e) => { if (e.target.id === "chatInput") PR.autosize(e.target); });
-  panel().addEventListener("paste", async event => {
-    if (event.target.id !== "chatInput") return;
-    const files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === "file" && item.type.startsWith("image/")).map(item => item.getAsFile()).filter(Boolean);
-    if (!files.length) return; // Plain text keeps the browser's normal paste behavior.
-    event.preventDefault();
-    if (st.imageLoading) return;
-    if (st.streaming) { st.imageError = PR.t("请先停止当前回答后再粘贴图片"); render(); return; }
-    st.imageError = ""; st.imageLoading = true; render();
-    try {
-      if (st.images.length + files.length > 4) throw Error(PR.t("每次最多粘贴 4 张图片"));
-      const pending = [];
-      for (const file of files) {
-        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw Error(PR.t("仅支持 PNG、JPEG 或 WebP 图片"));
-        if (file.size > 8 * 1024 * 1024) throw Error(PR.t("图片过大，单张最多 8 MB"));
-        const data = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(Error(PR.t("图片读取失败，请重新粘贴"))); reader.readAsDataURL(file); });
-        pending.push({data});
-      }
-      st.images.push(...pending);
-    } catch (error) { st.imageError = error.message; }
-    finally { st.imageLoading = false; render(); focusInput(); }
-  });
+
   /* 把正文里选中的文字拖进问 AI 面板：变成一段引用，而不是一堆粘进来的字 */
   let dragRef = null;
   document.addEventListener("dragstart", (e) => {

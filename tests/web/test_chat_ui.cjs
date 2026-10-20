@@ -11,6 +11,7 @@ const settled = () => new Promise(resolve => setImmediate(resolve));
 async function reader(threads = [], options = {}) {
   const listeners = new Map(), events = new Map(), nodes = new Map(), requests = [], copied = [], confirmations = [];
   let finish;
+  const pendingReads = [];
   const panelEvents = new Map();
   const panel = { addEventListener(name, fn) { panelEvents.set(name, fn); }, classList: { add() {}, remove() {} } };
   Object.defineProperty(panel, "innerHTML", {
@@ -43,12 +44,12 @@ async function reader(threads = [], options = {}) {
     window: { PR }, katex: require("../../easyread/web/vendor/katex/katex.min.js"),
   });
   vm.runInNewContext(source("chat-effort"), { window: { PR } });
-  vm.runInNewContext(source("chat"), {
+  vm.runInNewContext(source("chat-images") + "\n" + source("chat"), {
     window: { PR, addEventListener() {} },
     document: { addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(fn); } },
     navigator: { clipboard: { async writeText(text) { copied.push(text); } } },
     setTimeout() {}, AbortController, TextDecoder,
-    FileReader: class { readAsDataURL(file) { this.result = file.data; this.onload(); } },
+    FileReader: class { readAsDataURL(file) { this.result = file.data; if (options.slowImages) pendingReads.push(() => this.onload()); else this.onload(); } },
     fetch: async (url, opts) => {
       requests.push(JSON.parse(opts.body));
       if (options.failFirst && requests.length === 1) return new Response(JSON.stringify({ error: "连接失败" }), { status: 400 });
@@ -87,6 +88,7 @@ async function reader(threads = [], options = {}) {
     await click("style-pick", null, null, { s: value });          // 选一档
   };
   return { PR, panel, nodes, requests, copied, confirmations, dispatch, click, selectThread, setStyle,
+    finishImages: () => pendingReads.splice(0).forEach(done => done()),
     paste: files => { let prevented = false; return Promise.resolve(panelEvents.get("paste")({ target: { id: "chatInput" }, clipboardData: { items: files.map(file => ({ kind: "file", type: file.type, getAsFile: () => file })) }, preventDefault: () => { prevented = true; } })).then(() => prevented); },
     emit: async name => { await events.get(name)(); await settled(); }, finish: () => finish() };
 }
@@ -342,6 +344,19 @@ test("thinking effort lives in the model menu and shows on the model button once
 });
 
 const pastedImage = { type: "image/png", size: 20, data: "data:image/png;base64,aW1hZ2U=" };
+test("pending image reads cannot enter a new or different conversation", async () => {
+  for (const switchThread of [false, true]) {
+    const r = await reader([{ id: "saved", title: "Saved", messages: [] }], { slowImages: true });
+    const pending = r.paste([pastedImage]);
+    if (switchThread) await r.selectThread("saved"); else await r.click("new");
+    r.finishImages(); await pending;
+    assert.ok(!r.panel.innerHTML.includes(pastedImage.data));
+    const next = r.paste([pastedImage]);
+    r.finishImages(); await next;
+    assert.ok(r.panel.innerHTML.includes(pastedImage.data));
+  }
+});
+
 test("clipboard images preview, can be removed, and travel with an image-only question", async () => {
   const r = await reader();
   assert.ok(r.panel.innerHTML.includes("输入问题，或粘贴截图…"));

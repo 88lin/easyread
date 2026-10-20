@@ -116,6 +116,11 @@ class ChatImagesTest(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as error:
                 post({"text":"Not authorized", "images":[self.data]}, token="wrong")
             self.assertEqual(error.exception.code, 403)
+            before_files = set((self.ws.root / "chat-media").glob("*.png"))
+            stream.side_effect = RuntimeError("controlled model failure")
+            events = post({"text": "Fail safely", "images": [self.data]})
+            self.assertTrue(any("error" in event for event in events))
+            self.assertEqual(set((self.ws.root / "chat-media").glob("*.png")), before_files)
         with self.assertRaises(urllib.error.HTTPError) as error:
             urllib.request.urlopen(url + "/p/paper/chat-media/../reader.json")
         self.assertEqual(error.exception.code, 404)
