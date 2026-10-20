@@ -83,7 +83,7 @@
       hl.className = "pv-hl";
       node.replaceChildren(img, hl);
       PR.attachPdfText?.(node, img, i + 1);
-      node.addEventListener("click", (e) => { if (!window.getSelection?.()?.toString()) pickPage(e, i + 1); });
+      node.addEventListener("click", (e) => { if (!PR.pdfTextSelectionIn?.(node)) pickPage(e, i + 1); });
       node.addEventListener("mousemove", (e) => {
         const r = node.getBoundingClientRect();
         node.classList.toggle("pickable", !!blockAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, i + 1));

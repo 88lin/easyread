@@ -2,6 +2,11 @@
 (function (PR) {
   "use strict";
   const cache = new Map(), roots = new Set(), states = new WeakMap();
+  PR.pdfTextSelectionIn = function (parent) {
+    const selection = getSelection(), layer = parent.querySelector(".pdf-text-layer");
+    return !!(layer && selection && !selection.isCollapsed && selection.rangeCount &&
+      selection.getRangeAt(0).intersectsNode(layer));
+  };
   const canvas = document.createElement("canvas"), measure = canvas.getContext("2d");
   const resize = new ResizeObserver(entries => entries.forEach(({target}) => {
     const content = target.firstElementChild;

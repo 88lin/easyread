@@ -57,6 +57,18 @@ test("original pages load characters only near the viewport, scale and reuse cac
   await r.visible(true); assert.equal(r.requests.length, 1);
 });
 
+test("only selection within this PDF page suppresses its paragraph jump", async () => {
+  const r = reader(); await r.visible(true);
+  assert.equal(r.PR.pdfTextSelectionIn(r.figure), false);
+  r.selection({ isCollapsed: false, rangeCount: 1, getRangeAt: () => ({ intersectsNode: node => node === r.root }) });
+  assert.equal(r.PR.pdfTextSelectionIn(r.figure), true);
+  const other = new r.Element();
+  r.selection({ isCollapsed: false, rangeCount: 1, getRangeAt: () => ({ intersectsNode: node => node === other }) });
+  assert.equal(r.PR.pdfTextSelectionIn(r.figure), false);
+  r.selection({ isCollapsed: true, rangeCount: 1 });
+  assert.equal(r.PR.pdfTextSelectionIn(r.figure), false);
+});
+
 test("selection is preserved offscreen and copy uses character text without layout line breaks", async () => {
   const r = reader(); await r.visible(true);
   const range = { intersectsNode: () => true, startContainer: { nodeType: 1, closest: () => true }, cloneContents: () => ({ textContent: "PDF\r\ntext" }) };
