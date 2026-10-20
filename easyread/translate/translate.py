@@ -11,13 +11,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import codeblocks, consistency, continuation, front_context, langs, page_check, prompts, prompts_en, segments, sentences, terms
 from ..engines import engines, netcheck
-from ..pdf import figures, pdfwork, sources
+from ..pdf import figures, pdfwork, sources, blank_pages
 from ..library.checks import block_problems, tex_problems
 from ..pdf.figures import normalize_figure, prepare_figures
 from ..app.i18n import tr
 from ..app.log import log
 from ..library.paperdata import add_discussion, fill_zh, merge_blocks, set_block_text
 from ..library.store import Workspace
+from .page_scope import references_page, scope_pages
 from .translator_checks import journal, save_checks as _save_checks
 from .repair_guard import retains_content
 from . import instructions
@@ -25,7 +26,6 @@ from . import instructions
 _merge_lock = threading.Lock()  # 并发翻译时，并入 paper.json 和重算原页定位一次只做一个
 # 用量到顶、余额不足这类错误，后面的批次也一定失败：直接停，剩下的页记为没译，等额度恢复后一键重试
 _QUOTA = re.compile(r"session limit|usage limit|rate limit reached|insufficient_quota|余额不足|额度|接口返回 40[12]|insufficient balance|API returned 40[12]", re.I)  # i18n-ok
-_REF_LINE = re.compile(r"^\s*(\d+\.?\s*)?(references|bibliography|参考文献)\s*$", re.I | re.M)  # i18n-ok
 
 
 def prepare(ws: Workspace) -> None:
@@ -45,35 +45,6 @@ def prepare(ws: Workspace) -> None:
             if not meta.get(k) or (k == "title_en" and meta.get(k) == meta.get("source", "").removesuffix(".pdf")):
                 meta[k] = v
     ws.update("paper", apply)
-
-
-def references_page(ws: Workspace) -> int | None:
-    """参考文献从哪一页开始（找单独成行的 References 标题）。找不到返回 None。"""
-    n = ws.load("paper").get("meta", {}).get("page_count") or 0
-    for p in range(2, n + 1):
-        f = ws.root / "extract" / f"page-{p:03d}.txt"
-        if f.exists() and _REF_LINE.search(f.read_text(encoding="utf-8", errors="replace")):
-            return p
-    return None
-
-
-def scope_pages(ws: Workspace, scope: str | None) -> list[int] | None:
-    """翻译范围：all 全文；body 到参考文献那页为止；range:A-B 第 A 到 B 页；first:N 前 N 页（旧写法）。返回 None 表示全文。"""
-    n = ws.load("paper").get("meta", {}).get("page_count") or 0
-    if scope == "body":
-        ref = references_page(ws)
-        return list(range(1, ref + 1)) if ref else None
-    if scope and scope.startswith("range:"):
-        a, _, b = scope.split(":", 1)[1].partition("-")
-        start, end = sorted((int(a or 1), int(b or n)))
-        lo, hi = max(1, start), min(n, end)
-        if lo > hi:
-            raise ValueError(tr("指定页码超出了论文范围（共 {n} 页）", n=n))
-        return list(range(lo, hi + 1))
-    if scope and scope.startswith("first:"):
-        k = int(scope.split(":", 1)[1] or 0)
-        return list(range(1, min(n, k) + 1)) if k > 0 else None
-    return None
 
 
 def _next_head(ws: Workspace, n: int, whole: bool = False) -> str:
@@ -263,6 +234,21 @@ def _batches(pages: list[int], size: int, en_pages: set[int]) -> list[list[int]]
 def translate_pages(ws: Workspace, cfg: dict, pages: list[int], cancel, report, meter=None, read=False) -> dict[int, str]:
     """翻译给定的页（已完成的页会重译并替换；只读原文整理过的页就地补译文）。report(done, total, message)；
     meter 收集 token 用量。read：只读原文，把页整理成块但不翻译。返回没做成的页 {页码: 原因}。"""
+    if cancel.is_set():
+        raise engines.Cancelled()
+    blank = blank_pages.find(ws, pages, cancel)
+    if cancel.is_set():
+        raise engines.Cancelled()
+    if blank:
+        with _merge_lock:
+            merge_blocks(ws, {"blocks": []}, done=blank)
+        pages = [n for n in pages if n not in blank]
+    if not pages:
+        report(len(blank), len(blank), tr("结束，全部成功"))
+        return {}
+    if blank:
+        original_report = report
+        report = lambda done, total, message: original_report(done + len(blank), total + len(blank), message)
     cfg = engines.for_translation(cfg)  # 本机 CLI 不加载用户的 MCP、多余的工具定义（问 AI 不走这里）
     paper = ws.load("paper")
     total_pages = paper.get("meta", {}).get("page_count") or 0
