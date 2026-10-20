@@ -175,6 +175,8 @@
   });
   document.addEventListener("mouseout", (e) => { if (e.target.closest && e.target.closest("a.cite, a.xref")) { clearTimeout(hoverT); PR.hidePopoverSoon(); } });
   document.addEventListener("click", (e) => {
+    const footnote = e.target.closest("a.footnote-ref");
+    if (footnote) { e.preventDefault(); PR.jumpTo(footnote.dataset.footnote); return; }
     const a = e.target.closest("a.cite, a.xref");
     if (!a) return;
     e.preventDefault();
