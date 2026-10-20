@@ -19,7 +19,7 @@
     try {
       let chars = cache.get(page.n);
       if (!chars) {
-        const response = await fetch(PR.imageUrl("extract/page-" + String(page.n).padStart(3, "0") + ".chars.json"));
+        const response = await fetch(PR.imageUrl("extract/page-" + String(page.n).padStart(3, "0") + ".chars.json") + "?selection=2");
         if (!response.ok) throw Error("No extracted text");
         chars = await response.json();
         if (!Array.isArray(chars) || chars.length > 100000) throw Error("Invalid PDF text");
@@ -35,6 +35,11 @@
       for (const row of chars) {
         if (!Array.isArray(row) || row.length !== 5 || typeof row[0] !== "string" || !row.slice(1).every(Number.isFinite)) continue;
         const [text, x0, y0, x1, y1] = row;
+        if (/^\s+$/.test(text)) {
+          fragment.append(document.createTextNode(text));
+          if (/[\r\n]/.test(text)) previous = null;
+          continue;
+        }
         if (previous && Math.abs(y0 - previous[2]) > Math.max(y1 - y0, previous[4] - previous[2]) * .6) fragment.append(document.createTextNode("\n"));
         previous = row;
         const height = Math.max(1, (y1 - y0) * page.h), width = Math.max(0, (x1 - x0) * page.w);

@@ -46,7 +46,7 @@ test("original pages load characters only near the viewport, scale and reuse cac
   const r = reader(); assert.equal(r.requests.length, 0);
   assert.equal(r.root.parentElement.children[0], r.image);
   await r.visible(true);
-  assert.deepEqual(r.requests, ["/p/paper/extract/page-001.chars.json"]);
+  assert.deepEqual(r.requests, ["/p/paper/extract/page-001.chars.json?selection=2"]);
   assert.match(r.root.firstChild.style.cssText, /transform:scale\(0.5\)/);
   const spans = r.root.firstChild.firstChild.children;
   assert.equal(spans.map(span => span.textContent).join(""), "PD");
@@ -83,6 +83,18 @@ test("character coordinates retain a line break between separate PDF text lines"
   const r = reader({ chars: [["A", .1, .1, .2, .2], ["B", .1, .3, .2, .4]] });
   await r.visible(true);
   assert.equal(r.root.firstChild.firstChild.children.map(node => node.textContent).join(""), "A\nB");
+});
+
+test("synthetic zero-width PDF spaces and newlines remain text without creating extra line breaks", async () => {
+  const r = reader({ chars: [
+    ["Hello", .1, .1, .3, .2], [" ", 0, 0, 0, 0],
+    ["world", .4, .1, .6, .2], ["\r", 0, 0, 0, 0], ["\n", 0, 0, 0, 0],
+    ["Next", .1, .3, .3, .4],
+  ] });
+  await r.visible(true);
+  const children = r.root.firstChild.firstChild.children;
+  assert.equal(children.map(node => node.textContent).join(""), "Hello world\r\nNext");
+  assert.equal(children[1].tag, "text");
 });
 
 test("empty or unavailable text leaves the original image usable", async () => {
