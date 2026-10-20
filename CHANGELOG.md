@@ -4,6 +4,8 @@
 
 以下改动已合并到主分支，尚未发布安装包
 
+- **PDF 原页选字与复制**（[#97](https://github.com/Edwardxlai/easyread/pull/97)，@AurvalLab）：右侧 PDF 原页及正文中尚未翻译的原页图片增加文字选择层，随缩放对齐；仅当前原页存在选区时抑制点页跳转，正文残留选区不会阻断跳转。使用 PDF 已提取的文字顺序，不含扫描 OCR 或独立离线 HTML 文字层；补充修正后 2 项接口、6 项文字层测试及 17 项聊天界面兼容检查通过，未完成复杂 PDF 排版的实机验收
+
 - **自定义翻译要求**（[#89](https://github.com/Edwardxlai/easyread/issues/89)、[#99](https://github.com/Edwardxlai/easyread/pull/99)）：设置 → 模型 → 翻译补充要求，可保存术语保留、措辞偏好等要求；用于之后的全文翻译、补译、段落重译及术语检查，保留必要的格式约束，不改变已有译文或仅整理原文的行为
 - **聊天粘贴图片**（[#98](https://github.com/Edwardxlai/easyread/pull/98)，@AurvalLab）：支持 PNG/JPEG/WebP 预览、移除、发送及历史附件；新增会话隔离，防止未完成的粘贴串入其他对话；失败且未保存记录的附件会清理。实际识图能力取决于模型，未扩展独立离线 HTML 的附件嵌入
 - **翻译流式接收与恢复**（[#88](https://github.com/Edwardxlai/easyread/pull/88)，@hbeibei）：完整接收后再保存译文；明确不支持流式时回退普通请求，意外断流有限重试，524 纳入重试；不保证消除首包或网关总时限超时
