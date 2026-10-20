@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import sys
 import threading
 
@@ -96,63 +97,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _chat(self, ws, body: dict):
-        """流式回答：一行一个 JSON，{"t": 片段} … 最后 {"done": true, "id": …} 或 {"error": …}。"""
-        text = (body.get("text") or "").strip()
-        if not text:
-            raise ValueError(tr("问题是空的"))
-        thread = chat_store.get(ws, body.get("thread"))
-        style = answer_styles.parse(body.get("answer_style", (thread or {}).get("answer_style")))
-        cfg = config.load()
-        ecfg, m = chat_models.engine_cfg(cfg, body.get("model"))
-        from ..chat import chat_options
-        options = chat_options.apply(ecfg, body.get("chat_options"))
-        model = chat_models.label(m)
-        tid = thread["id"] if thread else chat_store.new_id()
-        refs = [{"anchor": str(r.get("anchor") or ""), "quote": str(r.get("quote") or "")[:1000]}
-                for r in (body.get("refs") or [])[:12] if isinstance(r, dict) and r.get("anchor")]
-        first = refs[0] if refs else {}
-        user = {"content": text, "anchor": body.get("anchor") or first.get("anchor"), "quote": (body.get("quote") or first.get("quote") or "")[:1000],
-                "note": body.get("note"), "refs": refs, "answer_style": style, "chat_options": options}
-        past = (thread or {}).get("messages", [])
-        convo = [{"role": x["role"], "content": x["content"]} for x in past] + [{"role": "user", "content": text}]
-        prompt_text = chat.prompt(ws, convo, user["anchor"], user["quote"], ecfg["engine"], refs, answer_style=style)
-        self.send_response(200)
-        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.close_connection = True
-        cancel = threading.Event()
-        pieces: list[str] = []
-        meter = usage.Meter(ecfg["engine"])
-
-        def send(obj):
-            self.wfile.write((json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8"))
-            self.wfile.flush()
-        try:
-            send({"model": model, "thread": tid, "answer_style": style})
-            def seen(actual):
-                chat_models.remember(m.get("model", ""), actual)
-                if m.get("engine") == "claude":
-                    send({"model": chat_models.label(m)})
-            for piece in chat.stream(ecfg, prompt_text, ws.root, cancel, seen, meter):
-                pieces.append(piece)
-                send({"t": piece})
-            msg = chat_store.append(ws, tid, user, "".join(pieces), m["id"], model, meter.snapshot())
-            send({"done": True, "id": msg["id"], "usage": msg.get("usage")})
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-            cancel.set()  # 读者点了停止或关了页面
-            if pieces:
-                chat_store.append(ws, tid, {**user, "note": None}, "".join(pieces) + "\n\n" + tr("（已停止）"), m["id"], model, meter.snapshot())
-        except engines.Cancelled:
-            pass
-        except Exception as e:  # noqa: BLE001
-            log.exception("对话出错 %s", ws.id)
-            try:
-                send({"error": str(e)[:500]})
-            except OSError:
-                pass
+    def _chat(self, ws, body):
+        from .chat_handler import handle
+        return handle(self, ws, body)
 
     def _body(self) -> bytes:
         n = int(self.headers.get("Content-Length", "0"))
@@ -289,6 +236,8 @@ class Handler(BaseHTTPRequestHandler):
                     w = 1000
                 variant = pdfwork.page_variant(ws.root, rel, w)
                 return self._file(variant or _safe(ws.root, rel), cache=True)
+            if ws and re.fullmatch(r"chat-media/[0-9a-f]{32}\.png", rel):
+                return self._file(_safe(ws.root, rel), cache=True)
             if ws and (rel.split("/", 1)[0] in ("pages", "figures") or rel == "source.pdf"):
                 source = ws.source_pdf if rel == "source.pdf" else _safe(ws.root, rel)
                 return self._file(source if source and source.is_file() else None, cache=rel != "source.pdf",
