@@ -20,6 +20,7 @@ from ..library.paperdata import add_discussion, fill_zh, merge_blocks, set_block
 from ..library.store import Workspace
 from .translator_checks import journal, save_checks as _save_checks
 from .repair_guard import retains_content
+from . import instructions
 
 _merge_lock = threading.Lock()  # 并发翻译时，并入 paper.json 和重算原页定位一次只做一个
 # 用量到顶、余额不足这类错误，后面的批次也一定失败：直接停，剩下的页记为没译，等额度恢复后一键重试
@@ -142,7 +143,7 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
             continuation.fill_empty(ws, empty, wait)
         return
     marked, ends = sentences.mark_items(blocks, items)  # 英文先按句插好 ‖，译文照着插，记句子对齐
-    text = engines.run(cfg, prompts_en.fill(ws, batch, marked), ws.root, None, cancel, meter)
+    text = engines.run(cfg, instructions.apply(prompts_en.fill(ws, batch, marked), cfg), ws.root, None, cancel, meter)
     data = engines.parse_json(text)
     if not isinstance(data, dict) or not isinstance(data.get("zh"), dict):
         raise engines.EngineError(tr("模型输出的格式不对（缺 zh）"))
@@ -150,7 +151,7 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
     if problems:
         say(tr("第 {page} 页起有 {n} 处公式或格式问题，正在让模型修正", page=batch[0], n=len(problems)))
         try:
-            fixed = engines.parse_json(engines.run(cfg, prompts.repair(prompts.dump(data), problems), ws.root, None, cancel, meter))
+            fixed = engines.parse_json(engines.run(cfg, instructions.apply(prompts.repair(prompts.dump(data), problems), cfg), ws.root, None, cancel, meter))
             if (isinstance(fixed, dict) and isinstance(fixed.get("zh"), dict)
                     and data["zh"].keys() <= fixed["zh"].keys()
                     and retains_content(data, fixed)
@@ -182,7 +183,7 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
         prompt = prompts_en.structure(ws, batch, mode, head, skip_head, peek)
     else:
         prompt = prompts.translate(ws, batch, mode, head, skip_head, peek, front_context.build(ws.root, batch[0]) if front else "")
-    text = engines.run(cfg, prompt, ws.root, images, cancel, meter)
+    text = engines.run(cfg, prompt if read else instructions.apply(prompt, cfg), ws.root, images, cancel, meter)
     try:
         data = engines.parse_json(text)
     except engines.EngineError:
@@ -193,7 +194,8 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
     if problems:  # 给一次修的机会
         say(tr("第 {page} 页起有 {n} 处公式或格式问题，正在让模型修正", page=batch[0], n=len(problems)))
         try:
-            fixed = engines.parse_json(engines.run(cfg, prompts.repair(prompts.dump(data), problems), ws.root, None, cancel, meter))
+            repair = prompts.repair(prompts.dump(data), problems)
+            fixed = engines.parse_json(engines.run(cfg, repair if read else instructions.apply(repair, cfg), ws.root, None, cancel, meter))
             fixed = _normalize(fixed, batch, _taken(ws, batch))
             if fixed["blocks"] and retains_content(data, fixed) and len(_problems(fixed)) < len(problems):
                 data = fixed
@@ -414,6 +416,7 @@ def answer(ws: Workspace, cfg: dict, note_id: str, cancel) -> None:
 
 def retranslate(ws: Workspace, cfg: dict, key: str, hint: str, cancel) -> None:
     prompt, en_ends = prompts.retranslate(ws, key, hint)
+    prompt = instructions.apply(prompt, cfg)
     data = engines.parse_json(engines.run(engines.for_translation(cfg), prompt, ws.root, None, cancel))
     zh = (data or {}).get("zh", "").strip() if isinstance(data, dict) else ""
     if not zh:

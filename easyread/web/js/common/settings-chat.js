@@ -169,6 +169,7 @@
       '<label class="field"><span>' + PR.t("超过多少页先问我") + '</span><select class="input" data-k="page_cap">' + PR.opt([30, 60, 100, 200].map((n) => [n, PR.t("{n} 页", { n })]).concat([[0, PR.t("不限")]]), c.page_cap == null ? 60 : c.page_cap) + "</select></label></div>" +
       '<div class="paper-concurrency-note" id="paperConcurrencyNote" role="note">' + PR.t("多篇并行会与单篇分段并发叠加，增加内存占用并可能触发模型限流，建议保持默认 1 篇，最多 4 篇，修改后重启 EasyRead 生效。") + '</div>' +
       '<div class="test-line"><button class="btn sm line" id="testBtn">' + PR.icon("sparkle", "sm") + PR.t("试译一句") + '</button><span class="test-result" id="testRes"></span></div>';
+    h += '<label class="field"><span>' + PR.t("翻译补充要求") + '</span><textarea class="input" data-k="translation_instructions" rows="3" maxlength="4000" placeholder="' + PR.t("例如：KV cache 保留英文，不翻译专业术语") + '">' + PR.esc(c.translation_instructions || "") + '</textarea><small>' + PR.t("自动保存，应用于之后的翻译和重译；不改变已有译文。") + '</small></label>';
     return h;
   }
   /* 页面上翻译那几项的值读回 cfg（存的时候 settings.js 从 cfg 取） */

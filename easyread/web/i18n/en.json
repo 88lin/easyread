@@ -1,4 +1,8 @@
 {
+  "翻译补充要求": "Additional translation instructions",
+  "例如：KV cache 保留英文，不翻译专业术语": "For example: keep KV cache and technical terms in English",
+  "自动保存，应用于之后的翻译和重译；不改变已有译文。": "Saved automatically for future translations and retranslations; existing translations stay unchanged.",
+  "翻译补充要求须为文字，最多 4000 字": "Translation instructions must be text of at most 4,000 characters",
   "荧光笔：用上次颜色划线": "Highlight using the last color",
   "下划线：用上次颜色划线": "Underline using the last color",
   "标记已在其他地方修改，无法撤销": "This annotation changed elsewhere and cannot be undone",
