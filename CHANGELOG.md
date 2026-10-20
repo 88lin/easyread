@@ -1,5 +1,17 @@
 # 更新记录
 
+## v1.4.4（待发布）
+
+以下改动已合并到主分支，尚未发布安装包
+
+- **自定义翻译要求**（[#89](https://github.com/Edwardxlai/easyread/issues/89)、[#99](https://github.com/Edwardxlai/easyread/pull/99)）：设置 → 模型 → 翻译补充要求，可保存术语保留、措辞偏好等要求；用于之后的全文翻译、补译、段落重译及术语检查，保留必要的格式约束，不改变已有译文或仅整理原文的行为
+- **聊天粘贴图片**（[#98](https://github.com/Edwardxlai/easyread/pull/98)，@AurvalLab）：支持 PNG/JPEG/WebP 预览、移除、发送及历史附件；新增会话隔离，防止未完成的粘贴串入其他对话；失败且未保存记录的附件会清理。实际识图能力取决于模型，未扩展独立离线 HTML 的附件嵌入
+- **翻译流式接收与恢复**（[#88](https://github.com/Edwardxlai/easyread/pull/88)，@hbeibei）：完整接收后再保存译文；明确不支持流式时回退普通请求，意外断流有限重试，524 纳入重试；不保证消除首包或网关总时限超时
+- **多级目录缩进**（[#91](https://github.com/Edwardxlai/easyread/pull/91)，@OoadadaoO）：二至六级目录逐级缩进，三级及更深不再与一级对齐
+- **公式定界符检测**（[#92](https://github.com/Edwardxlai/easyread/pull/92)，@Wang-auspicious）：检测裸 TeX 并请求修正；修正结果若丢失块、非空字段或缩减列表/表格，保留原结果
+- 验证：本轮流式相关 25 项、公式与内容保护相关 15 项、自定义要求相关 10 项 Python 与 1 项设置界面、聊天图片 6 项 Python 与 17 项界面定向检查通过；均为本地受控验证，未执行全套测试、真实模型测试、安装包或跨平台验收
+- 暂缓需求见 [后续需求](docs/follow-ups.md)，关闭暂缓 issue 不表示功能已实现
+
 ## v1.4.3（2026-10-15）
 
 - **独立公式也能划线**（[#84](https://github.com/Edwardxlai/easyread/issues/84)）：选中独立公式中的内容会显示与正文相同的标记工具栏，可直接使用下划线和荧光笔；跨段选择包含中间的公式，标记保存后刷新仍保留。修正撤销操作的时区时间格式及回读字段顺序比较，避免已保存的标记无法撤销
