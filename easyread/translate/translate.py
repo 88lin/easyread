@@ -19,6 +19,7 @@ from ..app.log import log
 from ..library.paperdata import add_discussion, fill_zh, merge_blocks, set_block_text
 from ..library.store import Workspace
 from .translator_checks import journal, save_checks as _save_checks
+from .repair_guard import retains_content
 
 _merge_lock = threading.Lock()  # 并发翻译时，并入 paper.json 和重算原页定位一次只做一个
 # 用量到顶、余额不足这类错误，后面的批次也一定失败：直接停，剩下的页记为没译，等额度恢复后一键重试
@@ -152,6 +153,7 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
             fixed = engines.parse_json(engines.run(cfg, prompts.repair(prompts.dump(data), problems), ws.root, None, cancel, meter))
             if (isinstance(fixed, dict) and isinstance(fixed.get("zh"), dict)
                     and data["zh"].keys() <= fixed["zh"].keys()
+                    and retains_content(data, fixed)
                     and len(_fill_problems(fixed["zh"])) < len(problems)):
                 data = fixed
         except engines.EngineError as e:
@@ -193,7 +195,7 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
         try:
             fixed = engines.parse_json(engines.run(cfg, prompts.repair(prompts.dump(data), problems), ws.root, None, cancel, meter))
             fixed = _normalize(fixed, batch, _taken(ws, batch))
-            if fixed["blocks"] and len(_problems(fixed)) < len(problems):
+            if fixed["blocks"] and retains_content(data, fixed) and len(_problems(fixed)) < len(problems):
                 data = fixed
         except engines.EngineError as e:
             journal(ws, tr("第 {pages} 页修正失败，保留原译：{err}", pages=batch, err=e))
