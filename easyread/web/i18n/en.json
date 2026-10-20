@@ -1,4 +1,7 @@
 {
+  "这一页没有可选文字，可能是扫描页": "This page has no selectable text; it may be a scanned page.",
+  "这一页的文字暂未提取，可先阅读原图": "Text is not available for this page yet. You can still read the original image.",
+  "第 {page} 页文字，可选择和复制": "Page {page} text: select and copy",
   "荧光笔：用上次颜色划线": "Highlight using the last color",
   "下划线：用上次颜色划线": "Underline using the last color",
   "标记已在其他地方修改，无法撤销": "This annotation changed elsewhere and cannot be undone",
