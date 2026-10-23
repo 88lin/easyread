@@ -1326,5 +1326,7 @@
   "图片格式不支持或尺寸过大": "The image format is unsupported or its dimensions are too large.",
   "图片转存后过大，请缩小图片后重新粘贴": "The decoded image is too large. Resize it and paste it again.",
   "图片无法读取，请重新复制后粘贴": "Could not read the image. Copy and paste it again.",
-  "图片目录无效": "Invalid image directory."
+  "图片目录无效": "Invalid image directory.",
+  "原页尚未准备完成": "Original pages are not ready",
+  "请确认 PDF 在本机可读取、文献库目录可写，并关闭占用大量内存的程序后重试。重试仅准备原页，不调用翻译模型。": "Make sure the PDF is available locally and the library folder is writable, then close memory-heavy programs and retry. Retrying only prepares original pages; it does not call a translation model."
 }

@@ -34,6 +34,9 @@ def post(app, ws, parts: list[str], body: dict):
         return ws.patch_item(body)
     if action == "translate":
         return translate_api.enqueue(app.jobs, ws, body)
+    if action == "prepare":
+        app.jobs.enqueue(ws, translate_after=False)
+        return {"ok": True}
     if action == "reveal":  # 在资源管理器 / 访达里打开这篇的文件夹
         reveal(ws.root)
         return {"ok": True}
