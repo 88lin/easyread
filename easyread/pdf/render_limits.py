@@ -21,11 +21,9 @@ def render_page(page, scale: float):
     scale = min(scale, (MAX_SIDE - 1) / w, (MAX_SIDE - 1) / h,
                 math.sqrt((MAX_PIXELS - 2 * MAX_SIDE) / w / h))
     try:
-        return page.render(scale=scale)
+        return page.render(scale=scale, limit_image_cache=True)
     except MemoryError:
         pass
-    except OSError as error:
-        # Retry the native Windows exception seen alongside MemoryError in #109.
-        if ((getattr(error, "winerror", 0) or 0) & 0xFFFFFFFF) != 0xE0000008:
-            raise
-    return page.render(scale=scale / 2)
+    # A native PDFium OOM may leave partial native state: let the preparation
+    # worker exit and retry in a new process instead of reusing this page.
+    return page.render(scale=scale / 2, limit_image_cache=True)

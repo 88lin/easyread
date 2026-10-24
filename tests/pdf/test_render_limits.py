@@ -22,7 +22,7 @@ class RenderLimitsTest(unittest.TestCase):
     def test_ordinary_paper_keeps_requested_resolution(self):
         page = self.page()
         self.assertIs(render_page(page, 2.4), page.render.return_value)
-        page.render.assert_called_once_with(scale=2.4)
+        page.render.assert_called_once_with(scale=2.4, limit_image_cache=True)
 
     def test_large_and_extreme_aspect_ratios_are_bounded_before_allocation(self):
         for w, h in [(20_000, 10_000), (100_000, 1), (1, 100_000), (5000, 5000)]:
@@ -39,12 +39,13 @@ class RenderLimitsTest(unittest.TestCase):
         self.assertIs(render_page(page, 2.4), bitmap)
         self.assertEqual([c.kwargs['scale'] for c in page.render.call_args_list], [2.4, 1.2])
 
-    def test_native_windows_exception_also_has_bounded_retry(self):
+    def test_native_windows_exception_does_not_reuse_partial_native_state(self):
         error = OSError('native allocation')
         error.winerror = -536870904
         page = self.page(failures=[error, object()])
-        render_page(page, 2)
-        self.assertEqual(page.render.call_count, 2)
+        with self.assertRaises(OSError):
+            render_page(page, 2)
+        self.assertEqual(page.render.call_count, 1)
 
     def test_unrelated_error_is_not_hidden_or_retried(self):
         page = self.page(failures=OSError('file unavailable'))

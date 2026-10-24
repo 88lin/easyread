@@ -34,12 +34,20 @@ def open_pdf(pdf: Path):
         yield doc
 
 
-def render_pages(pdf: Path, out_dir: Path, scale: float = 2.4, quality: int = 84) -> list[dict]:
+def render_pages(pdf: Path, out_dir: Path, scale: float = 2.4, quality: int = 84, *, reopen: bool = False) -> list[dict]:
     out_dir.mkdir(parents=True, exist_ok=True)
     pages = []
-    with open_pdf(pdf) as doc:
-        for i in range(len(doc)):
-            with closing(doc[i]) as page, closing(render_page(page, scale)) as bitmap:
+    from contextlib import ExitStack
+    with ExitStack() as stack:
+        doc = stack.enter_context(open_pdf(pdf))
+        count = len(doc)
+        if reopen:
+            stack.close()
+        for i in range(count):
+            page_stack = ExitStack()
+            if reopen:
+                doc = page_stack.enter_context(open_pdf(pdf))
+            with page_stack, closing(doc[i]) as page, closing(render_page(page, scale)) as bitmap:
                 w, h = page.get_size()
                 with bitmap.to_pil() as raw, raw.convert("RGB") as img:
                     name = f"page-{i + 1:03d}.webp"
@@ -364,7 +372,7 @@ def warm_variants(root: Path, width: int = PANEL_WIDTH) -> None:
 
 def prepare(root: Path) -> list[dict]:
     """渲染原页 + 抽文字，返回 meta.pages。"""
-    source = Workspace(root).source_pdf
-    pages = render_pages(source, root / "pages")
-    extract_text(source, root / "extract")
-    return pages
+    from .prepare_worker import prepare_isolated
+    # Serialize with in-process PDF work, too, rather than doubling peak memory.
+    with _PDFIUM_LOCK:
+        return prepare_isolated(root)
