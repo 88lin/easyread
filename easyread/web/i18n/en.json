@@ -1384,5 +1384,10 @@
   "放大图片": "Zoom in",
   "适合窗口": "Fit to window",
   "点击放大图片；拖到笔记以关联图表": "Click to enlarge; drag onto a note to link the figure",
-  "请确认 PDF 在本机可读取、文献库目录可写，并关闭占用大量内存的程序后重试。重试仅准备原页，不调用翻译模型。": "Make sure the PDF is available locally and the library folder is writable, then close memory-heavy programs and retry. Retrying only prepares original pages; it does not call a translation model."
+  "请确认 PDF 在本机可读取、文献库目录可写，并关闭占用大量内存的程序后重试。重试仅准备原页，不调用翻译模型。": "Make sure the PDF is available locally and the library folder is writable, then close memory-heavy programs and retry. Retrying only prepares original pages; it does not call a translation model.",
+  "使用本机 ZCode 登录态；模型和推理选项跟随 ZCode 设置，看图能力取决于所选模型": "Uses your local ZCode login and model settings. Image support depends on the selected model.",
+  "安装并登录 ZCode CLI": "Install and sign in to ZCode CLI",
+  "跟随 ZCode 中选择的模型": "Uses the model selected in ZCode",
+  "ZCode 跟随自身的模型设置，请在 ZCode 中切换模型和推理选项": "Change the model and reasoning options in ZCode; EasyRead follows those settings.",
+  "ZCode 暂不支持额外参数，请清空 zcode.extra_args": "Extra ZCode arguments are not supported yet. Clear zcode.extra_args."
 }
