@@ -1,8 +1,8 @@
 # 更新记录
 
-## v1.4.5（待发布）
+## v1.4.5（2026-10-26）
 
-- 本地整合检查：58 项 Python、88 项前端与桌面定向检查在修正后通过，英文缺词及未包裹中文均为 0；检查范围与安装包、真实 CLI 等未验收项见 [1.4.5 整合记录](docs/release-1.4.5-integration.md)
+- 发版检查：三平台 CI 通过，Python 554 项（1 项跳过）、前端与桌面 227 项；真实 Electron 验证多标签打开、切换、关闭、保存、桌面能力调用和主题同步。修复 OpenCode 无代理环境启动错误，补齐繁体词条；构建结果与真实 CLI 等未验收项见 [1.4.5 整合记录](docs/release-1.4.5-integration.md)
 - **PDF 失败恢复与内存保护**（[#109](https://github.com/Edwardxlai/easyread/issues/109)）：准备失败时显示错误和重试入口；PDF 准备放到独立进程，内存不足时降低清晰度重试，并限制位图大小。临时锁文件写入失败有限重试，持续失败时保留错误和互斥保护；反馈者原 PDF 与同步盘环境仍待复测
 - **图片保持原色与点击缩放**（[#110](https://github.com/Edwardxlai/easyread/issues/110)、[PR #111](https://github.com/Edwardxlai/easyread/pull/111)，@AurvalLab）：PDF、插图和封面不随主题反色，深色界面中的 PDF 保留白纸原色；正文图片可点击放大、缩放和拖动查看，保留拖到笔记的操作
 - **ZCode CLI 实验性接入**（[#112](https://github.com/Edwardxlai/easyread/issues/112)）：使用本机已登录的 ZCode，模型跟随 ZCode 自身设置；接入翻译、问 AI 和图片附件。适配测试不代表真实账号调用已验收

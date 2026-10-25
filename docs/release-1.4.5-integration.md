@@ -1,11 +1,11 @@
-# 1.4.5 本地整合记录
+# 1.4.5 整合与发布验证记录
 
 日期：2026-10-26（Asia/Singapore）
 
 ## 整合范围
 
 - 基线：`main` / `v1.4.4`，`4d00a94403218829b7fba98833f47de44968df3e`
-- 发布候选分支：`codex/release-1.4.5`，本地整合，未推送、打标签或发布
+- 发布候选分支：`codex/release-1.4.5`；通过 [PR #115](https://github.com/Edwardxlai/easyread/pull/115) 合入 main
 - 保留 PR #105 原提交 `6c7321f`、PR #111 原提交 `912ae27` 的提交关系
 - 纳入 #100/#103/#104/#106/#107/#108 与提示词编辑的工作区快照 `3f8f98a`
 - 纳入 #109/#110 的修复及图片缩放，分支提交截至 `da124c6`
@@ -22,6 +22,8 @@
 - 新导出窗口的错误信息转义后显示，避免被当成 HTML
 - 同步旧测试对导出入口、设置模块和渲染辅助层的依赖
 - Python、Electron、npm 锁文件统一为 1.4.5，补齐 CHANGELOG
+- CI 发现 OpenCode 在未配置代理时收到空环境对象，已修正为继承本机环境并覆盖适配参数；补齐新增繁体中文词条及导入重试测试参数
+- 真实 Electron 检查发现标签栏未跟随主题，已同步当前页面的主题，并监听后续切换
 
 ## 本轮检查
 
@@ -35,9 +37,15 @@
 
 ## 尚未覆盖
 
-- 打包后的 Windows/macOS/Linux 安装、冻结后端子进程及应用内升级
-- 正式桌面多标签、文件选择和导出的真实窗口操作；本轮桌面结果来自模拟 Electron 的定向测试
+- 打包后的 Windows/macOS/Linux 安装与跨版本应用内升级
+- 文件选择与导出的原生对话框交互；桌面桥实际调用已验证，但本轮没有向日常下载目录写入导出文件
 - OpenCode / ZCode 真实登录账号的翻译、图片问答与取消；适配逻辑测试不证明外部服务可用
 - #109 反馈者原 PDF 和同步盘环境；已覆盖错误恢复与内存保护逻辑，未宣称原环境全部解决
 
-本记录证明本地整合与上述定向检查完成，不表示 1.4.5 已发布或完整安装包验收通过
+## 发布前复核
+
+- 应用代码提交 `9b92f40f6893b468c501dbff578f0942fe124608` 的 [三平台 CI](https://github.com/Edwardxlai/easyread/actions/runs/40212361862) 全部通过：Windows、macOS、Linux 的 Python 3.10 / 3.12 测试，以及安装后的服务启动与一键启动脚本检查。Python 554 项（1 项跳过），前端与桌面 227 项
+- 首轮候选 `7cd4533` 的 [安装包构建](https://github.com/Edwardxlai/easyread/actions/runs/40211812745) 通过 Windows x64、macOS arm64、Linux AppImage 打包、冻结后端冒烟及 Linux glibc 检查；它早于上述 OpenCode 和主题修正，不能用作最终发布附件
+- 独立测试文献库使用生成的两篇 PDF，真实 Electron 加载正式 `electron/main.cjs`、preload 和 Python 后端；打开、切换、重复打开去重、关闭标签、全部保存、同源子页面桌面桥及主题实时同步通过，没有控制台错误。窗口以隐藏方式运行并捕获截图，未操作日常文献库
+- 上述修复后，本地 15 项受影响 Python 测试与 3 项桌面桥检查通过
+- 最终安装包由 `v1.4.5` 标签工作流重新构建，结果见 [发布工作流](https://github.com/Edwardxlai/easyread/actions/workflows/release.yml) 与 [正式 Release](https://github.com/Edwardxlai/easyread/releases/tag/v1.4.5)；本记录中的构建检查不等于三平台安装后的人工验收
