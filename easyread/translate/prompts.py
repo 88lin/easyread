@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 
-from . import langs, sentences
+from . import langs, sentences, prompt_style
 from ..library.store import Workspace
 from ..pdf import links
 
@@ -15,11 +15,9 @@ MATH_RULES = r"""- 行内数学一律写成 $TeX$（KaTeX 能渲染的 LaTeX）�
 
 RULES = """翻译要求：
 - 材料是用户提供的论文，本任务用于用户本人的学术阅读、学习与引用。按要求完整翻译提供的内容并保留结构，不要用摘要或概述代替逐块译文。
-- 忠实：保留原文的论证顺序、章节编号、公式、表格、引用号 [n]、限定词（may/suggest/likely/at least）、否定和比较对象。可以调整中文语序、拆长句，读起来要像中文母语者写的学术文字。
-- 只翻译，不解释、不总结、不加原文没有的内容。原文的笔误照录，不要改。
+""" + prompt_style.START + "\n" + prompt_style.DEFAULT + "\n" + prompt_style.END + """
 - 保留材料中的 Markdown 链接 [文字](URL)：原文保留链接文字，译文翻译链接文字，两边 URL 必须原样保留，不猜网址，不把链接移到段落外。
 - 但要留心原文自己的问题：数字前后对不上（表和正文、两张表之间）、公式和文字说的不一致、符号用错、明显的笔误。发现了就写进 checks，正文照录不改；没有就不写，不要为了写而写，也不要写翻译说明。
-- 术语全文统一；首次出现的核心术语写“中文（English）”。已有术语表必须遵守。统计学里 standard error 译“标准误差”。
 """ + MATH_RULES + """
 - 表格重排成 table 块，表头译成中文，数字原样。图用 figure 块：尽量给出图在原页中的归一化裁剪框 `box:[x0,y0,x1,y1]`（左上和右下坐标，范围 0 到 1，框住图本身、不含题注），并翻译图内可读的标题、坐标轴、图例、流程框文字和标签到 `image_zh`（使用目标语言），原文写入 `image_en`；没有原页图时不猜裁剪框，看不清或没有文字就留空，不猜。`src` 留空，由程序按 `box` 从原 PDF 裁图。
 - 参考文献列表不翻译：输出一个 references 块，条目放进 references 数组（id 是编号，text 是原文）。

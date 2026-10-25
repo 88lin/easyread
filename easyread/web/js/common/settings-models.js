@@ -5,6 +5,9 @@
   "use strict";
   /* efforts：能传的推理强度（和后端 agent_cli.SPECS 一致），空的就不显示推理强度 */
   PR.agentClis = {
+    opencode: { name: "OpenCode CLI", url: "https://opencode.ai/docs/", efforts: [],
+      hint: PR.t("模型名填写 provider/model，可在终端运行 opencode models 查看；留空使用 OpenCode 默认模型"),
+      setup: PR.t("安装 OpenCode 并配置模型") },
     grok: { name: "Grok Build", url: "https://x.ai/cli", efforts: ["low", "medium", "high"] },
     agy: { name: "Antigravity CLI", url: "https://antigravity.google/docs/cli", efforts: ["low", "medium", "high", "xhigh", "max"] },
     cursor: { name: "Cursor CLI", url: "https://cursor.com/docs/cli/installation", efforts: [] },

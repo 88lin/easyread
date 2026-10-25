@@ -12,6 +12,14 @@ from ..app.i18n import tr
 def post(app, ws, parts: list[str], body: dict):
     """返回要回给页面的 JSON；不认识的 action 返回 None。"""
     action = parts[4]
+    if action == "chat-export":
+        from ..export.chat_markdown import export
+        return export(ws, body)
+    if action == "figure-crop":
+        if (ws.load("job") or {}).get("state") in ("queued", "running"):
+            raise ValueError(tr("请等本篇翻译完成后再裁图"))
+        from ..pdf.manual_crop import save
+        return save(ws, body)
     if action == "chat" and len(parts) > 5:
         sub, tid = parts[5], body.get("thread", "")
         if sub == "pin":

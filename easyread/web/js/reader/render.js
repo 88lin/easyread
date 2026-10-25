@@ -242,7 +242,7 @@
         html += blockErrorHtml(b, error);
       }
     }
-    PR.$("#paper").innerHTML = html + pendingHtml(lastPage);
+    PR.updatePaperHtml(PR.$("#paper"), html + pendingHtml(lastPage));
     // 一段译文都没有（只读原文）：顶栏的“译文 / 对照”没意义，藏起来
     document.body.classList.toggle("en-only", (S.paper.blocks || []).length > 0 && !(S.paper.blocks || []).some((b) => b && PR.hasZh(b)));
     // 译文语言决定正文字体（base.css 按 data-target 换字体）；1.3 以前译的论文没记语言，都是中文
@@ -308,13 +308,4 @@
   PR.on("rendered", () => PR.fitWide());
   PR.on("block-rendered", (id) => PR.fitWide(document.getElementById("b-" + id)));
 
-  /* 保持阅读位置不动地整页重排 */
-  PR.rerenderKeepingPlace = function () {
-    const anchor = PR.readingBlock && PR.readingBlock();
-    const node = anchor && document.getElementById("b-" + anchor);
-    const before = node ? node.getBoundingClientRect().top : 0;
-    PR.renderPaper();
-    const after = anchor && document.getElementById("b-" + anchor);
-    if (after) window.scrollBy(0, after.getBoundingClientRect().top - before);
-  };
 })(window.PR);
