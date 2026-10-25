@@ -126,6 +126,7 @@
     if (t.dataset.t === "page" && b) PR.openPage(b.page, id);
     if (t.dataset.t === "pin") host.classList.toggle("notes-open");
     if (t.dataset.t === "stale") PR.showStale(t.closest(".zh"));
+    if (t.dataset.t === "retry-prepare") PR.api("/api/p/" + PR.pid + "/prepare", { method: "POST", body: {} }).then(() => PR.poll()).catch(error => PR.toast(PR.esc(error.message)));
     if (t.dataset.t === "retry-failed") PR.api("/api/p/" + PR.pid + "/translate", { method: "POST", body: { failed: true } }).then(() => { PR.toast(PR.t("正在重试，译好后自动替换")); PR.poll(); });
     if (t.dataset.t === "translate-en") PR.startTranslation(PR.pid, {en:true}).then(started => { if (started) { PR.toast(PR.t("已开始翻译，译好的页就地换成{lang}，笔记和划线都保留", { lang: PR.targetName((PR.state.paper.meta || {}).target || PR.target) })); PR.poll(); } }).catch(error => PR.toast(error.message));
     if (t.dataset.t === "model-settings") PR.openSettings("chat");

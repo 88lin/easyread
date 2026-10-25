@@ -203,7 +203,16 @@
     const m = S.paper.meta || {};
     const done = new Set((S.paper.translation || {}).done_pages || []);
     const miss = (m.pages || []).filter((p) => !done.has(p.n) && p.n > lastPage);
-    if (!(m.pages || []).length) return '<div class="pending"><span class="spin"></span> ' + PR.t("正在渲染原页、抽取文字…") + "</div>";
+    if (!(m.pages || []).length) {
+      const job = S.job || {};
+      const running = ["queued", "running"].includes(job.state);
+      const message = running ? '<span class="spin"></span> ' + PR.esc(job.message || PR.t("正在渲染原页、抽取文字…"))
+        : PR.t("原页尚未准备完成") + (job.state === "error" ? '<div class="err">' + PR.esc(job.error || job.message || PR.t("出错了")) + '</div>' : "") +
+          (PR.store.mode === "server" ? '<p class="hint">' + PR.t("请确认 PDF 在本机可读取、文献库目录可写，并关闭占用大量内存的程序后重试。重试仅准备原页，不调用翻译模型。") +
+            '</p><button class="btn sm accent" data-t="retry-prepare">' + PR.t("重试") + '</button>' : "");
+      // The remote job listener watches this wrapper, including before page 1 exists.
+      return '<div class="pending-pages"><div class="pending">' + message + '</div></div>';
+    }
     if (!miss.length) return "";
     const job = S.job || {};
     const running = ["queued", "running"].includes(job.state);
