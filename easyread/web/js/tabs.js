@@ -1,9 +1,10 @@
-/* Opt-in preview shell. Existing library and reader pages stay mounted per tab. */
+/* Existing library and reader pages stay mounted per tab. */
 (() => {
   "use strict";
   const tabs = new Map();
   const strip = document.querySelector("#tabs");
   let active = "library";
+  const t = text => window.PR?.t(text) || text;
   function notify(text) {
     const el = document.querySelector("#message");
     el.textContent = text; el.hidden = false;
@@ -32,6 +33,7 @@
     const pr = tab.frame.contentWindow.PR;
     pr?.finishPanelNote?.();
     pr?.autosaveNote?.flush();
+    await pr?.flushPrefs?.();
     return await pr?.flushProgress?.() !== false;
   }
   async function close(id) {
@@ -43,7 +45,7 @@
       const ids = [...tabs.keys()], index = ids.indexOf(id);
       if (active === id) select(ids[index - 1] || "library");
       tab.observer?.disconnect(); tab.frame.remove(); tab.node.remove(); tabs.delete(id);
-    } catch (_) { notify("尚未保存成功，请保持标签打开，稍后重试"); }
+    } catch (_) { notify(t("尚未保存成功，请保持标签打开，稍后重试")); }
     finally { tab.closing = false; }
   }
   function keyboard(e) {
@@ -56,12 +58,21 @@
       e.preventDefault(); e.stopImmediatePropagation(); void close(active);
     }
   }
-  function open(raw) {
+  async function open(raw) {
     const url = new URL(raw, location.origin);
+    if (url.origin !== location.origin) return;
+    if (url.pathname === "/open") {
+      try {
+        const response = await fetch(url.href);
+        if (!response.ok) throw new Error(t("没有这篇论文"));
+        return open(response.url);
+      } catch (error) { notify(error.message); return; }
+    }
     const match = url.pathname.match(/^\/read\/([a-zA-Z0-9_-]+)$/);
     if (url.origin !== location.origin || !match) return;
     const id = match[1];
-    if (!tabs.has(id)) create(id, url.href, "正在打开…");
+    if (!tabs.has(id)) create(id, url.href, t("正在打开…"));
+    else if (url.hash) tabs.get(id).frame.contentWindow.location.hash = url.hash;
     select(id);
   }
   function bind(tab) {
@@ -80,7 +91,7 @@
     }, true);
     doc.addEventListener("keydown", keyboard, true);
     const updateTitle = () => {
-      const title = tab.id === "library" ? "文献库" : (doc.title.replace(/\s*[·|–-]\s*EasyRead.*$/i, "") || "论文");
+      const title = tab.id === "library" ? t("文献库") : (doc.title.replace(/\s*[·|–-]\s*EasyRead.*$/i, "") || t("论文"));
       tab.button.textContent = title; tab.button.title = title;
       tab.frame.title = title;
       if (active === tab.id) document.title = title + " · EasyRead";
@@ -101,7 +112,7 @@
     const tab = { id, node, button, frame }; tabs.set(id, tab);
     if (id !== "library") {
       const x = document.createElement("button"); x.className = "tab-close";
-      x.textContent = "×"; x.setAttribute("aria-label", "关闭论文");
+      x.textContent = "×"; x.setAttribute("aria-label", t("关闭论文"));
       x.onclick = () => void close(id); node.append(x);
       node.addEventListener("auxclick", e => { if (e.button === 1) { e.preventDefault(); void close(id); } });
     }
@@ -118,5 +129,8 @@
   document.addEventListener("keydown", keyboard, true);
   document.querySelector("#newTab").onclick = () => select("library");
   window.easyreadTabs = { open, select, close, saveAll: () => Promise.all([...tabs.values()].map(save)), keyboard };
-  create("library", "/", "文献库"); select("library");
+  window.easyreadDesktop?.onBeforeQuit(() => window.easyreadTabs.saveAll());
+  create("library", "/", t("文献库")); select("library");
+  const initial = new URLSearchParams(location.search).get("open");
+  if (initial) void open(initial);
 })();

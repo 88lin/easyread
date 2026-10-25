@@ -1389,5 +1389,10 @@
   "安装并登录 ZCode CLI": "Install and sign in to ZCode CLI",
   "跟随 ZCode 中选择的模型": "Uses the model selected in ZCode",
   "ZCode 跟随自身的模型设置，请在 ZCode 中切换模型和推理选项": "Change the model and reasoning options in ZCode; EasyRead follows those settings.",
-  "ZCode 暂不支持额外参数，请清空 zcode.extra_args": "Extra ZCode arguments are not supported yet. Clear zcode.extra_args."
+  "ZCode 暂不支持额外参数，请清空 zcode.extra_args": "Extra ZCode arguments are not supported yet. Clear zcode.extra_args.",
+  "打开的论文": "Open papers",
+  "选择另一篇论文": "Choose another paper",
+  "关闭论文": "Close paper",
+  "正在打开…": "Opening...",
+  "尚未保存成功，请保持标签打开，稍后重试": "Could not save. Keep the tab open and retry."
 }

@@ -143,6 +143,8 @@ class Handler(BaseHTTPRequestHandler):
         app, lib = self.app, self.app.lib
         if path in ("/", "/index.html"):
             return self._page(WEB / "library.html")
+        if path == "/web/tabs.html":
+            return self._page(WEB / "tabs.html")
         if path.startswith("/read/"):
             return self._page(WEB / "reader.html")
         if path == "/open":  # 外部工具打开指定论文/段落；桌面版的 easyread://open 也转到这里

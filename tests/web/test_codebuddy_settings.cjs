@@ -9,7 +9,7 @@ function settings() {
     esc: String, icon: () => "", settingsTabs: {}, $$: () => [],
     $: (selector) => selector === "#settingsDlg" ? dialog : selector === "#cmModel" ? input : null };
   const context = { window: { PR, addEventListener() {} }, document: { addEventListener() {} } };
-  for (const name of ["settings.js", "settings-models.js", "settings-chat.js"]) {
+  for (const name of ["settings.js", "settings-models.js", "settings-translation.js", "settings-chat.js"]) {
     vm.runInNewContext(fs.readFileSync("easyread/web/js/common/" + name, "utf8"), context);
   }
   const state = { cfg: { engine: "claude", claude: {}, codex: {}, openai: {},

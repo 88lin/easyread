@@ -2,6 +2,12 @@
 
 ## v1.4.5（待发布）
 
+- 本地整合检查：58 项 Python、88 项前端与桌面定向检查在修正后通过，英文缺词及未包裹中文均为 0；检查范围与安装包、真实 CLI 等未验收项见 [1.4.5 整合记录](docs/release-1.4.5-integration.md)
+- **PDF 失败恢复与内存保护**（[#109](https://github.com/Edwardxlai/easyread/issues/109)）：准备失败时显示错误和重试入口；PDF 准备放到独立进程，内存不足时降低清晰度重试，并限制位图大小。临时锁文件写入失败有限重试，持续失败时保留错误和互斥保护；反馈者原 PDF 与同步盘环境仍待复测
+- **图片保持原色与点击缩放**（[#110](https://github.com/Edwardxlai/easyread/issues/110)、[PR #111](https://github.com/Edwardxlai/easyread/pull/111)，@AurvalLab）：PDF、插图和封面不随主题反色，深色界面中的 PDF 保留白纸原色；正文图片可点击放大、缩放和拖动查看，保留拖到笔记的操作
+- **ZCode CLI 实验性接入**（[#112](https://github.com/Edwardxlai/easyread/issues/112)）：使用本机已登录的 ZCode，模型跟随 ZCode 自身设置；接入翻译、问 AI 和图片附件。适配测试不代表真实账号调用已验收
+- **桌面多标签接线**：正式桌面入口启用标签页，外部论文链接在标签内打开；退出、重启和安装更新前保存各标签，明确保存失败时保留窗口。设置选目录、导出和更新继续通过主窗口调用桌面能力
+
 - **多论文标签页**（[#103](https://github.com/Edwardxlai/easyread/issues/103)）：从文献库连续打开多篇论文，在标签页之间切换并保留各自的阅读位置
 - **手动重新截取图片**（[#104](https://github.com/Edwardxlai/easyread/issues/104)）：图片右键选择“重新截取图片”，在原 PDF 上框选范围并替换当前图片；支持恢复自动截图，后台补图不会覆盖手动选择的范围
 - **图内文字翻译开关**（[#104](https://github.com/Edwardxlai/easyread/issues/104)）：设置 → 模型中可关闭“翻译图内文字”，之后翻译时不再生成图内文字原文及译文，图片、正文和题注正常保留；默认开启

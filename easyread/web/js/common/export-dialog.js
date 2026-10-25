@@ -49,10 +49,10 @@
         if (result && current === session) {
           current = null;
           dlg.classList.remove('open');
-          PR.toast(PR.t(result === 'download' ? "已交给浏览器下载" : "已保存"));
+          PR.toast(result === 'download' ? PR.t("已交给浏览器下载") : PR.t("已保存"));
         }
       }
-    } catch (err) { PR.toast(PR.t("导出失败：{msg}", {msg: err.message})); }
+    } catch (err) { PR.toast(PR.esc(PR.t("导出失败：{msg}", {msg: err.message}))); }
     finally { buttons.forEach(b => { b.disabled = false; }); }
   });
 })(window.PR);

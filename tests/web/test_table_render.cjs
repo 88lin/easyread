@@ -40,6 +40,8 @@ function render(blocks, options = {}) {
     emit() {},
     on() {},
     fitWide() {},
+    // These tests inspect generated markup; DOM reuse is a separate layer.
+    updatePaperHtml: (element, html) => { element.innerHTML = html; },
   };
   if (options.pages) PR.state.paper.meta.pages = options.pages;
   if (options.job) PR.state.job = options.job;
