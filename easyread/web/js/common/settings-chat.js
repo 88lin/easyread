@@ -88,7 +88,7 @@
         "<b>" + PR.esc(m.label || m.name) + "</b>" + PR.esc(m.source || "") +
         (tags || bad ? '<span class="mc-tags">' + tags + bad + "</span>" : "") + "</div>";
     }).join("") +
-      '<div class="mc add' + (s.editing === "new" ? " editing" : "") + '" data-cm="add" role="button" tabindex="0">' + PR.icon("plus") + "<b>" + PR.t("添加模型") + "</b></div></div>";
+      '</div><button class="model-add" data-cm="add">' + PR.icon("plus", "sm") + PR.t("添加模型") + '</button>';
   }
 
   /* ---------- 添加 / 修改的表单 ---------- */
@@ -155,23 +155,8 @@
   }
 
   /* ---------- 翻译自己的设置 ---------- */
-  function translationHtml(s) {
-    const c = s.cfg, ti = transIndex(s), m = s.chat.models[ti];
-    const e = c.engine;
-    let h = '<h4 class="set-h">' + (m ? PR.t("翻译：{name}", { name: PR.esc(m.label || m.name) }) : PR.t("翻译")) + "</h4>";
-    if (m && !(PR.isAgentCli(e) && !PR.agentClis[e].efforts.length)) h += '<p class="hint">' + PR.t("推理强度") + ': ' + PR.esc(m.reasoning_effort || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "reasoning_effort")) +
-      (e === "claude" || PR.isAgentCli(e) ? "" : ' · Fast: ' + PR.esc(m.service_tier || PR.modelDefaultLabel(s, { kind: kindOf(m), model: m.model }, "service_tier"))) + '</p>';
-    if (e === "openai") h += '<label class="check" style="margin:0 0 10px"><input type="checkbox" data-k="openai.vision"' + (c.openai.vision ? " checked" : "") + ">" + PR.t("模型能看图") + "</label>";
-    h += '<div class="grid2 translation-limits">' +
-      '<label class="field"><span>' + PR.t("每批页数") + '</span><select class="input" data-k="batch_pages">' + PR.opt([[1, PR.t("1 页")], [2, PR.t("2 页")], [3, PR.t("3 页")], [4, PR.t("4 页")]], c.batch_pages) + "</select></label>" +
-      '<label class="field" title="' + PR.t("把全文切成几段同时译，段内按顺序译；自动按篇幅每段约 2 批、最多 4 段；手动最多 8 段") + '"><span>' + PR.t("每篇同时译几段") + '</span><select class="input" data-k="concurrency">' + PR.opt([[0, PR.t("自动")], [1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"]], c.concurrency || 0) + "</select></label>" +
-      '<label class="field"><span>' + PR.t("同时翻译几篇") + '</span><select class="input" data-k="paper_concurrency" aria-describedby="paperConcurrencyNote">' + PR.opt([[1, PR.t("1 篇（默认，逐篇处理）")], [2, PR.t("2 篇（并行）")], [3, PR.t("3 篇（并行）")], [4, PR.t("4 篇（并行，上限）")]], Number.isInteger(c.paper_concurrency) ? Math.max(1, Math.min(4, c.paper_concurrency)) : 1) + "</select></label>" +
-      '<label class="field"><span>' + PR.t("超过多少页先问我") + '</span><select class="input" data-k="page_cap">' + PR.opt([30, 60, 100, 200].map((n) => [n, PR.t("{n} 页", { n })]).concat([[0, PR.t("不限")]]), c.page_cap == null ? 60 : c.page_cap) + "</select></label></div>" +
-      '<div class="paper-concurrency-note" id="paperConcurrencyNote" role="note">' + PR.t("多篇并行会与单篇分段并发叠加，增加内存占用并可能触发模型限流，建议保持默认 1 篇，最多 4 篇，修改后重启 EasyRead 生效。") + '</div>' +
-      '<div class="test-line"><button class="btn sm line" id="testBtn">' + PR.icon("sparkle", "sm") + PR.t("试译一句") + '</button><span class="test-result" id="testRes"></span></div>';
-    h += '<label class="field"><span>' + PR.t("翻译补充要求") + '</span><textarea class="input" data-k="translation_instructions" rows="3" maxlength="4000" placeholder="' + PR.t("例如：KV cache 保留英文，不翻译专业术语") + '">' + PR.esc(c.translation_instructions || "") + '</textarea><small>' + PR.t("自动保存，应用于之后的翻译和重译；不改变已有译文。") + '</small></label>';
-    return h;
-  }
+  const translationHtml = (s) => PR.translationSettingsHtml(s);
+
   /* 页面上翻译那几项的值读回 cfg（存的时候 settings.js 从 cfg 取） */
   function readTranslation(s) {
     PR.$$("[data-k]", root()).forEach((el) => {
@@ -210,8 +195,7 @@
       pinDefaults(s);
       ensureTranslationCard(s);
       return cardsHtml(s) + (s.editing ? formHtml(s) : "") +
-        '<div class="settings-sec">' + translationHtml(s) + "</div>" +
-        '<p class="hint" style="margin-top:14px">' + PR.t("文献库位置：{path}", { path: PR.esc(s.cfg.library_dir) }) + "</p>";
+        '<div class="settings-sec">' + translationHtml(s) + "</div>";
     },
     sync(s) { readForm(s); readTranslation(s); },
     change(e, s) {
@@ -232,6 +216,7 @@
       return false;
     },
     async click(e, s) {
+      if (e.target.closest('[data-edit-translation-prompt]')) { PR.editTranslationPrompt(); return false; }
       if (e.target.closest("#testBtn")) {
         readTranslation(s);
         const res = PR.$("#testRes");

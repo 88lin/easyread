@@ -108,6 +108,8 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
     blocks = [b for b in ws.load("paper").get("blocks", []) if b.get("page") in batch]
     empty = [n for n in batch if not any(b.get("page") == n for b in blocks)]
     items = prompts_en.todo(blocks)
+    if cfg.get("translate_figure_text") is False:
+        items = {k: v for k, v in items.items() if not k.endswith("#image")}
     if not items:
         with _merge_lock:
             fill_zh(ws, {}, [n for n in batch if n not in empty], set())
@@ -130,6 +132,7 @@ def _fill_batch(ws: Workspace, cfg: dict, batch: list[int], cancel, say, meter=N
                 data = fixed
         except engines.EngineError as e:
             journal(ws, tr("第 {pages} 页修正失败，保留原译：{err}", pages=batch, err=e))
+    instructions.filter_figure_text(data, cfg)
     with _merge_lock:
         _unify_terms(ws, data, batch, {k: v if isinstance(v, str) else json.dumps(v, ensure_ascii=False) for k, v in items.items()})
         missing = fill_zh(ws, data, [n for n in batch if n not in empty], set(items), sentences.unmark_fill(data["zh"], ends))
@@ -181,6 +184,8 @@ def _one_batch(ws: Workspace, cfg: dict, batch: list[int], total_pages: int, can
         data = _normalize(data, batch, _taken(ws, batch))  # 并发时别的批可能刚占用了同名 id
         missing = page_check.missing_pages(ws, batch, data)  # 有的页有内容、有的页整页漏了：漏的页不算译完
         keep = [n for n in batch if n not in missing]
+        if not read:
+            instructions.filter_figure_text(data, cfg)
         prepare_figures(ws.root, data["blocks"], total_pages)
         _unify_terms(ws, data, batch)
         drop = _one_references(ws, data, batch)
@@ -402,6 +407,7 @@ def answer(ws: Workspace, cfg: dict, note_id: str, cancel) -> None:
 
 def retranslate(ws: Workspace, cfg: dict, key: str, hint: str, cancel) -> None:
     prompt, en_ends = prompts.retranslate(ws, key, hint)
+    cfg = {**cfg, "target": langs.of_paper(ws.load("paper").get("meta"))}
     prompt = instructions.apply(prompt, cfg)
     data = engines.parse_json(engines.run(engines.for_translation(cfg), prompt, ws.root, None, cancel))
     zh = (data or {}).get("zh", "").strip() if isinstance(data, dict) else ""

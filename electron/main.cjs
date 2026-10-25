@@ -8,6 +8,7 @@ const { URL } = require("url");
 const http = require("http");
 const startup = require("./startup-feedback.cjs");
 const { registerUpdates } = require("./desktop-updates.cjs");
+const { registerExports } = require("./desktop-exports.cjs");
 const deepLink = require("./deep-link.cjs");
 const dataDir = require("./data-dir.cjs");
 
@@ -326,6 +327,7 @@ if (!app.requestSingleInstanceLock()) {
     openLink(deepLink.openPath(link));
   });
   app.whenReady().then(() => {
+  registerExports({ app, ipcMain, dialog, getWindow: () => mainWindow, trustedWindow });
     deepLink.register(app, process);
     registerUpdates({
       app, ipcMain, updater: require("electron-updater").autoUpdater, trustedWindow,
