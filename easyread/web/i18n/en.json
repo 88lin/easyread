@@ -1326,5 +1326,10 @@
   "图片格式不支持或尺寸过大": "The image format is unsupported or its dimensions are too large.",
   "图片转存后过大，请缩小图片后重新粘贴": "The decoded image is too large. Resize it and paste it again.",
   "图片无法读取，请重新复制后粘贴": "Could not read the image. Copy and paste it again.",
-  "图片目录无效": "Invalid image directory."
+  "图片目录无效": "Invalid image directory.",
+  "使用本机 ZCode 登录态；模型和推理选项跟随 ZCode 设置，看图能力取决于所选模型": "Uses your local ZCode login and model settings. Image support depends on the selected model.",
+  "安装并登录 ZCode CLI": "Install and sign in to ZCode CLI",
+  "跟随 ZCode 中选择的模型": "Uses the model selected in ZCode",
+  "ZCode 跟随自身的模型设置，请在 ZCode 中切换模型和推理选项": "Change the model and reasoning options in ZCode; EasyRead follows those settings.",
+  "ZCode 暂不支持额外参数，请清空 zcode.extra_args": "Extra ZCode arguments are not supported yet. Clear zcode.extra_args."
 }

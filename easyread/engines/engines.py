@@ -18,7 +18,7 @@ import threading
 from pathlib import Path
 
 from ..app.i18n import tr
-from . import agent_cli, codebuddy_cli, codex_lean, netcheck, usage
+from . import agent_cli, codebuddy_cli, codex_lean, netcheck, usage, zcode_cli
 from ..app.log import log
 
 
@@ -32,9 +32,9 @@ class Cancelled(RuntimeError):
     pass
 
 
-ENGINE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI", "codebuddy": "CodeBuddy CLI", **{k: v["name"] for k, v in agent_cli.SPECS.items()},
+ENGINE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI", "codebuddy": "CodeBuddy CLI", "zcode": "ZCode CLI", **{k: v["name"] for k, v in agent_cli.SPECS.items()},
                 "openai": "API", "none": "不翻译"}  # i18n-ok 显示时用 engine_name()
-CLI_ENGINES = ("claude", "codex", "codebuddy", *agent_cli.ENGINES)  # 本机 CLI：起子进程、用已登录的订阅
+CLI_ENGINES = ("claude", "codex", "codebuddy", "zcode", *agent_cli.ENGINES)  # 本机 CLI：起子进程、用已登录的订阅
 
 
 def engine_name(engine: str | None) -> str:
@@ -61,6 +61,8 @@ def _run(cfg: dict, prompt: str, cwd: Path, images: list[Path] | None, cancel: t
         return run_codex(cfg["codex"], prompt, cwd, images or [], cancel, meter)
     if engine == "codebuddy":
         return codebuddy_cli.run(cfg["codebuddy"], prompt, cwd, images or [], cancel, meter)
+    if engine == "zcode":
+        return zcode_cli.run(cfg["zcode"], prompt, cwd, images or [], cancel, meter)
     if engine == "openai":
         return run_openai(cfg["openai"], prompt, images or [], cancel, meter)
     if engine in agent_cli.ENGINES:
@@ -73,7 +75,7 @@ def image_mode(cfg: dict) -> str:
     engine = cfg.get("engine")
     if engine == "claude" or engine in agent_cli.ENGINES:
         return "claude"
-    if engine in ("codex", "codebuddy") or (engine == "openai" and cfg["openai"].get("vision")):
+    if engine in ("codex", "codebuddy", "zcode") or (engine == "openai" and cfg["openai"].get("vision")):
         return "attached"
     return "text"
 
@@ -108,6 +110,8 @@ def cli_path(engine: str, c: dict) -> str | None:
         return codex_path(c)
     if engine == "codebuddy":
         return codebuddy_cli.path(c)
+    if engine == "zcode":
+        return zcode_cli.path(c)
     return agent_cli.path(engine, c)
 
 

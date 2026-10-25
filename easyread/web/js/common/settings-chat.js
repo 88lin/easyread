@@ -100,7 +100,8 @@
       Object.keys(PR.agentClis).map((k) => card(k, PR.agentClis[k].name)).join("") + card("api", PR.t("API 接口")) + "</div>";
     if (PR.isAgentCli(f.kind)) {  // 没有现成的模型名单：自己填，空着用 CLI 自己的默认
       const found = (s.found || {})[f.kind], a = PR.agentClis[f.kind];
-      h += '<label class="field"><span>' + PR.t("模型") + '</span><input class="input" id="cmModel" value="' + PR.esc(f.model || "") + '" placeholder="' + PR.t("留空用它自己的默认模型") + '"></label>' +
+      h += (a.defaultOnly ? '<p class="hint">' + PR.t("跟随 ZCode 中选择的模型") + '</p>' :
+        '<label class="field"><span>' + PR.t("模型") + '</span><input class="input" id="cmModel" value="' + PR.esc(f.model || "") + '" placeholder="' + PR.t("留空用它自己的默认模型") + '"></label>') +
         (found && !found.found ? '<p class="hint">' + PR.t("本机没找到 {name}", { name: '<a href="' + a.url + '" target="_blank" rel="noopener">' + a.name + "</a>" }) + "</p>" : "");
       if (a.hint) h += '<p class="hint">' + PR.esc(a.hint) + ' · <a href="' + a.url + '" target="_blank" rel="noopener">' + PR.esc(a.setup) + " ↗</a></p>";
     } else if (f.kind === "claude" || f.kind === "codex") {
@@ -137,6 +138,7 @@
     if (!f) return;
     const v = (id) => { const el = PR.$("#" + id); return el ? el.value.trim() : null; };
     if (isApi(f.kind)) PR.apiForm.read(root(), f, "key");
+    else if (PR.isAgentCli(f.kind) && PR.agentClis[f.kind].defaultOnly) f.model = "";
     else if (v("cmModel") !== null) f.model = v("cmModel");
     for (const key of ["reasoning_effort", "service_tier"]) {
       const el = PR.$('[data-reasoning="' + key + '"]', root());

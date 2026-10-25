@@ -5,6 +5,9 @@
   "use strict";
   /* efforts：能传的推理强度（和后端 agent_cli.SPECS 一致），空的就不显示推理强度 */
   PR.agentClis = {
+    zcode: { name: "ZCode CLI", url: "https://github.com/zai-org/ZCode/tree/main/apps/zcode-cli/docs/usage", efforts: [], defaultOnly: true,
+      hint: PR.t("使用本机 ZCode 登录态；模型和推理选项跟随 ZCode 设置，看图能力取决于所选模型"),
+      setup: PR.t("安装并登录 ZCode CLI") },
     grok: { name: "Grok Build", url: "https://x.ai/cli", efforts: ["low", "medium", "high"] },
     agy: { name: "Antigravity CLI", url: "https://antigravity.google/docs/cli", efforts: ["low", "medium", "high", "xhigh", "max"] },
     cursor: { name: "Cursor CLI", url: "https://cursor.com/docs/cli/installation", efforts: [] },
