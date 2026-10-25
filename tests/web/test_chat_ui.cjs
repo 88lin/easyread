@@ -290,7 +290,7 @@ test("Markdown export includes all conversations and complete answers, online an
       debounce: fn => fn,
     };
     const context = {
-      window: { PR }, document: { addEventListener() {}, body: { appendChild() {} } },
+      window: { PR, addEventListener() {} }, document: { addEventListener() {}, body: { appendChild() {} } },
       Blob, URL: { createObjectURL(value) { blob = value; return "blob:test"; } },
     };
     vm.runInNewContext(source("notespanel"), context);
