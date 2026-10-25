@@ -4,7 +4,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { test } = require("node:test");
 
-function render(blocks) {
+function render(blocks, options = {}) {
   const paperEl = { innerHTML: "" };
   const bodyClass = new Set();
   const PR = {
@@ -40,7 +40,13 @@ function render(blocks) {
     emit() {},
     on() {},
     fitWide() {},
+    // These tests inspect generated markup; DOM reuse is a separate layer.
+    updatePaperHtml: (element, html) => { element.innerHTML = html; },
   };
+  if (options.pages) PR.state.paper.meta.pages = options.pages;
+  if (options.job) PR.state.job = options.job;
+  if (options.mode) PR.store.mode = options.mode;
+  PR.pageCapHtml = () => "";
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../../easyread/web/js/common/markup.js"), "utf8"), { window: { PR }, URL });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../../easyread/web/js/reader/render.js"), "utf8"), {
     window: { PR },
@@ -72,5 +78,28 @@ test("one malformed block does not blank the rest of the reader", () => {
   ]);
   assert.match(html, /AFTER_MALFORMED_BLOCK/);
   assert.match(html, /bad/);
+});
+
+test("failed preparation shows escaped error and a model-free retry instead of a spinner", () => {
+  const html = render([], { pages: [], mode: "server", job: { state: "error", error: 'MemoryError <script>bad()</script>' } });
+  assert.match(html, /MemoryError &lt;script&gt;/);
+  assert.match(html, /data-t="retry-prepare"/);
+  assert.doesNotMatch(html, /class="spin"|<script>/);
+  // main.js refreshes job-only updates only when this exact wrapper exists.
+  assert.match(html, /class="pending-pages"><div class="pending"/);
+});
+
+test("only queued or running preparation shows a spinner", () => {
+  for (const state of ["queued", "running", "cancelled", "done", ""]) {
+    const html = render([], { pages: [], mode: "server", job: { state } });
+    assert.equal(html.includes('class="spin"'), ["queued", "running"].includes(state));
+    assert.equal(html.includes('data-t="retry-prepare"'), !["queued", "running"].includes(state));
+  }
+});
+
+test("offline unprepared documents do not offer an unavailable retry API", () => {
+  const html = render([], { pages: [], job: { state: "error", error: "MemoryError" } });
+  assert.match(html, /MemoryError/);
+  assert.doesNotMatch(html, /retry-prepare|class="spin"/);
 });
 

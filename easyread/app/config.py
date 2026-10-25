@@ -29,6 +29,9 @@ DEFAULTS = {
     "auto_translate": True,      # 导入后自动开始翻译
     "target": "zh",              # 译文语言，见 langs.py
     "translation_instructions": "",
+    "translation_prompt": None,
+    "translate_figure_text": True,
+    "opencode": {"command": "", "model": "", "extra_args": [], "timeout": 1200},
     "check_updates": True,       # 打开文献库时问 GitHub 有没有新版本（一天一次），见 updates.py
     "batch_pages": 2,            # 每次交给模型的页数
     "paper_concurrency": 1,      # 默认逐篇处理；手动设1-4，重启生效，会与每篇的分段并发相乘
@@ -38,6 +41,7 @@ DEFAULTS = {
     "claude": {"command": "claude", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
     "codex": {"command": "codex", "model": "", "reasoning_effort": "", "service_tier": "", "extra_args": [], "timeout": 1200},
     "codebuddy": {"command": "codebuddy", "model": "", "extra_args": [], "timeout": 1200},
+    "zcode": {"command": "zcode", "model": "", "extra_args": [], "timeout": 1200},
     # 另外三个本机 CLI（见 agent_cli.py）；command 空着按默认名找，model 空着用 CLI 自己的默认
     "grok": {"command": "", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
     "agy": {"command": "", "model": "", "reasoning_effort": "", "extra_args": [], "timeout": 1200},
@@ -109,7 +113,10 @@ def with_key(o: dict) -> dict:
 def public(cfg: dict) -> dict:
     """给页面看的配置：密钥只露后四位。"""
     from .api_keys import saved_keys
+    from ..translate import prompt_style
     out = copy.deepcopy(cfg)
+    out["translation_prompt_default"] = prompt_style.default(cfg.get("target"))
+    out["translation_prompt_effective"] = prompt_style.effective(cfg)
     out["openai"]["keys"] = saved_keys(cfg["openai"])
     key = out["openai"].get("api_key") or ""
     out["openai"]["api_key"] = ("••••" + key[-4:]) if key else ""

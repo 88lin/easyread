@@ -12,6 +12,7 @@ test("page limit options include a translated page unit and keep numeric values"
       (value === selected ? " selected" : "") + '>' + label + '</option>').join(""),
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../../easyread/web/js/common/settings-chat.js"), "utf8"), { window: { PR } });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../../easyread/web/js/common/settings-translation.js"), "utf8"), { window: { PR } });
   const state = { pinned: true, transChecked: true, cfg: { engine: "claude", claude: {}, page_cap: 60, translation_instructions: "Keep KV cache" }, chat: { models: [] } };
   const html = PR.settingsTabs.chat.render(state);
   const options = html.match(/data-k="page_cap">([\s\S]*?)<\/select>/)[1];
@@ -20,5 +21,6 @@ test("page limit options include a translated page unit and keep numeric values"
   }
   assert.match(options, /value="60" selected/);
   assert.match(options, /value="0">/);
-  assert.match(html, /data-k="translation_instructions"[^>]*>Keep KV cache<\/textarea>/);
+  assert.match(html, /data-edit-translation-prompt/);
+  assert.doesNotMatch(html, /data-k="translation_instructions"/);
 });

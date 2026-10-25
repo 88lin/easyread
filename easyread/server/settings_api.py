@@ -5,11 +5,18 @@ from ..chat import chat_models
 from ..app import config
 from ..app.api_keys import resolve, saved_keys
 from ..engines import engines, openai_api
-from ..translate import langs, instructions
+from ..translate import langs, instructions, prompt_style
 from ..app.i18n import tr
 
 
 def save_config(patch: dict) -> dict:
+    patch.pop("translation_prompt_default", None)
+    patch.pop("translation_prompt_effective", None)
+    patch.pop("translation_extra", None)  # Task-only instructions must never become global.
+    if "translation_prompt" in patch:
+        patch["translation_prompt"] = prompt_style.validate(patch["translation_prompt"])
+    if "translate_figure_text" in patch and type(patch["translate_figure_text"]) is not bool:
+        raise ValueError("translate_figure_text must be a boolean")
     if "translation_instructions" in patch:
         patch["translation_instructions"] = instructions.validate(patch["translation_instructions"])
     patch.pop("library_dir", None)

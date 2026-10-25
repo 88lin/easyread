@@ -119,8 +119,13 @@
   const td = PR.$("#textDlg");
   if (td) td.addEventListener("click", (e) => { if (e.target.id === "textDlg" || e.target.closest("[data-close]")) td.classList.remove("open"); });
 
+  let backdropPress = false;
+  dlg().addEventListener("pointerdown", (e) => { backdropPress = e.target === dlg(); });
+  dlg().addEventListener("pointercancel", () => { backdropPress = false; });
   dlg().addEventListener("click", async (e) => {
-    if (e.target === dlg() || e.target.closest("#setCancel")) { st.recording = null; return dlg().classList.remove("open"); }
+    const closeBackdrop = backdropPress && e.target === dlg();
+    backdropPress = false;
+    if (closeBackdrop || e.target.closest("#setCancel")) { st.recording = null; return dlg().classList.remove("open"); }
     const tb = e.target.closest("[data-set-tab]");
     if (tb) { sync(); st.tab = tb.dataset.setTab; st.recording = null; st.editing = null; render(); return; }
     if (e.target.closest("#showLog")) { const r = await PR.api("/api/log"); PR.showText(PR.t("运行日志"), r.text + "\n\n" + PR.t("（完整日志：{path}）", { path: r.path })); return; }
@@ -133,6 +138,7 @@
     if (t && t.change && t.change(e, st, dlg())) render();
   });
   document.addEventListener("keydown", (e) => {
+    if (document.querySelector('.translation-dialog')) return;
     if (!dlg().classList.contains("open")) return;
     const t = PR.settingsTabs[st.tab];
     if (st.recording && t && t.key) { e.preventDefault(); e.stopImmediatePropagation(); if (t.key(e, st)) render(); return; }
@@ -145,6 +151,8 @@
       const c = state.cfg, o = c.openai;
       return { engine: c.engine, batch_pages: c.batch_pages, concurrency: c.concurrency, page_cap: c.page_cap, auto_translate: c.auto_translate,
         translation_instructions: c.translation_instructions || "",
+        translation_prompt: c.translation_prompt ?? null,
+        translate_figure_text: c.translate_figure_text !== false,
         paper_concurrency: Number.isInteger(c.paper_concurrency) ? Math.max(1, Math.min(4, c.paper_concurrency)) : 1,
         claude: { model: c.claude.model, command: c.claude.command, reasoning_effort: c.claude.reasoning_effort || "" },
         codex: { model: c.codex.model, command: c.codex.command, reasoning_effort: c.codex.reasoning_effort || "", service_tier: c.codex.service_tier || "" },

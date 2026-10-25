@@ -94,7 +94,7 @@ def _pending(ws):
     out = []
     for b in (ws.load("paper") or {}).get("blocks", []):
         src = b.get("src", "")
-        if b.get("type") != "figure" or src and not src.startswith("figures/crop-"):
+        if b.get("type") != "figure" or "manual_crop" in b or src and not src.startswith("figures/crop-"):
             continue
         loc = layout.get(b.get("id")) or {}
         box = figure_box(loc.get("crop") or loc.get("box"))
