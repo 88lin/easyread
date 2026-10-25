@@ -2,6 +2,7 @@
 import base64
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -69,7 +70,9 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(opencode_cli.parse('{"type":"error","error":{"data":{"message":"login required"}}}')[1], "login required")
 
     def test_opencode_disables_agent_tools_and_passes_images_as_arguments(self):
-        env = opencode_cli.environment()
+        with patch.object(opencode_cli.netcheck, "proxy_env", return_value=None):
+            env = opencode_cli.environment()
+        self.assertEqual(env.get("PATH"), os.environ.get("PATH"))
         self.assertEqual(json.loads(env["OPENCODE_PERMISSION"]), {"*": "deny"})
         config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
         self.assertEqual(config["agent"]["easyread-reader"]["permission"], {"*": "deny"})

@@ -5,6 +5,10 @@
   const strip = document.querySelector("#tabs");
   let active = "library";
   const t = text => window.PR?.t(text) || text;
+  function syncTheme(tab) {
+    const theme = tab.frame.contentDocument?.documentElement.dataset.theme;
+    if (active === tab.id && theme) document.documentElement.dataset.theme = theme;
+  }
   function notify(text) {
     const el = document.querySelector("#message");
     el.textContent = text; el.hidden = false;
@@ -25,6 +29,7 @@
       tab.frame.inert = !selected;
     }
     const tab = tabs.get(id);
+    syncTheme(tab);
     document.title = tab.button.textContent + " · EasyRead";
     tab.node.scrollIntoView({ block: "nearest", inline: "nearest" });
     tab.frame.contentWindow.focus();
@@ -44,7 +49,8 @@
       if (!await save(tab)) throw new Error("save failed");
       const ids = [...tabs.keys()], index = ids.indexOf(id);
       if (active === id) select(ids[index - 1] || "library");
-      tab.observer?.disconnect(); tab.frame.remove(); tab.node.remove(); tabs.delete(id);
+      tab.observer?.disconnect(); tab.themeObserver?.disconnect();
+      tab.frame.remove(); tab.node.remove(); tabs.delete(id);
     } catch (_) { notify(t("尚未保存成功，请保持标签打开，稍后重试")); }
     finally { tab.closing = false; }
   }
@@ -99,6 +105,10 @@
     tab.observer?.disconnect();
     tab.observer = new MutationObserver(updateTitle);
     tab.observer.observe(doc.querySelector("title") || doc.head, { childList: true, subtree: true, characterData: true });
+    tab.themeObserver?.disconnect();
+    tab.themeObserver = new MutationObserver(() => syncTheme(tab));
+    tab.themeObserver.observe(doc.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    syncTheme(tab);
     updateTitle();
   }
   function create(id, url, title) {

@@ -4,6 +4,7 @@ Reference: https://opencode.ai/docs/cli/ and /docs/permissions/.
 Each call starts a fresh session with all agent tools denied.
 """
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -27,7 +28,7 @@ def build_args(exe, c, images):
 
 
 def environment():
-    env = netcheck.proxy_env()
+    env = dict(netcheck.proxy_env() or os.environ)
     env.update(OPENCODE_DISABLE_AUTOUPDATE="true", OPENCODE_DISABLE_CLAUDE_CODE="true",
                OPENCODE_DISABLE_AUTOCOMPACT="true", OPENCODE_DISABLE_DEFAULT_PLUGINS="true",
                OPENCODE_PERMISSION=json.dumps({"*": "deny"}))
