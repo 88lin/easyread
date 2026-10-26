@@ -56,7 +56,7 @@ class SelectionTranslateTest(unittest.TestCase):
         self.assertEqual(source, {"selected_text": "attend to", "paragraph": self.paper["blocks"][0]["en"]})
         self.assertEqual(args[0], self.cfg)
         self.assertEqual(args[2], self.root)
-        self.assertEqual(json.loads((self.root / "paper.json").read_text()), self.paper)
+        self.assertEqual(json.loads((self.root / "paper.json").read_text(encoding="utf-8")), self.paper)
         self.assertEqual({p.name for p in self.root.iterdir()}, {"paper.json"})
 
     def test_cached_answer_includes_phonetics_without_another_model_call(self):
