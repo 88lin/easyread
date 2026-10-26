@@ -3,10 +3,12 @@ import json
 import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from PIL import Image
 
+from easyread.app import i18n
 from easyread.engines import codex_image, engines, usage
 from tests.engines.test_image_edit import png
 
@@ -24,7 +26,9 @@ class CodexImageTest(unittest.TestCase):
             return self.proc
 
         for replacement in (patch.object(engines, "codex_path", return_value="codex"),
-                            patch.object(codex_image.subprocess, "Popen", side_effect=popen),
+                            # Keep other subprocess users (e.g. macOS locale detection) real.
+                            patch.object(codex_image, "subprocess", SimpleNamespace(
+                                Popen=Mock(side_effect=popen), PIPE=codex_image.subprocess.PIPE)),
                             patch.object(codex_image.netcheck, "proxy_env", return_value={"OPENAI_API_KEY": "paid-secret", "CODEX_API_KEY": "other-secret", "OPENAI_BASE_URL": "https://paid.example", "PATH": "bin"})):
             replacement.start()
             self.addCleanup(replacement.stop)
@@ -61,7 +65,11 @@ class CodexImageTest(unittest.TestCase):
         self.assertFalse(self.root.exists())
 
     def test_no_proxy_override_still_removes_paid_credentials(self):
-        with patch.object(codex_image.netcheck, "proxy_env", return_value=None), \
+        # Exercise language detection without relying on the host's preferences/cache.
+        i18n.system_lang.cache_clear()
+        self.addCleanup(i18n.system_lang.cache_clear)
+        with patch.object(i18n, "choice", return_value="auto"), \
+                patch.object(codex_image.netcheck, "proxy_env", return_value=None), \
                 patch.dict(codex_image.os.environ, {"OPENAI_API_KEY": "paid-secret", "PATH": "test-bin"}, clear=True), \
                 patch.object(engines, "_communicate", return_value=""):
             with self.assertRaises(engines.EngineError):
