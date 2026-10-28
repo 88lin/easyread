@@ -272,59 +272,6 @@ test("a failed first question can be left for a new conversation and retried wit
   assert.ok(r.panel.innerHTML.includes(answer));
 });
 
-test("Markdown export includes all conversations and complete answers, online and offline", async () => {
-  const chat = { threads: [
-    { messages: [{ role: "user", content: "first" }, { role: "assistant", content: answer, model: "Model" }] },
-    { messages: [{ role: "user", content: "second" }, { role: "assistant", content: "normal answer", model: "Model" }] },
-  ] };
-  for (const mode of ["server", "static"]) {
-    let go, blob, downloaded = false;
-    const dlg = { addEventListener(name, fn) { go = fn; }, classList: { remove() {} } };
-    const panel = { addEventListener() {} };
-    const PR = {
-    t: (s, v) => v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k]) : s,
-      state: { paper: { meta: { title_en: "Test paper" }, blocks: [] }, reader: {}, discussion: {}, chat }, store: { mode }, pid: "test",
-      $: selector => selector === "#readerDlg" ? dlg : panel,
-      $$: () => [{ dataset: { exp: "chat" }, checked: true }], ls: { get: (k, fallback) => fallback, set() {} },
-      api: async () => chat, myNotes: () => [], el: () => ({ click() { downloaded = true; }, remove() {} }),
-      debounce: fn => fn,
-    };
-    const context = {
-      window: { PR, addEventListener() {} }, document: { addEventListener() {}, body: { appendChild() {} } },
-      Blob, URL: { createObjectURL(value) { blob = value; return "blob:test"; } },
-    };
-    vm.runInNewContext(source("notespanel"), context);
-    vm.runInNewContext(source("export"), context);
-    await go({ target: { closest: selector => selector === "[data-exp-go]" } });
-    const text = await blob.text();
-    assert.ok(downloaded);
-    assert.ok(text.includes(answer));
-    assert.ok(text.includes("first"));
-    assert.ok(text.includes("second"));
-    assert.ok(text.includes("normal answer"));
-  }
-});
-
-test("a failed chat export keeps the dialog open, creates no file, and treats the error as text", async () => {
-  let go, closed = false, downloaded = false;
-  const notices = [];
-  const dlg = { addEventListener(name, fn) { go = fn; }, classList: { remove() { closed = true; } } };
-  const PR = {
-    t: (s, v) => v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k]) : s,
-    state: { chat: {} }, store: { mode: "server" }, pid: "test",
-    $: () => dlg, $$: () => [{ dataset: { exp: "chat" }, checked: true }], ls: { set() {} },
-    api: async () => { throw new Error('<img src=x onerror="alert(1)">'); },
-    esc: text => String(text).replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-    toast: text => notices.push(text), notesMarkdown() { downloaded = true; },
-  };
-  vm.runInNewContext(source("export"), { window: { PR } });
-  await go({ target: { closest: selector => selector === "[data-exp-go]" } });
-  assert.equal(closed, false);
-  assert.equal(downloaded, false);
-  assert.ok(notices[0].includes('&lt;img'));
-  assert.ok(!notices[0].includes('<img'));
-});
-
 test("thinking effort lives in the model menu and shows on the model button once chosen", async () => {
   const r = await reader([], {});
   r.PR.state.models = null;

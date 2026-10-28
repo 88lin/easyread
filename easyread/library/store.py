@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .fs_retry import retry_write
+
 SCHEMA = 2
 
 
@@ -62,8 +64,13 @@ def dir_lock(folder: Path, name: str = ".write.lock", timeout: float = 15.0):
     start = time.time()
     while True:
         try:
-            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode())
+            fd = retry_write(lambda: os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            try:
+                retry_write(lambda: os.write(fd, str(os.getpid()).encode()))
+            except OSError:
+                os.close(fd)
+                retry_write(lambda: lock.unlink(missing_ok=True))
+                raise
             os.close(fd)
             break
         except FileExistsError:
@@ -80,7 +87,7 @@ def dir_lock(folder: Path, name: str = ".write.lock", timeout: float = 15.0):
     try:
         yield
     finally:
-        lock.unlink(missing_ok=True)
+        retry_write(lambda: lock.unlink(missing_ok=True))
 
 
 def text_hash(s: str | None) -> str:

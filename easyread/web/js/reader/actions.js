@@ -27,7 +27,7 @@
     if (PR.canChat() && PR.feature("chat")) list.push({ k: "chat", label: PR.chatOpen && PR.chatOpen() ? PR.t("引用到对话") : PR.t("问 AI"), icon: "sparkle", fn: () => PR.chatAsk({ anchor: id }) });
     if (hasEn && PR.feature("en")) list.push({ k: "en", label: (PR.originalFirst() && PR.prefs.mode !== "bi" ? PR.t("译文") : PR.t("原文")), icon: "en", fn: () => PR.toggleEn(id) });
     if (keys.length && PR.feature("edit")) list.push({ k: "edit", label: PR.t("改译文"), icon: "edit", fn: () => { if (PR.originalFirst()) PR.toggleEn(id, true); const zh = PR.$("#b-" + CSS.escape(id) + " .zh[data-key]"); zh && PR.editZh(zh); } });
-    if (b.page && PR.feature("pages")) list.push({ k: "page", label: PR.t("PDF p.{page}", { page: b.page }), icon: "page", fn: () => PR.openPage(b.page, id) });
+    if (b.page && PR.feature("pages")) list.push({ k: "page", label: PR.t("查看 PDF 第 {page} 页", { page: b.page }), icon: "page", fn: () => PR.openPage(b.page, id) });
     // 重译花 token、容易误点：默认关，开了也只放在“⋯”菜单里
     if (keys.length && PR.canAsk() && PR.feature("retranslate")) list.push({ k: "redo", label: PR.t("让模型重译这段…"), icon: "redo", menuOnly: true, fn: () => retranslate(id) });
     list.forEach((a) => { a.kbd = PR.keyOf ? PR.keyOf(a.k) : ""; });
@@ -76,6 +76,7 @@
   function blockMenu(id, where) {
     const b = PR.blockById[id];
     const items = actionsFor(id).map((a) => ({ label: a.label, icon: a.icon, kbd: a.kbd, fn: a.fn }));
+    if (b?.type === "figure" && PR.store.mode === "server") items.push({label: PR.t("重新截取图片"), icon: "edit", fn: () => PR.cropFigure(id)});
     items.push("-",
       { label: PR.t("复制译文"), icon: "copy", kbd: PR.keyOf("copy"), fn: () => copyBlock(id, "zh") },
       { label: PR.t("复制英文原文"), icon: "copy", fn: () => copyBlock(id, "en") },
@@ -125,11 +126,12 @@
     if (t.dataset.t === "page" && b) PR.openPage(b.page, id);
     if (t.dataset.t === "pin") host.classList.toggle("notes-open");
     if (t.dataset.t === "stale") PR.showStale(t.closest(".zh"));
+    if (t.dataset.t === "retry-prepare") PR.api("/api/p/" + PR.pid + "/prepare", { method: "POST", body: {} }).then(() => PR.poll()).catch(error => PR.toast(PR.esc(error.message)));
     if (t.dataset.t === "retry-failed") PR.api("/api/p/" + PR.pid + "/translate", { method: "POST", body: { failed: true } }).then(() => { PR.toast(PR.t("正在重试，译好后自动替换")); PR.poll(); });
-    if (t.dataset.t === "translate-en") PR.api("/api/p/" + PR.pid + "/translate", { method: "POST", body: { en: true } }).then(() => { PR.toast(PR.t("已开始翻译，译好的页就地换成{lang}，笔记和划线都保留", { lang: PR.targetName((PR.state.paper.meta || {}).target || PR.target) })); PR.poll(); });
+    if (t.dataset.t === "translate-en") PR.startTranslation(PR.pid, {en:true}).then(started => { if (started) { PR.toast(PR.t("已开始翻译，译好的页就地换成{lang}，笔记和划线都保留", { lang: PR.targetName((PR.state.paper.meta || {}).target || PR.target) })); PR.poll(); } }).catch(error => PR.toast(error.message));
     if (t.dataset.t === "model-settings") PR.openSettings("chat");
     if (t.dataset.t === "read-rest") PR.api("/api/p/" + PR.pid + "/translate", { method: "POST", body: { read: true, ...((S.job || {}).state === "error" ? { scope: S.job.scope || "all" } : {}) } }).then(() => { PR.toast(PR.t("已开始整理，整理好的页会自动出现")); PR.poll(); }).catch(error => PR.toast(PR.esc(error.message)));
-    if (t.dataset.t === "translate-rest") PR.api("/api/p/" + PR.pid + "/translate", { method: "POST", body: {} }).then(() => { PR.toast(PR.t("已开始翻译，译好的页会自动出现")); PR.poll(); });
+    if (t.dataset.t === "translate-rest") PR.startTranslation(PR.pid).then(started => { if (started) { PR.toast(PR.t("已开始翻译，译好的页会自动出现")); PR.poll(); } }).catch(error => PR.toast(error.message));
   });
 
   /* ---------- 重译 ---------- */

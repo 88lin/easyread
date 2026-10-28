@@ -41,6 +41,7 @@
       '<div class="imp-opts' + (after === "none" ? " dim" : "") + '" id="modelRow"><span class="imp-lbl">' + PR.t("模型") + '</span><select class="input" id="impModel">' +
       '<option value="">' + PR.esc(L.engineLabel || PR.t("未设置")) + "</option></select>" +
       '<button class="linkish" id="impEngine" title="' + PR.t("增删模型在设置 → 模型") + '">' + PR.t("管理模型") + "</button></div>" +
+      '<div id="impExtra"' + (after === 'translate' ? '' : ' hidden') + '>' + PR.translationExtraHtml() + '</div>' +
       '<div class="actions"><button class="btn" id="impClose">' + PR.t("关闭") + "</button></div>";
     dlg.classList.add("open");
     setTimeout(() => { const i = PR.$("#arxivRef"); if (ref) i.value = ref; i.focus(); }, 50);
@@ -68,7 +69,8 @@
     const scope = p.scope === "range" ? "range:" + Math.min(from, to) + "-" + Math.max(from, to) : p.scope;
     const sel = PR.$("#impModel"), tgt = PR.$("#impTarget");  // 拖进来导入时对话框没开，用设置里的译文语言
     return { translate: after !== "none", read: after === "read", scope, model: after === "none" ? "" : sel ? sel.value : "",
-      target: after === "translate" ? (tgt ? tgt.value : PR.target) : "" };
+      target: after === "translate" ? (tgt ? tgt.value : PR.target) : "",
+      translation_extra: after === "translate" && dlg.classList.contains('open') ? (dlg.querySelector('[data-translation-extra]')?.value.trim() || '') : '' };
   }
 
   dlg.addEventListener("click", (e) => {
@@ -81,6 +83,7 @@
     const a = e.target.closest("[data-after]");
     if (a && !a.disabled) {
       savePref({ after: a.dataset.after });
+      PR.$('#impExtra').hidden = a.dataset.after !== 'translate';
       PR.$$("[data-after]", dlg).forEach((b) => b.classList.toggle("on", b === a));
       PR.$("#scopeRow").classList.toggle("dim", a.dataset.after === "none");
       PR.$("#modelRow").classList.toggle("dim", a.dataset.after === "none");
@@ -109,8 +112,9 @@
   async function importFiles(files) {
     const pdfs = files.filter((f) => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
     if (!pdfs.length) return PR.toast(PR.t("只支持 PDF 文件"));
-    close();
     let o = opts();
+    const wasOpen = dlg.classList.contains('open');
+    close();
     // 一次拖进来很多篇：默认先只导入，免得按上次的设置把额度一下子用光
     if (pdfs.length > BULK && o.translate) {
       const pick = await PR.confirm({
@@ -121,11 +125,16 @@
       if (!pick) return;
       if (pick === true) o = Object.assign(o, { translate: false, read: false, model: "", target: "" });
     }
+    if (!wasOpen && o.translate && !o.read) {
+      const extra = await PR.translationDialog();
+      if (extra === null) return;
+      o.translation_extra = extra;
+    }
     let last = null;
     for (const [k, f] of pdfs.entries()) {
       PR.toast(PR.t("正在导入 {i}/{n}：{name}", { i: k + 1, n: pdfs.length, name: PR.esc(f.name) }), null, 60000);
       try {
-        const r = await PR.api("/api/import?translate=" + (o.translate ? 1 : 0) + "&read=" + (o.read ? 1 : 0) + "&model=" + encodeURIComponent(o.model) + "&target=" + encodeURIComponent(o.target) + "&scope=" + encodeURIComponent(o.scope) + "&name=" + encodeURIComponent(f.name), { method: "POST", body: f });
+        const r = await PR.api("/api/import?translate=" + (o.translate ? 1 : 0) + "&read=" + (o.read ? 1 : 0) + "&model=" + encodeURIComponent(o.model) + "&target=" + encodeURIComponent(o.target) + "&scope=" + encodeURIComponent(o.scope) + "&translation_extra=" + encodeURIComponent(o.translation_extra) + "&name=" + encodeURIComponent(f.name), { method: "POST", body: f });
         last = r.id;
         if (!r.new) PR.toast(r.queued ? PR.t("《{name}》已重新加入准备队列", { name: PR.esc(f.name) }) : PR.t("《{name}》已经在库里了", { name: PR.esc(f.name) }));
       } catch (e) { PR.toast(PR.t("导入失败：{msg}", { msg: PR.esc(e.message) })); }
@@ -142,7 +151,7 @@
     else PR.toast('<span class="spin"></span> ' + PR.t("正在查找并下载 {ref}", { ref: PR.esc(ref) }), null, 60000);
     const o = opts();
     try {
-      const r = await PR.api("/api/import-url", { method: "POST", body: { ref, translate: o.translate, read: o.read, model: o.model, scope: o.scope, target: o.target } });
+      const r = await PR.api("/api/import-url", { method: "POST", body: { ref, ...o } });
       close();
       await L.load();
       L.select(r.id);
