@@ -36,7 +36,9 @@ def _generated_image(events: list[dict], started: float) -> Path | None:
                 continue
             try:
                 resolved = path.resolve(strict=True)
-                if not resolved.is_relative_to(allowed) or any(p.is_symlink() for p in (path, *path.parents)):
+                # macOS aliases /var to /private/var. Validate the canonical
+                # destination, while still refusing a symlink as the image itself.
+                if not resolved.is_relative_to(allowed) or path.is_symlink():
                     continue
                 if resolved.is_file() and resolved.stat().st_mtime >= started - 1:
                     return resolved
