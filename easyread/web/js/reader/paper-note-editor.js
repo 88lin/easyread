@@ -39,6 +39,8 @@
     el.querySelector(".pn-divider").hidden = !visible;
     el.querySelector(".pn-mindmap").hidden = !visible;
     button.setAttribute("aria-expanded", String(visible));
+    button.setAttribute("aria-pressed", String(visible));
+    button.classList.toggle("on", visible);
     const action = visible ? PR.t("隐藏思维导图") : PR.t("显示思维导图");
     button.title = action;
     button.setAttribute("aria-label", action);
@@ -147,7 +149,7 @@
 
   PR.paperNoteEditor = {
     html(body) {
-      const modes = [["rich", PR.t("富文本")], ["source", "Markdown"]];
+      const modes = [["rich", PR.t("预览")], ["source", "Markdown"]];
       return '<div class="pn-workspace"><section class="pn-writing" aria-label="' + label(PR.t("论文笔记编辑器")) + '">' +
         '<div class="pn-bar"><div class="seg" role="group" aria-label="' + label(PR.t("笔记显示方式")) + '">' + modes.map(([key, text]) => '<button data-note-mode="' + key + '">' + text + '</button>').join("") + '</div><span class="grow"></span><button class="btn sm" data-note-map-toggle aria-controls="pnMindmap">Markmap</button></div>' +
         '<div class="pn-format"></div>' +
